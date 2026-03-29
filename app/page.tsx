@@ -576,7 +576,12 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
 
               <div>
               <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
-              <input type="tel" maxLength={8} placeholder="예: 19800101 (숫자 8자리)" value={birthDate} onChange={(e) => setBirthDate(e.target.value.replace(/[^0-9]/g, ''))} className="w-full rounded-xl border border-white/20 bg-slate-800/80 shadow-inner px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30" />
+              <input type="tel" maxLength={10} placeholder="예: 19801013" value={birthDate} onChange={(e) => {
+                  let val = e.target.value.replace(/[^0-9]/g, '');
+                  if (val.length > 6) val = val.slice(0,4) + '-' + val.slice(4,6) + '-' + val.slice(6,8);
+                  else if (val.length > 4) val = val.slice(0,4) + '-' + val.slice(4);
+                  setBirthDate(val);
+                }} className="w-full rounded-xl border border-white/20 bg-slate-800/80 shadow-inner px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30" />
               </div>
 
               <div>
@@ -1523,7 +1528,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           })()}
         </div>
 
-        <div className="relative z-10 flex h-full flex-col items-center justify-end px-4 pt-12 pb-[120px]">
+        <div className="relative z-10 flex h-full flex-col items-center justify-end px-4 pt-12 pb-8">
           <div className="w-full max-w-md rounded-2xl border border-white/25 bg-white/15 p-5 backdrop-blur-md shadow-lg shadow-black/20">
             <textarea
               value={wishText}
@@ -2478,10 +2483,15 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                   <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
                   <input
                     type="tel"
-                    maxLength={8}
-                    placeholder="예: 19800101 (숫자 8자리)"
+                    maxLength={10}
+                    placeholder="예: 19801013"
                     value={nameBirthDate}
-                    onChange={(e) => setNameBirthDate(e.target.value.replace(/[^0-9]/g, ''))}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/[^0-9]/g, '');
+                      if (val.length > 6) val = val.slice(0,4) + '-' + val.slice(4,6) + '-' + val.slice(6,8);
+                      else if (val.length > 4) val = val.slice(0,4) + '-' + val.slice(4);
+                      setNameBirthDate(val);
+                    }}
                     className="w-full rounded-xl border border-white/20 bg-slate-800/80 shadow-inner px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
                   />
                 </div>
