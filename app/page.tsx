@@ -134,7 +134,7 @@ function FooterPolicy({ tabId }: { tabId: TabId }) {
 
   const handleAdminLogin = () => {
     const pwd = prompt("운영자 비밀번호를 입력하세요.");
-    if (pwd === "1004") { // 원하시는 비밀번호로 변경 가능
+    if (pwd === "1004") {
       localStorage.setItem("MASTER_ADMIN", "true");
       alert("✨ 운영자 모드가 활성화되었습니다. 이제 모든 프리미엄 결제가 프리패스됩니다.");
     } else if (pwd) {
@@ -170,8 +170,8 @@ function FooterPolicy({ tabId }: { tabId: TabId }) {
         <span>|</span>
         <button type="button" onClick={() => setShowPolicy("refund")} className="hover:text-white transition-colors">환불정책</button>
       </div>
-      
-      {/* 👇 더블클릭 시 숨겨진 운영자 로그인 작동 */}
+
+      {/* 🔒 더블클릭 시 숨겨진 운영자 로그인 작동 */}
       <p className="text-[9px] text-white/20 pt-2 cursor-default select-none" onDoubleClick={handleAdminLogin}>
         © 2026 명운(命運). All rights reserved.
       </p>
@@ -179,16 +179,19 @@ function FooterPolicy({ tabId }: { tabId: TabId }) {
       {/* 📜 정책 모달창 */}
       {showPolicy && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setShowPolicy(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-white/20 p-6 shadow-2xl max-h-[75vh] overflow-y-auto text-left" onClick={e=>e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-yellow-400 mb-4 border-b border-white/10 pb-3">
-              {showPolicy === "terms" ? "이용약관" : showPolicy === "privacy" ? "개인정보처리방침" : "환불정책"}
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-white/20 p-6 shadow-2xl max-h-[85vh] flex flex-col text-left" onClick={e=>e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-yellow-400 mb-4 border-b border-white/10 pb-3 shrink-0 flex justify-between items-center">
+              <span>{showPolicy === "terms" ? "이용약관" : showPolicy === "privacy" ? "개인정보처리방침" : "환불정책"}</span>
+              <button onClick={() => setShowPolicy(null)} className="text-white/50 hover:text-white text-2xl font-light">&times;</button>
             </h3>
-            <div className="text-xs text-white/80 space-y-4 leading-relaxed whitespace-pre-wrap">
-              {showPolicy === "terms" && `제1조 (목적)\n본 약관은 서비스의 이용조건 및 절차, 이용자와 회사의 권리, 의무, 책임사항을 규정함을 목적으로 합니다.\n\n제2조 (서비스의 성격)\n본 서비스는 명리학, 해몽, 관상, 통계 번호 등을 제공하는 엔터테인먼트 콘텐츠입니다. 제공되는 결과는 통계적 해석일 뿐 미래를 보장하지 않으며 법적 효력을 갖지 않습니다.\n\n제3조 (서비스 이용 및 결제)\n프리미엄 콘텐츠는 유료로 제공되며, 사용자는 결제 전 해당 내용을 명확히 인지하고 진행해야 합니다.`}
-              {showPolicy === "privacy" && `1. 수집하는 개인정보 항목\n회사는 회원가입 없이 서비스를 제공하며, 사주 분석을 위해 입력하신 생년월일, 성별, 이름 등은 서버에 영구 저장되지 않고 1회성 계산 용도로만 사용 후 즉시 폐기되거나 로컬 기기에만 임시 저장됩니다.\n\n2. 프리미엄 소원 데이터\n기적의 제단 소원을 위해 자발적으로 기재한 내용은 지정된 기간 동안 노출되며, 기간 만료 후 자동 폐기됩니다.`}
-              {showPolicy === "refund" && `[디지털 콘텐츠 환불 규정 안내]\n\n본 서비스에서 결제를 통해 제공되는 프리미엄 리포트 및 통계 번호 등은 '디지털 콘텐츠'에 해당합니다.\n\n1. 청약철회 불가 안내\n전자상거래 등에서의 소비자보호에 관한 법률 제17조에 의거, 결제가 완료되고 결과가 화면에 노출된 즉시 콘텐츠의 제공이 완료된 것으로 간주되어 원칙적으로 환불(청약철회)이 불가합니다.\n\n2. 예외적 환불 안내\n결제는 정상적으로 완료되었으나 시스템 오류로 인하여 결과를 전혀 열람하지 못한 경우에는 고객센터 확인을 거쳐 100% 환불 처리해 드립니다.`}
+            <div className="text-xs text-white/80 space-y-4 leading-relaxed whitespace-pre-wrap flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              {showPolicy === "terms" && "제1조 (목적)\n본 약관은 서비스의 이용조건 및 절차, 이용자와 회사의 권리, 의무, 책임사항을 규정함을 목적으로 합니다.\n\n제2조 (서비스의 성격)\n본 서비스에서 제공하는 모든 결과는 통계적, 학술적 해석에 기반하며 절대적인 사실이나 미래를 보장하지 않습니다."}
+              {showPolicy === "privacy" && "1. 수집하는 개인정보 항목\n회사는 회원가입 없이 서비스를 제공하며, 사주 분석을 위해 입력하신 생년월일, 성별, 이름 등은 서버에 영구 저장되지 않고 분석 즉시 폐기됩니다.\n\n2. 쿠키의 사용\n서비스 편의를 위해 기기 내부에 일부 설정(예: 프리미엄 해제 상태)이 임시 저장될 수 있습니다."}
+              {showPolicy === "refund" && "[디지털 콘텐츠 환불 규정 안내]\n\n본 서비스에서 결제를 통해 제공되는 프리미엄 리포트 및 통계 번호 등은 '디지털 콘텐츠'에 해당합니다.\n\n1. 청약철회 불가 안내\n전자상거래 등에서의 소비자보호에 관한 법률 제17조에 의거, 결제가 완료되고 결과가 화면에 노출된 즉시 콘텐츠의 제공이 완료된 것으로 간주되어 원칙적으로 환불(청약철회)이 불가합니다.\n\n2. 예외적 환불 안내\n결제는 정상적으로 완료되었으나 시스템 오류로 인하여 결과를 전혀 열람하지 못한 경우에는 고객센터 확인을 거쳐 100% 환불 처리해 드립니다."}
             </div>
-            <button className="mt-6 w-full py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 transition-colors focus:outline-none" onClick={() => setShowPolicy(null)}>확인하고 닫기</button>
+            <button className="mt-6 w-full py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 transition-colors focus:outline-none" onClick={() => setShowPolicy(null)}>
+              확인하고 닫기
+            </button>
           </div>
         </div>
       )}
@@ -572,13 +575,8 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
-                <input
-                  type="date"
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-white placeholder-white/40 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
-                />
+              <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
+              <input type="tel" maxLength={8} placeholder="예: 19800101 (숫자 8자리)" value={birthDate} onChange={(e) => setBirthDate(e.target.value.replace(/[^0-9]/g, ''))} className="w-full rounded-xl border border-white/20 bg-slate-800/80 shadow-inner px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30" />
               </div>
 
               <div>
@@ -1473,8 +1471,8 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                     ? 12 + ((i * 21 + idLength * 7) % 70)
                     : 10 + ((i * 19 + idLength * 5) % 72);
                   const topPct = isTenDays
-                    ? 10 + ((i * 13 + idLength * 3) % 26)
-                    : 18 + ((i * 15 + idLength * 2) % 36);
+                    ? 5 + ((i * 13 + idLength * 3) % 20)
+                    : 10 + ((i * 15 + idLength * 2) % 25);
                   const duration = isTenDays
                     ? 18 + ((i * 3 + idLength) % 6)
                     : 12 + ((i * 2 + idLength) % 5);
@@ -1504,8 +1502,8 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                         }}
                         className={
                           isTenDays
-                            ? "text-2xl font-extrabold text-yellow-200 drop-shadow-[0_0_18px_rgba(251,191,36,0.95)]"
-                            : "text-xl font-bold text-yellow-300 drop-shadow-[0_0_12px_rgba(250,204,21,0.75)]"
+                            ? "text-lg sm:text-2xl font-extrabold text-yellow-200 drop-shadow-[0_0_18px_rgba(251,191,36,0.95)]"
+                            : "text-base sm:text-xl font-bold text-yellow-300 drop-shadow-[0_0_12px_rgba(250,204,21,0.75)]"
                         }
                       >
                         {pw.badge} {pw.content}
@@ -1525,7 +1523,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           })()}
         </div>
 
-        <div className="relative z-50 flex flex-1 flex-col items-center justify-end gap-6 px-6 pb-10 pt-24">
+        <div className="relative z-10 flex h-full flex-col items-center justify-end px-4 pt-12 pb-[120px]">
           <div className="w-full max-w-md rounded-2xl border border-white/25 bg-white/15 p-5 backdrop-blur-md shadow-lg shadow-black/20">
             <textarea
               value={wishText}
@@ -2479,10 +2477,12 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                 <div>
                   <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
                   <input
-                    type="date"
+                    type="tel"
+                    maxLength={8}
+                    placeholder="예: 19800101 (숫자 8자리)"
                     value={nameBirthDate}
-                    onChange={(e) => setNameBirthDate(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-white focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+                    onChange={(e) => setNameBirthDate(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="w-full rounded-xl border border-white/20 bg-slate-800/80 shadow-inner px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
                   />
                 </div>
                 <div>
@@ -3173,23 +3173,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
           </div>
         </a>
 
-        {/* 🚀 [수정] 전문적인 하단 푸터(약관 및 면책조항) 추가 */}
-      <div className="mt-8 mx-auto w-full max-w-md border-t border-white/10 pt-6 text-center space-y-2">
-          <p className="text-[10px] text-white/40">
-              제공된 로또 번호는 수학적 난수와 통계 기반으로 추출되며, 당첨을 보장하지 않습니다. 과도한 복권 몰입은 가계 재정에 부담이 될 수 있습니다.
-          </p>
-          <p className="text-[10px] font-bold text-white/30 pt-2">
-              도박중독예방상담센터: 1336 | 동행복권: 1588-0908
-          </p>
-            <div className="flex justify-center gap-4 text-[10px] text-white/50 pt-2 font-medium">
-                <span className="cursor-pointer hover:text-white transition-colors">이용약관</span>
-                <span>|</span>
-                <span className="cursor-pointer hover:text-white transition-colors">개인정보처리방침</span>
-                <span>|</span>
-                <span className="cursor-pointer hover:text-white transition-colors">환불정책</span>
-            </div>
-            <p className="text-[9px] text-white/20 pt-2">© 2026 명운(命運). All rights reserved.</p>
-        </div>
+        <FooterPolicy tabId="lotto" />
       </div>
     </div>
   );
