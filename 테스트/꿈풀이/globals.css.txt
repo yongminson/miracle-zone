@@ -1,0 +1,196 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* 커스텀 스크롤바 - 기본 브라우저 스타일 제거 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(234 179 8 / 0.4) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgb(234 179 8 / 0.4);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(234 179 8 / 0.6);
+}
+
+/* 기적의 제단 - 프리미엄 소원 (중앙 50~60vh에서 시작, 위로 떠오름, infinite) */
+@keyframes premium-float-up {
+  0% {
+    transform: translate(-50%, 0);
+    opacity: 0.6;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate(-50%, -120vh);
+    opacity: 0;
+  }
+}
+
+/* 기적의 제단 - 중앙에서 위로 떠오르는 금빛 글귀 */
+@keyframes float-wish-center {
+  0% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  85% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-75vh);
+    opacity: 0;
+  }
+}
+
+/* 행운의 로또 - 공 팝업/바운스 애니메이션 */
+@keyframes lotto-ball-bounce {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 오늘의 운세 - 로딩 스피너 */
+@keyframes fortune-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fortune-twinkle {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 사주/이름 - 얼굴 스캐닝 레이저 (위아래 Ping-Pong) */
+@keyframes saju-scan-line {
+  0% {
+    top: 0;
+  }
+  100% {
+    top: calc(100% - 2px);
+  }
+}
+
+.saju-scan-animate {
+  animation: saju-scan-line 1.5s ease-in-out infinite alternate;
+}
+
+/* 한자 선택 모달 - 커스텀 스크롤바 (실제 한자 사전 조작감) */
+.hanja-modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(234 179 8 / 0.6) rgb(15 23 42 / 0.5);
+}
+
+.hanja-modal-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.hanja-modal-scroll::-webkit-scrollbar-track {
+  background: rgb(15 23 42 / 0.5);
+  border-radius: 6px;
+}
+
+.hanja-modal-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgb(234 179 8 / 0.7), rgb(217 119 6 / 0.6));
+  border-radius: 6px;
+}
+
+.hanja-modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgb(234 179 8 / 0.9), rgb(217 119 6 / 0.8));
+}
+
+/* 촛불 불빛 일렁임 */
+@keyframes flame-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 20px rgba(234, 179, 8, 0.5))
+      drop-shadow(0 0 40px rgba(234, 179, 8, 0.3));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 28px rgba(234, 179, 8, 0.7))
+      drop-shadow(0 0 56px rgba(234, 179, 8, 0.4));
+    transform: scale(1.02);
+  }
+}
+
+@keyframes premium-drift {
+  0% {
+    margin-left: 0px;
+    margin-top: 0px;
+  }
+  25% {
+    margin-left: 42px;
+    margin-top: -24px;
+  }
+  50% {
+    margin-left: -36px;
+    margin-top: 28px;
+  }
+  75% {
+    margin-left: 26px;
+    margin-top: 44px;
+  }
+  100% {
+    margin-left: 0px;
+    margin-top: 0px;
+  }
+}
