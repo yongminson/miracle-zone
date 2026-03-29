@@ -1507,8 +1507,8 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                         }}
                         className={
                           isTenDays
-                            ? "text-lg sm:text-2xl font-extrabold text-yellow-200 drop-shadow-[0_0_18px_rgba(251,191,36,0.95)]"
-                            : "text-base sm:text-xl font-bold text-yellow-300 drop-shadow-[0_0_12px_rgba(250,204,21,0.75)]"
+                            ? "text-sm sm:text-2xl font-extrabold text-yellow-200 drop-shadow-[0_0_18px_rgba(251,191,36,0.95)] max-w-[85vw] text-center break-keep"
+                            : "text-xs sm:text-xl font-bold text-yellow-300 drop-shadow-[0_0_12px_rgba(250,204,21,0.75)] max-w-[85vw] text-center break-keep"
                         }
                       >
                         {pw.badge} {pw.content}
@@ -1528,7 +1528,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           })()}
         </div>
 
-        <div className="relative z-10 flex h-full flex-col items-center justify-end px-4 pt-12 pb-8">
+        <div className="relative z-10 flex h-full flex-col items-center justify-end px-4 pt-12 pb-0 -mb-6">
           <div className="w-full max-w-md rounded-2xl border border-white/25 bg-white/15 p-5 backdrop-blur-md shadow-lg shadow-black/20">
             <textarea
               value={wishText}
