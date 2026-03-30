@@ -5,7 +5,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 import {
   Sparkles,
   BookOpen,
@@ -43,19 +43,13 @@ async function captureAndShareElement(
   }
 
   try {
-    const canvas = await html2canvas(target, {
+    const dataUrl = await toPng(target, {
+      cacheBust: true,
+      pixelRatio: 2,
       backgroundColor: "#020817",
-      scale: 2,
-      useCORS: true,
-      logging: true,
-      allowTaint: false,
     });
 
-    const dataUrl = canvas.toDataURL("image/png");
-
-    // PC에서는 파일 공유보다 다운로드가 더 안정적
-    const isMobile =
-      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     if (isMobile && navigator.share) {
       const response = await fetch(dataUrl);
@@ -76,7 +70,6 @@ async function captureAndShareElement(
       }
     }
 
-    // 기본 fallback: 다운로드
     const a = document.createElement("a");
     a.href = dataUrl;
     a.download = options?.fileName ?? "result-share.png";
@@ -85,11 +78,9 @@ async function captureAndShareElement(
     a.remove();
   } catch (error) {
     console.error("captureAndShareElement error:", error);
-
     const message =
       error instanceof Error ? error.message : String(error);
-
-    alert(`이미지 공유 오류: ${message}`);
+    alert(`이미지 생성 오류: ${message}`);
   }
 }
 
