@@ -1549,14 +1549,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       `}
     >
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <video
-          src="/초.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-cover"
-        />
+        <video src="/초.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-black/50" />
       </div>
 
@@ -1569,7 +1562,17 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-<div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+          {/* 🚀 풍등처럼 위로 올라가는 애니메이션 추가 */}
+          <style>{`
+            @keyframes float-up-premium {
+              0% { transform: translateY(110vh) scale(0.9); opacity: 0; }
+              10% { opacity: 1; transform: translateY(90vh) scale(1); }
+              90% { opacity: 1; transform: translateY(10vh) scale(1); }
+              100% { transform: translateY(-20vh) scale(0.9); opacity: 0; }
+            }
+          `}</style>
+          
           {(() => {
             const premiumFiltered = filterPremiumWishes(premiumWishes);
             return (
@@ -1587,73 +1590,49 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                       maxWidth: "85%",
                     }}
                   >
-                    <p
-                      style={{
-                        whiteSpace: "normal",
-                        wordBreak: "keep-all",
-                        paddingLeft: "12px",
-                        paddingRight: "12px",
-                        maxWidth: "85%",
-                        textAlign: "center",
-                      }}
-                      className="text-sm font-medium text-white/60"
-                    >
+                    <p style={{ whiteSpace: "normal", wordBreak: "keep-all", textAlign: "center" }} className="text-sm font-medium text-white/60 px-3">
                       {wish}
                     </p>
                   </div>
                 ))}
-                {premiumFiltered.slice(-4).map((pw, i) => {
+                
+                {/* 🚀 프리미엄 소원: 아래에서 위로 유유히 흘러감 */}
+                {premiumFiltered.slice(-6).map((pw, i) => {
                   const idLength = String(pw.id).length;
                   const isTenDays = pw.period === "10d";
                   
-                  const leftPct = isTenDays
-                    ? 12 + ((i * 21 + idLength * 7) % 70)
-                    : 10 + ((i * 19 + idLength * 5) % 72);
-                  const topPct = isTenDays
-                    ? 5 + ((i * 13 + idLength * 3) % 20)
-                    : 10 + ((i * 15 + idLength * 2) % 25);
-                  const duration = isTenDays
-                    ? 18 + ((i * 3 + idLength) % 6)
-                    : 12 + ((i * 2 + idLength) % 5);
-                  const delay = `${(i * 1.5) % 6}s`;
+                  // 위치와 속도를 화면 크기에 맞게 재조정
+                  const leftPct = 10 + ((i * 25 + idLength * 7) % 80);
+                  const duration = isTenDays ? 22 + (i % 5) : 18 + (i % 5);
+                  const delay = `${(i * 3.5) % 10}s`;
                   const remaining = getPremiumRemainingMs(pw);
+
                   return (
                     <div
                       key={pw.id}
-                      className="absolute"
+                      className="absolute -translate-x-1/2"
                       style={{
                         left: `${leftPct}%`,
-                        top: `${topPct}%`,
-                        animation: `premium-drift ${duration}s ease-in-out infinite`,
+                        bottom: `-20%`, // 화면 아래에서 시작
+                        animation: `float-up-premium ${duration}s linear infinite`,
                         animationDelay: delay,
                         width: "max-content",
-                        maxWidth: "85%",
+                        maxWidth: "90%",
                       }}
                     >
-                      <p
-                        style={{
-                          whiteSpace: "normal",
-                          wordBreak: "keep-all",
-                          paddingLeft: "12px",
-                          paddingRight: "12px",
-                          maxWidth: "85%",
-                          textAlign: "center",
-                        }}
-                        className={
-                          isTenDays
-                            ? "text-sm sm:text-2xl font-extrabold text-yellow-200 drop-shadow-[0_0_18px_rgba(251,191,36,0.95)] max-w-[85vw] text-center break-keep"
-                            : "text-xs sm:text-xl font-bold text-yellow-300 drop-shadow-[0_0_12px_rgba(250,204,21,0.75)] max-w-[85vw] text-center break-keep"
-                        }
-                      >
-                        {pw.badge} {pw.content}
-                      </p>
-                      <p className={
-                        isTenDays
-                          ? "mt-1 text-center text-xs font-medium text-amber-200/90"
-                          : "mt-1 text-center text-xs text-yellow-400/80"
-                      }>
-                        남은 시간: {formatCountdown(remaining)}
-                      </p>
+                      <div className="flex flex-col items-center justify-center bg-black/20 backdrop-blur-sm px-4 py-3 rounded-2xl border border-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.1)]">
+                        <p className={
+                            isTenDays
+                              ? "text-base sm:text-2xl font-extrabold text-yellow-200 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)] text-center break-keep leading-snug"
+                              : "text-sm sm:text-xl font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] text-center break-keep leading-snug"
+                          }
+                        >
+                          {pw.badge}<br/>{pw.content}
+                        </p>
+                        <p className={isTenDays ? "mt-1.5 text-xs font-medium text-amber-200/90" : "mt-1.5 text-[11px] text-yellow-400/80"}>
+                          남은 시간: {formatCountdown(remaining)}
+                        </p>
+                      </div>
                     </div>
                   );
                 })}
@@ -1662,44 +1641,37 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           })()}
         </div>
 
-        <div className="relative z-10 flex h-full flex-col items-center justify-end px-4 pt-12 pb-0 -mb-6">
-          <div className="w-full max-w-md rounded-2xl border border-white/25 bg-white/15 p-5 backdrop-blur-md shadow-lg shadow-black/20">
+        {/* 🚀 입력창 크기 축소 & 여백 조정 */}
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-end px-4 pb-8 mt-auto">
+          <div className="w-full max-w-md rounded-2xl border border-white/20 bg-black/40 p-4 backdrop-blur-md shadow-2xl">
             <textarea
               value={wishText}
               onChange={(e) => setWishText(e.target.value)}
               placeholder="소원을 적어주세요..."
-              rows={3}
-              className="w-full resize-none rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-amber-50 placeholder-amber-200/60 focus:border-yellow-500/60 focus:outline-none focus:ring-2 focus:ring-yellow-500/40"
+              rows={2} // 입력창 높이 줄임
+              className="w-full resize-none rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-amber-50 placeholder-amber-200/60 focus:border-yellow-500/60 focus:outline-none focus:ring-2 focus:ring-yellow-500/40"
             />
 
-            <div className="mt-3 flex items-center justify-between text-xs">
-              <span className="text-amber-100/70">
-                전체 소원 {activeWishCount}개
-              </span>
-              <span className="text-yellow-300/80">
-                프리미엄 {activePremiumCount}개
-              </span>
+            <div className="mt-2 flex items-center justify-between text-[11px]">
+              <span className="text-amber-100/70">전체 소원 {activeWishCount}개</span>
+              <span className="text-yellow-300/80">프리미엄 {activePremiumCount}개</span>
             </div>
 
-            <div className="mt-4 flex gap-3">
+            <div className="mt-3 flex gap-2">
               <button
                 type="button"
                 onClick={handleSubmitFree}
                 disabled={isCooldown || isSubmittingFreeWish}
-                className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-3 text-sm font-medium text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-slate-500 disabled:to-slate-600 disabled:hover:from-slate-500 disabled:hover:to-slate-600"
+                className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-3 py-2.5 text-xs font-bold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none disabled:opacity-50"
               >
-                {isSubmittingFreeWish
-                  ? "무료 소원은 1시간 동안만 유지됩니다."
-                  : isCooldown
-                    ? "5초 후 작성 가능..."
-                    : "소원 띄우기 (무료)"}
+                {isSubmittingFreeWish ? "유지시간 1시간" : isCooldown ? "5초 후 작성 가능" : "소원 띄우기 (무료)"}
               </button>
               <button
                 type="button"
                 onClick={handleOpenPremiumModal}
-                className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 px-4 py-3 text-sm font-medium text-slate-900 shadow-lg shadow-amber-500/25 transition-all hover:from-amber-400 hover:to-yellow-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 px-3 py-2.5 text-xs font-bold text-slate-900 shadow-lg shadow-amber-500/25 transition-all hover:from-amber-400 hover:to-yellow-500 focus:outline-none"
               >
-                ✨ 프리미엄 소원 (24시간/10일 고정)
+                ✨ 프리미엄 기원
               </button>
             </div>
           </div>
@@ -1708,136 +1680,44 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         <button
           type="button"
           onClick={handleMuteToggle}
-          className="fixed bottom-4 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500/20 text-yellow-400 transition-colors hover:bg-yellow-500/30 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-          aria-label={isMuted ? "소리 켜기" : "소리 끄기"}
+          className="fixed bottom-24 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500/20 text-yellow-400 transition-colors hover:bg-yellow-500/30 focus:outline-none"
         >
-          {isMuted ? (
-            <VolumeX className="h-4 w-4" />
-          ) : (
-            <Volume2 className="h-4 w-4" />
-          )}
+          {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
 
+        {/* 프리미엄 결제 모달 (유지) */}
         {showPremiumModal && (
-          <div
-             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={(e) => e.target === e.currentTarget && handlePremiumCancel()}
-          >
-            <div
-              className="w-full max-w-md rounded-2xl border-2 border-yellow-500/50 bg-slate-900/90 p-6 shadow-2xl shadow-yellow-500/10 backdrop-blur-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="mb-5 text-center text-lg font-semibold text-yellow-400">
-                ✨ 프리미엄 소원
-              </h3>
-
-              <div className="mb-4">
-                <label className="mb-2 block text-sm font-medium text-yellow-400/90">
-                  소원 내용
-                </label>
-                <textarea
-                  value={premiumWishText}
-                  onChange={(e) => setPremiumWishText(e.target.value)}
-                  placeholder="소원을 적어주세요..."
-                  rows={2}
-                  className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm text-amber-50 placeholder-amber-200/50 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
-                />
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => handlePremiumCancel()}>
+            <div className="w-full max-w-md rounded-2xl border-2 border-yellow-500/50 bg-slate-900/90 p-5 shadow-2xl shadow-yellow-500/10 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="mb-4 text-center text-base font-semibold text-yellow-400">✨ 프리미엄 소원</h3>
+              <div className="mb-3">
+                <textarea value={premiumWishText} onChange={(e) => setPremiumWishText(e.target.value)} placeholder="소원을 적어주세요..." rows={2} className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 focus:border-yellow-500/50 focus:outline-none" />
               </div>
-
-              <div className="mb-4">
-                 <label className="mb-2 block text-sm font-medium text-yellow-400/90">
-                  노출 기간
-                </label>
+              <div className="mb-3">
                 <div className="flex flex-col gap-2">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition-colors hover:bg-white/10">
-                    <input
-                      type="radio"
-                      name="premiumPeriod"
-                      checked={premiumPeriod === "24h"}
-                      onChange={() => setPremiumPeriod("24h")}
-                      className="accent-yellow-500"
-                    />
+                  <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                    <input type="radio" checked={premiumPeriod === "24h"} onChange={() => setPremiumPeriod("24h")} className="accent-yellow-500" />
                     <span className="text-sm text-white/90">24시간 고정 (1,900원)</span>
                   </label>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition-colors hover:bg-white/10">
-                    <input
-                      type="radio"
-                      name="premiumPeriod"
-                      checked={premiumPeriod === "10d"}
-                      onChange={() => setPremiumPeriod("10d")}
-                      className="accent-yellow-500"
-                    />
+                  <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                    <input type="radio" checked={premiumPeriod === "10d"} onChange={() => setPremiumPeriod("10d")} className="accent-yellow-500" />
                     <span className="text-sm text-white/90">10일 고정 (6,900원)</span>
                   </label>
                 </div>
               </div>
-
-              <div className="mb-5">
-                <label className="mb-2 block text-sm font-medium text-yellow-400/90">
-                  발원자(이름) 노출
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPremiumNameDisplay("anonymous")}
-                    className={`rounded-lg px-3 py-2 text-sm transition-all ${
-                      premiumNameDisplay === "anonymous"
-                        ? "bg-yellow-500/30 ring-1 ring-yellow-500/60 text-yellow-400"
-                        : "bg-white/5 text-white/80 hover:bg-white/10"
-                    }`}
-                  >
-                    익명
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPremiumNameDisplay("real")}
-                    className={`rounded-lg px-3 py-2 text-sm transition-all ${
-                      premiumNameDisplay === "real"
-                        ? "bg-yellow-500/30 ring-1 ring-yellow-500/60 text-yellow-400"
-                        : "bg-white/5 text-white/80 hover:bg-white/10"
-                    }`}
-                  >
-                    실명 노출
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPremiumNameDisplay("partial")}
-                    className={`rounded-lg px-3 py-2 text-sm transition-all ${
-                      premiumNameDisplay === "partial"
-                        ? "bg-yellow-500/30 ring-1 ring-yellow-500/60 text-yellow-400"
-                        : "bg-white/5 text-white/80 hover:bg-white/10"
-                    }`}
-                  >
-                    부분 노출
-                  </button>
+              <div className="mb-4">
+                <div className="flex gap-2 mb-2">
+                  <button type="button" onClick={() => setPremiumNameDisplay("anonymous")} className={`flex-1 rounded-lg py-1.5 text-xs ${premiumNameDisplay === "anonymous" ? "bg-yellow-500/30 text-yellow-400" : "bg-white/5 text-white/80"}`}>익명</button>
+                  <button type="button" onClick={() => setPremiumNameDisplay("real")} className={`flex-1 rounded-lg py-1.5 text-xs ${premiumNameDisplay === "real" ? "bg-yellow-500/30 text-yellow-400" : "bg-white/5 text-white/80"}`}>실명</button>
+                  <button type="button" onClick={() => setPremiumNameDisplay("partial")} className={`flex-1 rounded-lg py-1.5 text-xs ${premiumNameDisplay === "partial" ? "bg-yellow-500/30 text-yellow-400" : "bg-white/5 text-white/80"}`}>부분노출</button>
                 </div>
                 {(premiumNameDisplay === "real" || premiumNameDisplay === "partial") && (
-                  <input
-                    type="text"
-                    value={premiumNameInput}
-                    onChange={(e) => setPremiumNameInput(e.target.value)}
-                    placeholder={premiumNameDisplay === "partial" ? "예: 홍길동 → 홍*동" : "이름 입력"}
-                    className="mt-2 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 placeholder-amber-200/50 focus:border-yellow-500/50 focus:outline-none"
-                  />
+                  <input type="text" value={premiumNameInput} onChange={(e) => setPremiumNameInput(e.target.value)} placeholder={premiumNameDisplay === "partial" ? "예: 홍길동 → 홍*동" : "이름 입력"} className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 focus:border-yellow-500/50 focus:outline-none" />
                 )}
               </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={handlePremiumCancel}
-                  className="flex-1 rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
-                >
-                  취소
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePremiumConfirm}
-                  disabled={!premiumWishText.trim()}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                >
-                  결제하고 기적의 소원 띄우기
-                </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={handlePremiumCancel} className="flex-1 rounded-xl border border-white/20 bg-white/5 py-3 text-sm font-medium text-white/90">취소</button>
+                <button type="button" onClick={handlePremiumConfirm} disabled={!premiumWishText.trim()} className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3 text-sm font-semibold text-slate-900 disabled:opacity-50">결제하고 띄우기</button>
               </div>
             </div>
           </div>
