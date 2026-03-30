@@ -231,14 +231,171 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   const [isPremiumLoading, setIsPremiumLoading] = useState(false);
   const [premiumLoadingStep, setPremiumLoadingStep] = useState(0);
 
-  // 📸 [추가] 운세 결과 이미지를 스마트폰에 저장하는 함수
+  const getCacheKey = () => {
+    const today = new Date().toDateString();
+    return `${FORTUNE_CACHE_PREFIX}${today}-${gender}-${birthDate}-${calendarType}-${birthTime}`;
+  };
+
+  const getPremiumCacheKey = () => {
+    const today = getKstDateKey();
+    return `${PREMIUM_CACHE_PREFIX}${today}-${gender}-${birthDate}-${calendarType}-${birthTime}`;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setIsPremiumLoading(false);
+    setPremiumLoadingStep(0);
+    setShowResult(false);
+    setFortuneData(null);
+    const cacheKey = getCacheKey();
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          const hasValidStructure =
+            data.scores &&
+            Array.isArray(data.scores) &&
+            data.texts &&
+            Array.isArray(data.texts) &&
+            data.scores.length === 6 &&
+            data.texts.length === 6;
+          if (!hasValidStructure) {
+            localStorage.removeItem(cacheKey);
+          } else {
+            const minLoadingMs = 2000;
+            await new Promise((r) => setTimeout(r, minLoadingMs));
+            setFortuneData(data);
+            setActiveSubTab(0);
+            setShowResult(true);
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          localStorage.removeItem(cacheKey);
+        }
+      }
+    }
+
+    const startTime = Date.now();
+    try {
+      const res = await fetch("/api/fortune", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gender, birthDate, calendarType, birthTime }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "운세 분석 중 오류가 발생했습니다.");
+      
+      const minLoadingMs = 4000;
+      const elapsed = Date.now() - startTime;
+      if (elapsed < minLoadingMs) {
+        await new Promise((r) => setTimeout(r, minLoadingMs - elapsed));
+      }
+      if (typeof window !== "undefined") {
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+      }
+      setFortuneData(data);
+      setActiveSubTab(0);
+      setShowResult(true);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "운세 분석 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReset = () => {
+    setShowResult(false);
+    setFortuneData(null);
+    setPremiumResult(null);
+    setPremiumBaziChart(null);
+    setPremiumDaeunInfo(null);
+    setIsPremiumLoading(false);
+    setPremiumLoadingStep(0);
+    setActiveSubTab(0);
+    setGender("male");
+    setBirthDate("");
+    setCalendarType("solar");
+    setBirthTime("unknown");
+  };
+
+  const handlePremium = () => {
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      handlePremiumConfirm();
+    } else {
+      setShowPremiumModal(true);
+    }
+  };
+
+  const handlePremiumConfirm = async () => {
+    setShowPremiumModal(false);
+    alert("결제 모듈은 연동 예정입니다. (테스트 렌더링)");
+  
+    setIsLoading(true);
+    setIsPremiumLoading(true);
+    setPremiumLoadingStep(0);
+    const premiumCacheKey = getPremiumCacheKey();
+  
+    const loadingTimer = window.setInterval(() => {
+      setPremiumLoadingStep((prev) => (prev >= 3 ? 3 : prev + 1));
+    }, 1200);
+
+    try {
+      if (typeof window !== "undefined") {
+        const cached = localStorage.getItem(premiumCacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.premiumReport && parsed.baziChart) {
+            await new Promise((r) => setTimeout(r, 2200));
+            setPremiumResult(parsed.premiumReport ?? null);
+            setPremiumBaziChart(parsed.baziChart ?? null);
+            setPremiumDaeunInfo(parsed.daeunInfo ?? null);
+            clearInterval(loadingTimer);
+            setIsPremiumLoading(false);
+            setIsLoading(false);
+            return;
+          }
+          localStorage.removeItem(premiumCacheKey);
+        }
+      }
+  
+      const startTime = Date.now();
+      const res = await fetch("/api/fortune", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gender, birthDate, calendarType, birthTime, isPremium: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "운세 분석 중 오류가 발생했습니다.");
+      
+      const minLoadingMs = 4800;
+      const elapsed = Date.now() - startTime;
+      if (elapsed < minLoadingMs) {
+        await new Promise((r) => setTimeout(r, minLoadingMs - elapsed));
+      }
+      if (typeof window !== "undefined") {
+        localStorage.setItem(premiumCacheKey, JSON.stringify(data));
+      }
+      setPremiumResult(data.premiumReport ?? null);
+      setPremiumBaziChart(data.baziChart ?? null);
+      setPremiumDaeunInfo(data.daeunInfo ?? null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "프리미엄 리포트 생성 중 오류가 발생했습니다.");
+    } finally {
+      clearInterval(loadingTimer);
+      setIsPremiumLoading(false);
+      setIsLoading(false);
+    }
+  };
+
+  // 🚀 [마법의 공유 버튼 로직] 화면 캡처 + 스마트폰 네이티브 카톡 공유
   const handleShare = async () => {
-    // 1. 카톡에 띄울 텍스트와 링크 예쁘게 준비
     const lucky = fortuneData?.luckyItems;
     const summary = fortuneData ? `총운 ${fortuneData.scores[0]}점: ${fortuneData.texts[0]?.slice(0, 30)}...` : "심층 명리학 리포트";
     const text = `[명운] 오늘의 운세 🔮\n\n${summary}${lucky ? `\n🎨 행운의 색: ${lucky.color}\n🔢 행운의 번호: ${lucky.number}` : ""}\n\n👇 내 운세 자세히 보기\n${typeof window !== "undefined" ? window.location.origin : ""}`;
 
-    // 2. 백그라운드에서 조용히 화면 캡처 (에러 방지 무적 옵션 적용)
     let file: File | null = null;
     try {
       const element = document.getElementById("fortune-result-card");
@@ -246,7 +403,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         const canvas = await html2canvas(element, { 
           backgroundColor: "#0f172a", 
           scale: 2,
-          useCORS: true, // 외부 이미지/폰트 충돌 방지
+          useCORS: true, 
           allowTaint: true 
         });
         const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
@@ -255,25 +412,24 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         }
       }
     } catch (err) {
-      console.error("캡처 실패 (텍스트만 공유합니다):", err);
+      console.error("캡처 실패:", err);
     }
 
-    // 3. 모바일 네이티브 공유 (타로 앱에서 썼던 그 기능!)
+    // 모바일 기기(아이폰/갤럭시) 카톡 공유 띄우기
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         const shareData: ShareData = { title: "명운 오늘의 운세", text };
-        // 기기가 '사진+글' 동시 공유를 지원하면 사진도 얹어버림
         if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
           shareData.files = [file];
         }
         await navigator.share(shareData);
-        return; // 성공하면 여기서 끝!
+        return; 
       } catch (err) {
         console.log("사용자가 공유를 취소했거나 에러 발생", err);
       }
     }
 
-    // 4. PC 환경이거나 모바일 공유 실패 시 (자동 복사 + 사진 다운로드)
+    // PC 환경일 경우 다운로드 및 텍스트 복사로 대체
     try {
       await navigator.clipboard?.writeText(text);
       if (file) {
@@ -489,18 +645,13 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 </div>
 
-                {/* 📸 이미지 저장 버튼 */}
-                <button 
-                  type="button"
-                  onClick={handleSaveImage}
-                  className="w-full mt-6 mb-2 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-4 text-sm font-bold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500"
-                >
-                  📸 내 운세 결과 이미지로 캡처하기
-                </button>
-
-                <div className="flex gap-3 mb-4">
-                  <button type="button" onClick={handleShare} className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">📤 결과 공유하기</button>
-                  <button type="button" onClick={handleReset} className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">↺ 처음으로</button>
+                <div className="flex gap-3 mt-6 mb-4">
+                  <button type="button" onClick={handleShare} className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">
+                    📤 운세 결과 공유하기
+                  </button>
+                  <button type="button" onClick={handleReset} className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">
+                    ↺ 다시 하기 (처음으로)
+                  </button>
                 </div>
 
                 <button type="button" onClick={handlePremium} className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-4 text-base font-bold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 flex items-center justify-center gap-2">
@@ -541,18 +692,13 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 </div>
 
-                {/* 📸 이미지 저장 버튼 */}
-                <button 
-                  type="button"
-                  onClick={handleSaveImage}
-                  className="w-full mt-4 mb-2 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-4 text-sm font-bold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500"
-                >
-                  📸 내 심층 리포트 이미지로 캡처하기
-                </button>
-
-                <div className="flex gap-3">
-                  <button type="button" onClick={handleShare} className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">📤 결과 공유하기</button>
-                  <button type="button" onClick={handleReset} className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">↺ 처음으로</button>
+                <div className="flex gap-3 mt-6">
+                  <button type="button" onClick={handleShare} className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">
+                    📤 심층 리포트 결과 공유하기
+                  </button>
+                  <button type="button" onClick={handleReset} className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">
+                    ↺ 처음으로
+                  </button>
                 </div>
               </>
             )}
