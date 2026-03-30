@@ -63,7 +63,10 @@ async function captureAndShareElement(
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: options?.title ?? "결과 공유",
-          text: options?.text ?? "결과 이미지를 확인해보세요.",
+          text:
+            (options?.text ?? "결과 이미지를 확인해보세요.") +
+            "\n" +
+            window.location.origin,
           files: [file],
         });
         return;
@@ -482,7 +485,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     await captureAndShareElement(shareResultRef.current, {
       fileName: "fortune-result.png",
       title: "오늘의 운세",
-      text: "오늘의 운세 결과 이미지입니다.",
+      text: `오늘의 운세 결과 이미지입니다.\n자세히 보기: ${window.location.origin}`,
     });
   };
 
@@ -1821,6 +1824,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [faceResultData, setFaceResultData] = useState<any>(null);
   const [showPhysiognomyPaymentModal, setShowPhysiognomyPaymentModal] = useState(false);
   const [isPhysiognomyPremiumUnlocked, setIsPhysiognomyPremiumUnlocked] = useState(false);
+  const faceShareResultRef = useRef<HTMLDivElement | null>(null);
 
   const [nameGender, setNameGender] = useState<"male" | "female">("male");
   const [nameBirthDate, setNameBirthDate] = useState("");
@@ -1958,26 +1962,11 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const handleFaceShare = async () => {
-    const summary = faceResultData?.freeSummary ?? "";
-    const text = `당신의 타고난 관상 분석 리포트: ${summary.slice(0, 80)}${summary.length > 80 ? "..." : ""} | 자세히 보기: ${typeof window !== "undefined" ? window.location.origin : ""}`;
-    if (typeof navigator !== "undefined" && navigator.share) {
-      try {
-        await navigator.share({
-          title: "관상 분석 리포트",
-          text,
-          url: typeof window !== "undefined" ? window.location.href : "",
-        });
-        return;
-      } catch {
-        /* fallback to clipboard */
-      }
-    }
-    try {
-      await navigator.clipboard?.writeText(text);
-      alert("복사되었습니다!");
-    } catch {
-      alert("공유하기를 지원하지 않는 환경입니다.");
-    }
+    await captureAndShareElement(faceShareResultRef.current, {
+      fileName: "physiognomy-result.png",
+      title: "관상 분석 결과",
+      text: `관상 분석 결과 이미지입니다.\n자세히 보기: ${window.location.origin}`,
+    });
   };
 
   const handleFaceReset = () => {
@@ -2202,7 +2191,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         </div>
 
         {activeSajuMode === "face" && (
-          <div className="w-full max-w-md space-y-6">
+          <div ref={faceShareResultRef} className="w-full max-w-md space-y-6">
             {!showFaceResult ? (
               <>
                 <div className="mb-4 text-center border-b border-white/10 pb-4">
@@ -2454,7 +2443,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         )}
 
         {activeSajuMode === "name" && (
-          <div className="w-full max-w-md space-y-6">
+          <div ref={nameShareResultRef} className="w-full max-w-md space-y-6">
             {!showNameResult ? (
               isNameLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-6">
