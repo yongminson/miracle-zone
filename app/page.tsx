@@ -3376,10 +3376,83 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabId>("fortune");
+  const [user, setUser] = useState<any>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  // 🚀 [추가됨] 로그인 상태 확인 및 감지
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setIsAuthChecking(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // 🚀 [추가됨] 카카오 로그인 & 로그아웃 함수
+  const handleKakaoLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: {
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : '',
+      }
+    });
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col">
-      {/* 네비게이션 탭 */}
-      <nav className="sticky top-0 z-50 w-full border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-sm">
+      {/* 🚀 [추가됨] 최상단 헤더 (앱 로고 & 카카오 로그인 버튼) */}
+      <header className="sticky top-0 z-[60] w-full border-b border-white/10 bg-slate-950/80 backdrop-blur-md px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-xs font-bold text-black">
+            명
+          </div>
+          <span className="text-yellow-400 font-bold tracking-widest text-sm">명운(命運)</span>
+        </div>
+        
+        <div>
+          {!isAuthChecking && (
+            user ? (
+              <div className="flex items-center gap-3 animate-fade-in">
+                <div className="flex items-center gap-2 bg-white/5 pr-3 pl-1 py-1 rounded-full border border-white/10">
+                  <img 
+                    src={user.user_metadata?.avatar_url || "https://www.gravatar.com/avatar/0000?d=mp&f=y"} 
+                    alt="프로필" 
+                    className="w-6 h-6 rounded-full border border-yellow-500/50 object-cover" 
+                  />
+                  <span className="text-xs font-medium text-white/90 truncate max-w-[80px]">
+                    {user.user_metadata?.name || "사용자"}님
+                  </span>
+                </div>
+                <button onClick={handleLogout} className="text-[10px] text-white/40 hover:text-white/80 transition-colors">
+                  로그아웃
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleKakaoLogin}
+                className="flex items-center gap-2 bg-[#FEE500] hover:bg-[#FEE500]/90 text-[#000000] px-3 py-2 rounded-xl text-xs font-bold transition-transform active:scale-95 shadow-lg shadow-[#FEE500]/20 animate-fade-in"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M16 4.64C8.953 4.64 3.2 9.426 3.2 15.33c0 3.824 2.454 7.17 6.166 8.922l-1.33 4.88c-.122.45.39.81.77.56l5.65-3.77c.5.06 1.015.094 1.544.094 7.047 0 12.8-4.787 12.8-10.686S23.047 4.64 16 4.64z" fill="#000000"/>
+                </svg>
+                카카오 1초 로그인
+              </button>
+            )
+          )}
+        </div>
+      </header>
+
+      {/* 기존 네비게이션 탭 (top-0 에서 top-[52px]로 수정하여 헤더 밑에 붙임) */}
+      <nav className="sticky top-[52px] z-50 w-full border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-sm shadow-md">
         <div className="mx-auto flex max-w-screen-md items-center justify-between px-2 py-2 overflow-x-auto no-scrollbar sm:px-6">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -3390,23 +3463,15 @@ export default function Home() {
                 onClick={() => tab.isReady && setActiveTab(tab.id)}
                 className={`
                   relative flex flex-col items-center gap-1.5 p-2 min-w-[64px] sm:min-w-[80px]
-                  transition-all duration-300 ease-out
-                  focus:outline-none
+                  transition-all duration-300 ease-out focus:outline-none
                   ${isActive ? "text-yellow-400" : tab.isReady ? "text-slate-400 hover:text-yellow-300" : "text-white/20 cursor-not-allowed"}
                 `}
               >
                 {isActive && (
-                  <span
-                    className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-yellow-500 shadow-[0_0_12px_rgba(234,179,8,0.6)]"
-                    aria-hidden
-                  />
+                  <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-yellow-500 shadow-[0_0_12px_rgba(234,179,8,0.6)]" aria-hidden />
                 )}
-                <tab.icon
-                  className={`h-5 w-5 sm:h-6 sm:w-6 ${isActive ? "drop-shadow-[0_0_6px_rgba(234,179,8,0.8)]" : ""}`}
-                  strokeWidth={2}
-                />
+                <tab.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${isActive ? "drop-shadow-[0_0_6px_rgba(234,179,8,0.8)]" : ""}`} strokeWidth={2} />
                 <span className="text-[10px] sm:text-xs font-medium whitespace-nowrap">{tab.label}</span>
-                
                 {!tab.isReady && (
                   <span className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-orange-600 text-[9px] sm:text-[10px] font-bold text-white shadow-lg animate-pulse">
                     준비

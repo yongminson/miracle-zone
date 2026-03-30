@@ -5,6 +5,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
+import { toPng } from "html-to-image";
 import {
   Sparkles,
   BookOpen,
@@ -27,6 +28,110 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju";
+
+async function captureAndShareElement(
+  target: HTMLElement | null,
+  options?: {
+    fileName?: string;
+    title?: string;
+    text?: string;
+  }
+) {
+  if (!target) {
+    alert("공유할 화면을 찾을 수 없습니다.");
+    return;
+  }
+
+  try {
+    const shareUrl = window.location.origin;
+
+    // 원본을 복제
+    const clonedTarget = target.cloneNode(true) as HTMLElement;
+    clonedTarget.style.margin = "0";
+    clonedTarget.style.width = `${target.offsetWidth}px`;
+
+    // 바깥 래퍼 생성
+    const wrapper = document.createElement("div");
+    wrapper.style.background = "#020817";
+    wrapper.style.padding = "24px";
+    wrapper.style.width = `${target.offsetWidth + 48}px`;
+    wrapper.style.boxSizing = "border-box";
+    wrapper.style.display = "flex";
+    wrapper.style.flexDirection = "column";
+    wrapper.style.gap = "16px";
+
+    // 하단 링크 박스 생성
+    const footer = document.createElement("div");
+    footer.style.background = "#0f172a";
+    footer.style.border = "1px solid rgba(234,179,8,0.35)";
+    footer.style.borderRadius = "16px";
+    footer.style.padding = "14px 16px";
+    footer.style.textAlign = "center";
+    footer.style.color = "#f8fafc";
+    footer.style.fontSize = "14px";
+    footer.style.lineHeight = "1.6";
+    footer.innerHTML = `
+      <div style="font-weight:700; color:#facc15; margin-bottom:6px;">
+        결과가 궁금하다면 여기서 확인
+      </div>
+      <div style="font-size:13px; color:#cbd5e1; word-break:break-all;">
+        ${shareUrl}
+      </div>
+    `;
+
+    wrapper.appendChild(clonedTarget);
+    wrapper.appendChild(footer);
+
+    // 화면 밖 임시 영역에 붙이기
+    const tempContainer = document.createElement("div");
+    tempContainer.style.position = "fixed";
+    tempContainer.style.left = "-99999px";
+    tempContainer.style.top = "0";
+    tempContainer.style.zIndex = "-1";
+    tempContainer.appendChild(wrapper);
+    document.body.appendChild(tempContainer);
+
+    const dataUrl = await toPng(wrapper, {
+      cacheBust: true,
+      pixelRatio: 2,
+      backgroundColor: "#020817",
+    });
+
+    document.body.removeChild(tempContainer);
+
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (isMobile && navigator.share) {
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const file = new File(
+        [blob],
+        options?.fileName ?? "result-share.png",
+        { type: "image/png" }
+      );
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: options?.title ?? "결과 공유",
+          files: [file],
+        });
+        return;
+      }
+    }
+
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = options?.fileName ?? "result-share.png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch (error) {
+    console.error("captureAndShareElement error:", error);
+    const message =
+      error instanceof Error ? error.message : String(error);
+    alert(`이미지 생성 오류: ${message}`);
+  }
+}
 
 // 🚀 [비밀 관리자 모드 로직] 전역 패턴 감지기
 let secretPattern = "";
@@ -225,6 +330,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   const [premiumResult, setPremiumResult] = useState<PremiumReport | null>(null);
   const [premiumBaziChart, setPremiumBaziChart] = useState<BaziChart | null>(null);
   const [premiumDaeunInfo, setPremiumDaeunInfo] = useState<DaeunInfo | null>(null);
+  const shareResultRef = useRef<HTMLDivElement | null>(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
 
   const [activeSubTab, setActiveSubTab] = useState(0);
@@ -422,29 +528,33 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const handleShare = async () => {
-    const lucky = fortuneData?.luckyItems;
-    const summary = fortuneData
-      ? `총운 ${fortuneData.scores[0]}점: ${fortuneData.texts[0]?.slice(0, 50)}...`
-      : "심층 명리학 리포트";
-    const text = `오늘의 운세 ${summary}${lucky ? ` | 행운의 색: ${lucky.color}, 번호: ${lucky.number}, 방향: ${lucky.direction}, 귀인: ${lucky.person}` : ""} | 자세히 보기: ${typeof window !== "undefined" ? window.location.origin : ""}`;
+    await captureAndShareElement(shareResultRef.current, {
+      fileName: "fortune-result.png",
+      title: "오늘의 운세",
+      text: `오늘의 운세 결과 이미지입니다.\n자세히 보기: ${window.location.origin}`,
+    });
+  };
 
-    if (typeof navigator !== "undefined" && navigator.share) {
+  const handleFortuneLinkShare = async () => {
+    const shareUrl = window.location.href;
+    const text = `오늘의 운세 결과 보러가기\n${shareUrl}`;
+  
+    if (navigator.share) {
       try {
         await navigator.share({
           title: "오늘의 운세",
           text,
-          url: typeof window !== "undefined" ? window.location.href : "",
+          url: shareUrl,
         });
         return;
-      } catch {
-        /* fallback to clipboard */
-      }
+      } catch {}
     }
+  
     try {
-      await navigator.clipboard?.writeText(text);
-      alert("복사되었습니다!");
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 복사되었습니다.");
     } catch {
-      alert("공유하기를 지원하지 않는 환경입니다.");
+      alert("링크 공유를 지원하지 않는 환경입니다.");
     }
   };
 
@@ -678,7 +788,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         )}
 
         {showResult && !isLoading && fortuneData && (
-          <div className="w-full max-w-2xl space-y-6 pt-4 pb-4">
+          <div ref={shareResultRef} className="w-full max-w-2xl space-y-6 pt-4 pb-4">
             {displayLuckyItems(fortuneData.luckyItems)}
 
             {!premiumResult ? (
@@ -761,20 +871,31 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                 </div>
 
                 <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={handleShare}
-                    className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  >
-                    📤 운세 결과 공유하기
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  >
-                    ↺ 다시 하기 (처음으로)
-                  </button>
+                <div className="grid grid-cols-3 gap-3">
+  <button
+    type="button"
+    onClick={handleFortuneLinkShare}
+    className="h-[88px] w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-2 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95 flex items-center justify-center text-center leading-tight"
+  >
+    🔗 링크 공유
+  </button>
+
+  <button
+    type="button"
+    onClick={handleShare}
+    className="h-[88px] w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-2 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95 flex items-center justify-center text-center leading-tight"
+  >
+    🖼️ 이미지 공유
+  </button>
+
+  <button
+    type="button"
+    onClick={handleReset}
+    className="h-[88px] w-full rounded-2xl border border-white/20 bg-white/5 px-2 text-sm font-bold text-white/80 transition-all hover:bg-white/10 active:scale-95 flex items-center justify-center text-center leading-tight"
+  >
+    ↺ 다시 하기 (처음으로)
+  </button>
+</div>
                 </div>
 
                 <button
@@ -840,22 +961,35 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 </div>
 
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={handleShare}
-                    className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  >
-                    📤 운세 결과 공유하기
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  >
-                    ↺ 다시 하기 (처음으로)
-                  </button>
-                </div>
+                <div className="space-y-3">
+  <div className="grid grid-cols-2 gap-3">
+    <button
+      type="button"
+      onClick={handleFortuneLinkShare}
+      className="min-h-[88px] w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95 flex flex-col items-center justify-center text-center"
+    >
+      <span className="text-xl leading-none">🔗</span>
+      <span className="mt-2">링크 공유</span>
+    </button>
+
+    <button
+      type="button"
+      onClick={handleShare}
+      className="min-h-[88px] w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-3 py-4 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95 flex flex-col items-center justify-center text-center"
+    >
+      <span className="text-xl leading-none">🖼️</span>
+      <span className="mt-2">이미지 공유</span>
+    </button>
+  </div>
+
+  <button
+    type="button"
+    onClick={handleReset}
+    className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-bold text-white/80 transition-all hover:bg-white/10 active:scale-95"
+  >
+    ↺ 다시 하기 (처음으로)
+  </button>
+</div>
               </>
             )}
           </div>
@@ -1783,6 +1917,8 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [faceResultData, setFaceResultData] = useState<any>(null);
   const [showPhysiognomyPaymentModal, setShowPhysiognomyPaymentModal] = useState(false);
   const [isPhysiognomyPremiumUnlocked, setIsPhysiognomyPremiumUnlocked] = useState(false);
+  const faceShareResultRef = useRef<HTMLDivElement | null>(null);
+  const nameShareResultRef = useRef<HTMLDivElement | null>(null);
 
   const [nameGender, setNameGender] = useState<"male" | "female">("male");
   const [nameBirthDate, setNameBirthDate] = useState("");
@@ -1920,25 +2056,65 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const handleFaceShare = async () => {
-    const summary = faceResultData?.freeSummary ?? "";
-    const text = `당신의 타고난 관상 분석 리포트: ${summary.slice(0, 80)}${summary.length > 80 ? "..." : ""} | 자세히 보기: ${typeof window !== "undefined" ? window.location.origin : ""}`;
-    if (typeof navigator !== "undefined" && navigator.share) {
+    await captureAndShareElement(faceShareResultRef.current, {
+      fileName: "physiognomy-result.png",
+      title: "관상 분석 결과",
+      text: `관상 분석 결과 이미지입니다.\n자세히 보기: ${window.location.origin}`,
+    });
+  };
+
+  const handleNameShare = async () => {
+    await captureAndShareElement(nameShareResultRef.current, {
+      fileName: "name-result.png",
+      title: "이름 풀이 결과",
+      text: `이름 풀이 결과 이미지입니다.\n자세히 보기: ${window.location.origin}`,
+    });
+  };
+
+  const handleFaceLinkShare = async () => {
+    const shareUrl = window.location.href;
+    const text = `관상 분석 결과 보러가기\n${shareUrl}`;
+  
+    if (navigator.share) {
       try {
         await navigator.share({
-          title: "관상 분석 리포트",
+          title: "관상 분석 결과",
           text,
-          url: typeof window !== "undefined" ? window.location.href : "",
+          url: shareUrl,
         });
         return;
-      } catch {
-        /* fallback to clipboard */
-      }
+      } catch {}
     }
+  
     try {
-      await navigator.clipboard?.writeText(text);
-      alert("복사되었습니다!");
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 복사되었습니다.");
     } catch {
-      alert("공유하기를 지원하지 않는 환경입니다.");
+      alert("링크 공유를 지원하지 않는 환경입니다.");
+    }
+  };
+  
+  const handleNameLinkShare = async () => {
+    const shareUrl = window.location.href;
+    const hanjaText = nameHanja ? ` (${nameHanja})` : "";
+    const text = `이름 풀이 결과 보러가기\n${nameInput}${hanjaText}\n${shareUrl}`;
+  
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "이름 풀이 결과",
+          text,
+          url: shareUrl,
+        });
+        return;
+      } catch {}
+    }
+  
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 복사되었습니다.");
+    } catch {
+      alert("링크 공유를 지원하지 않는 환경입니다.");
     }
   };
 
@@ -2164,7 +2340,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         </div>
 
         {activeSajuMode === "face" && (
-          <div className="w-full max-w-md space-y-6">
+          <div ref={faceShareResultRef} className="w-full max-w-md space-y-6">
             {!showFaceResult ? (
               <>
                 <div className="mb-4 text-center border-b border-white/10 pb-4">
@@ -2359,14 +2535,23 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
                 <div className="mt-8 space-y-3">
                   {isPhysiognomyPremiumUnlocked ? (
-                    <button
-                      type="button"
-                      onClick={handleFaceShare}
-                      className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95"
-                    >
-                      📤 관상 결과 공유하기
-                    </button>
-                  ) : null}
+  <div className="grid grid-cols-2 gap-3">
+    <button
+      type="button"
+      onClick={handleFaceLinkShare}
+      className="w-full rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95"
+    >
+      🔗 링크 공유
+    </button>
+    <button
+      type="button"
+      onClick={handleFaceShare}
+      className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95"
+    >
+      🖼️ 이미지 공유
+    </button>
+  </div>
+) : null}
                   <button
                     type="button"
                     onClick={handleFaceReset}
@@ -2416,7 +2601,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         )}
 
         {activeSajuMode === "name" && (
-          <div className="w-full max-w-md space-y-6">
+          <div ref={nameShareResultRef} className="w-full max-w-md space-y-6">
             {!showNameResult ? (
               isNameLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-6">
@@ -2635,23 +2820,23 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
                 <div className="mt-8 space-y-3">
                   {isNamePremiumUnlocked ? (
+                    <div className="grid grid-cols-2 gap-3">
                     <button
-                    type="button"
-                    onClick={async () => {
-                      const hanjaText = nameHanja ? ` (${nameHanja})` : "";
-                      const summaryText = nameResultData?.freeSummary?.slice(0, 60) ?? "";
-                      const originUrl = typeof window !== "undefined" ? window.location.origin : "";
-                      const text = `이름 풀이: ${nameInput}${hanjaText} - ${summaryText}... | ${originUrl}`;
-                      
-                      if (navigator.share) {
-                        try { await navigator.share({ title: "이름 풀이", text, url: window.location.href }); return; } catch {}
-                      }
-                      try { await navigator.clipboard?.writeText(text); alert("복사되었습니다!"); } catch { alert("공유 지원 불가"); }
-                    }}
-                    className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95"
-                  >
-                    📤 이름 풀이 결과 공유하기
-                  </button>
+                      type="button"
+                      onClick={handleNameLinkShare}
+                      className="w-full rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20"
+                    >
+                      🔗 링크 공유
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNameShare}
+                      className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20"
+                    >
+                      🖼️ 이미지 공유
+                    </button>
+                  </div>
+
                   ) : (
                     <button
                       type="button"
