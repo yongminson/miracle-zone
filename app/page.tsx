@@ -392,7 +392,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
 
   // 🚀 [마법의 공유 버튼 로직] 화면 캡처 + 스마트폰 네이티브 카톡 공유
   const handleShare = async () => {
-    // 1. 모바일 캡처 지연을 방지하기 위한 UI 알림 (중요!)
     alert("결과 이미지를 생성 중입니다. 잠시만 기다려주세요 📸\n(환경에 따라 1~2초 소요됩니다)");
 
     const lucky = fortuneData?.luckyItems;
@@ -401,17 +400,23 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
 
     let file: File | null = null;
     
-    // 2. 완벽하게 캡처될 때까지 대기
     try {
       const element = document.getElementById("fortune-result-card");
       if (element) {
+        // 모바일에서 스크롤이 내려가 있으면 화면이 짤리는 버그 방지 (순간적으로 맨 위로 올림)
+        const originalScroll = window.scrollY;
+        window.scrollTo(0, 0);
+
         const canvas = await html2canvas(element, { 
           backgroundColor: "#0f172a", 
           scale: 2,
           useCORS: true, 
-          allowTaint: true,
-          scrollY: -window.scrollY // 모바일 화면 짤림 방지
+          // 🚨 allowTaint 옵션 완벽 삭제 (갤럭시 S24 보안 에러 주범)
+          logging: false
         });
+
+        window.scrollTo(0, originalScroll); // 캡처 후 원래 스크롤로 원상복구
+
         const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
         if (blob) {
           file = new File([blob], "miracle_fortune.png", { type: "image/png" });
@@ -421,20 +426,18 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
       console.error("캡처 실패:", err);
     }
 
-    // (디버깅용) 캡처가 진짜 실패했는지 확인
     if (!file) {
-      alert("폰 환경 제한으로 이미지 생성에 실패하여 텍스트만 공유됩니다.");
+      alert("갤럭시 보안 정책 등으로 이미지 생성에 실패했습니다. 텍스트만 공유됩니다.");
     }
 
-    // 3. 모바일 네이티브 공유 띄우기
+    // 모바일 기기(아이폰/갤럭시) 카톡 공유 띄우기
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-          // 카카오톡이 이미지를 인식할 수 있도록 files 배열 명시
           await navigator.share({
             title: "명운 오늘의 운세",
             text: text,
-            files: [file]
+            files: [file] // 👈 사진 파일 전송!
           });
           return; 
         } else {
@@ -446,7 +449,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
       }
     }
 
-    // 4. PC 환경 폴백
+    // PC 환경일 경우 다운로드 및 텍스트 복사로 대체
     try {
       await navigator.clipboard?.writeText(text);
       if (file) {
@@ -454,8 +457,10 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
          link.href = URL.createObjectURL(file);
          link.download = "miracle_fortune.png";
          link.click();
+         alert("✅ 운세 결과 이미지가 다운로드 되었습니다!\nPC 사진첩을 확인하시고 카톡에 첨부해주세요.");
+      } else {
+         alert("운세 텍스트가 복사되었습니다!");
       }
-      alert("✅ 운세 결과가 복사되고 이미지가 저장되었습니다!\nPC 카톡 창에 [붙여넣기] 해주세요.");
     } catch {
       alert("공유하기를 지원하지 않는 기기입니다.");
     }
