@@ -3278,6 +3278,7 @@ export default function Home() {
       provider: 'kakao',
       options: {
         redirectTo: typeof window !== 'undefined' ? window.location.origin : '',
+        scopes: 'profile_nickname profile_image', // 🔥 핵심: 이메일 빼고 이름이랑 프사만 달라고 명시!
       }
     });
   };
