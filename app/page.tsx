@@ -59,14 +59,17 @@ async function captureAndShareElement(
         options?.fileName ?? "result-share.png",
         { type: "image/png" }
       );
-
+    
+      const shareUrl = window.location.href;
+    
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: options?.title ?? "결과 공유",
           text:
             (options?.text ?? "결과 이미지를 확인해보세요.") +
-            "\n" +
-            window.location.origin,
+            "\n\n" +
+            `링크: ${shareUrl}`,
+          url: shareUrl,
           files: [file],
         });
         return;
