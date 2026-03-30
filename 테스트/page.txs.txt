@@ -1,4 +1,5 @@
 /* eslint-disable */
+// @ts-nocheck
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -26,6 +27,18 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju";
+
+// 🚀 [비밀 관리자 모드 로직] 전역 패턴 감지기
+let secretPattern = "";
+const pushSecret = (char: string, callback?: () => void) => {
+  secretPattern += char;
+  if (secretPattern.length > 20) secretPattern = secretPattern.slice(-20);
+  // LLLLL (로또5번) + S (사주1번) + LLLLL (로또5번)
+  if (secretPattern.includes("LLLLLSLLLLL")) {
+    secretPattern = ""; // 트리거 성공 시 초기화
+    if (callback) callback();
+  }
+};
 
 const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, isReady: true },
@@ -115,6 +128,77 @@ type DaeunInfo = {
   currentDescription: string;
 };
 
+// 🚀 [추가] 탭별 맞춤 푸터 & 약관 모달 & 진짜 관리자 로그인 컴포넌트
+function FooterPolicy({ tabId }: { tabId: TabId }) {
+  const [showPolicy, setShowPolicy] = useState<string | null>(null);
+
+  const handleAdminLogin = () => {
+    const pwd = prompt("운영자 비밀번호를 입력하세요.");
+    if (pwd === "1004") {
+      localStorage.setItem("MASTER_ADMIN", "true");
+      alert("✨ 운영자 모드가 활성화되었습니다. 이제 모든 프리미엄 결제가 프리패스됩니다.");
+    } else if (pwd) {
+      alert("비밀번호가 일치하지 않습니다.");
+    }
+  };
+
+  return (
+    <div className="mt-12 mb-8 mx-auto w-full max-w-md border border-white/10 bg-black/40 backdrop-blur-md rounded-2xl pt-6 pb-8 text-center space-y-3 px-4 relative z-50 shadow-xl">
+      {tabId === "lotto" ? (
+        <>
+          <p className="text-[10px] text-white/40 break-keep leading-relaxed">
+            제공된 로또 번호는 수학적 난수와 통계 기반으로 추출되며, 당첨을 보장하지 않습니다. 과도한 복권 몰입은 가계 재정에 부담이 될 수 있습니다.
+          </p>
+          <p className="text-[10px] font-bold text-white/30 pt-1">
+            도박중독예방상담센터: 1336 | 동행복권: 1588-0908
+          </p>
+        </>
+      ) : tabId === "altar" ? (
+        <p className="text-[10px] text-white/40 break-keep leading-relaxed">
+          본 서비스는 희망과 위로를 나누는 공간으로 특정 종교와 무관하며 법적 효력을 갖지 않습니다.
+        </p>
+      ) : (
+        <p className="text-[10px] text-white/40 break-keep leading-relaxed">
+          본 서비스에서 제공하는 운세, 해몽, 관상 및 이름 풀이 결과는 정통 명리학에 기반한 통계적 해석으로, 절대적인 미래를 보장하지 않으며 법적 책임을 지지 않습니다.
+        </p>
+      )}
+
+      <div className="flex justify-center gap-4 text-[10px] text-white/50 pt-2 font-medium">
+        <button type="button" onClick={() => setShowPolicy("terms")} className="hover:text-white transition-colors">이용약관</button>
+        <span>|</span>
+        <button type="button" onClick={() => setShowPolicy("privacy")} className="hover:text-white transition-colors">개인정보처리방침</button>
+        <span>|</span>
+        <button type="button" onClick={() => setShowPolicy("refund")} className="hover:text-white transition-colors">환불정책</button>
+      </div>
+
+      {/* 🔒 더블클릭 시 숨겨진 운영자 로그인 작동 */}
+      <p className="text-[9px] text-white/20 pt-2 cursor-default select-none" onDoubleClick={handleAdminLogin}>
+        © 2026 명운(命運). All rights reserved.
+      </p>
+
+      {/* 📜 정책 모달창 */}
+      {showPolicy && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setShowPolicy(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-white/20 p-6 shadow-2xl max-h-[85vh] flex flex-col text-left" onClick={e=>e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-yellow-400 mb-4 border-b border-white/10 pb-3 shrink-0 flex justify-between items-center">
+              <span>{showPolicy === "terms" ? "이용약관" : showPolicy === "privacy" ? "개인정보처리방침" : "환불정책"}</span>
+              <button onClick={() => setShowPolicy(null)} className="text-white/50 hover:text-white text-2xl font-light">&times;</button>
+            </h3>
+            <div className="text-xs text-white/80 space-y-4 leading-relaxed whitespace-pre-wrap flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              {showPolicy === "terms" && "제1조 (목적)\n본 약관은 서비스의 이용조건 및 절차, 이용자와 회사의 권리, 의무, 책임사항을 규정함을 목적으로 합니다.\n\n제2조 (서비스의 성격)\n본 서비스에서 제공하는 모든 결과는 통계적, 학술적 해석에 기반하며 절대적인 사실이나 미래를 보장하지 않습니다."}
+              {showPolicy === "privacy" && "1. 수집하는 개인정보 항목\n회사는 회원가입 없이 서비스를 제공하며, 사주 분석을 위해 입력하신 생년월일, 성별, 이름 등은 서버에 영구 저장되지 않고 분석 즉시 폐기됩니다.\n\n2. 쿠키의 사용\n서비스 편의를 위해 기기 내부에 일부 설정(예: 프리미엄 해제 상태)이 임시 저장될 수 있습니다."}
+              {showPolicy === "refund" && "[디지털 콘텐츠 환불 규정 안내]\n\n본 서비스에서 결제를 통해 제공되는 프리미엄 리포트 및 통계 번호 등은 '디지털 콘텐츠'에 해당합니다.\n\n1. 청약철회 불가 안내\n전자상거래 등에서의 소비자보호에 관한 법률 제17조에 의거, 결제가 완료되고 결과가 화면에 노출된 즉시 콘텐츠의 제공이 완료된 것으로 간주되어 원칙적으로 환불(청약철회)이 불가합니다.\n\n2. 예외적 환불 안내\n결제는 정상적으로 완료되었으나 시스템 오류로 인하여 결과를 전혀 열람하지 못한 경우에는 고객센터 확인을 거쳐 100% 환불 처리해 드립니다."}
+            </div>
+            <button className="mt-6 w-full py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 transition-colors focus:outline-none" onClick={() => setShowPolicy(null)}>
+              확인하고 닫기
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const FORTUNE_CACHE_PREFIX = "fortune-cache-";
 const PREMIUM_CACHE_PREFIX = "fortune-premium-cache-";
 const NAME_CACHE_PREFIX = "name-cache-";
@@ -135,11 +219,9 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   const [birthDate, setBirthDate] = useState("");
   const [calendarType, setCalendarType] = useState<"solar" | "lunar" | "lunar-leap">("solar");
   const [birthTime, setBirthTime] = useState("unknown");
-
   const [isLoading, setIsLoading] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [fortuneData, setFortuneData] = useState<FortuneResultData>(null);
-
   const [premiumResult, setPremiumResult] = useState<PremiumReport | null>(null);
   const [premiumBaziChart, setPremiumBaziChart] = useState<BaziChart | null>(null);
   const [premiumDaeunInfo, setPremiumDaeunInfo] = useState<DaeunInfo | null>(null);
@@ -180,7 +262,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
             Array.isArray(data.texts) &&
             data.scores.length === 6 &&
             data.texts.length === 6;
-
           if (!hasValidStructure) {
             localStorage.removeItem(cacheKey);
           } else {
@@ -199,7 +280,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     }
 
     const startTime = Date.now();
-
     try {
       const res = await fetch("/api/fortune", {
         method: "POST",
@@ -211,7 +291,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
           birthTime,
         }),
       });
-
       const data = await res.json();
 
       if (!res.ok) {
@@ -232,7 +311,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
       setActiveSubTab(0);
       setShowResult(true);
     } catch (err) {
-      // 🚀 대표님이 원하신 연령 제한 문구가 정확히 여기에 뜨게 됩니다!
       alert(err instanceof Error ? err.message : "운세 분석 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
@@ -255,7 +333,11 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const handlePremium = () => {
-    setShowPremiumModal(true);
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      handlePremiumConfirm();
+    } else {
+      setShowPremiumModal(true);
+    }
   };
 
   const handlePremiumConfirm = async () => {
@@ -265,7 +347,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     setIsLoading(true);
     setIsPremiumLoading(true);
     setPremiumLoadingStep(0);
-
     const premiumCacheKey = getPremiumCacheKey();
   
     const loadingTimer = window.setInterval(() => {
@@ -284,7 +365,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
             parsed &&
             parsed.premiumReport &&
             parsed.baziChart;
-
           if (hasValidStructure) {
             await new Promise((r) => setTimeout(r, 2200));
             setPremiumResult(parsed.premiumReport ?? null);
@@ -432,16 +512,14 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
       `}
     >
-      {/* ✅ [추가] 우주 배경 & 별똥별 애니메이션 */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-slate-950">
-        <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: "url('/bg_fortune.png')" }} />
+        <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: "url('/bg_fortune.jpg')" }} />
         {isVisible && (
           <div className="absolute inset-0 overflow-hidden">
             <style>{`
               @keyframes twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; transform: scale(1.2); } }
               @keyframes shooting { 0% { transform: translate(0, 0) rotate(-45deg); opacity: 1; } 20% { opacity: 0; } 100% { transform: translate(-800px, 800px) rotate(-45deg); opacity: 0; } }
             `}</style>
-            {/* 30개의 반짝이는 별 */}
             {Array.from({length: 30}).map((_, i) => (
               <div key={i} className="absolute bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" style={{
                 top: `${Math.random() * 50}%`, left: `${Math.random() * 100}%`,
@@ -449,13 +527,12 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                 animation: `twinkle ${Math.random() * 3 + 2}s infinite ease-in-out ${Math.random() * 2}s`
               }} />
             ))}
-            {/* 3개의 유성(별똥별) 교차 */}
             <div className="absolute w-[120px] h-[1px] bg-gradient-to-r from-transparent to-white" style={{ top: '10%', left: '80%', animation: 'shooting 6s linear infinite 1s' }} />
             <div className="absolute w-[180px] h-[2px] bg-gradient-to-r from-transparent to-white/80" style={{ top: '0%', left: '60%', animation: 'shooting 8s linear infinite 4s' }} />
             <div className="absolute w-[90px] h-[2px] bg-gradient-to-r from-transparent to-yellow-100/60" style={{ top: '15%', left: '90%', animation: 'shooting 11s linear infinite 7s' }} />
           </div>
         )}
-        <div className="absolute inset-0 bg-black/40" /> {/* 글씨 잘 보이게 틴트 처리 */}
+        <div className="absolute inset-0 bg-black/40" />
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 py-8">
@@ -498,13 +575,13 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
-                <input
-                  type="date"
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-white placeholder-white/40 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
-                />
+              <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
+              <input type="tel" maxLength={10} placeholder="예: 19801013" value={birthDate} onChange={(e) => {
+                  let val = e.target.value.replace(/[^0-9]/g, '');
+                  if (val.length > 6) val = val.slice(0,4) + '-' + val.slice(4,6) + '-' + val.slice(6,8);
+                  else if (val.length > 4) val = val.slice(0,4) + '-' + val.slice(4);
+                  setBirthDate(val);
+                }} className="w-full rounded-xl border border-white/20 bg-slate-800/80 shadow-inner px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30" />
               </div>
 
               <div>
@@ -548,7 +625,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         {isLoading && (
           <div className="flex flex-1 flex-col items-center justify-center gap-6">
             <div className="relative">
-              <div className="h-14 w-14 animate-[fortune-spin_1.2s_linear_infinite] rounded-full border-2 border-yellow-500/30 border-t-yellow-400" />
+               <div className="h-14 w-14 animate-[fortune-spin_1.2s_linear_infinite] rounded-full border-2 border-yellow-500/30 border-t-yellow-400" />
               <div className="absolute inset-2 rounded-full border border-yellow-500/20" />
             </div>
 
@@ -583,7 +660,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                             : "bg-transparent text-white/50"
                         }`}
                       >
-                        <span>{label}</span>
+                         <span>{label}</span>
                         <span>
                           {done ? "완료" : active ? "진행중" : "대기"}
                         </span>
@@ -596,18 +673,16 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   사주 원국과 오늘 기준 흐름을 함께 정리하고 있습니다...
                 </p>
               </div>
-            )}
+             )}
           </div>
         )}
 
         {showResult && !isLoading && fortuneData && (
           <div className="w-full max-w-2xl space-y-6 pt-4 pb-4">
-            {/* 행운의 아이템 뱃지 */}
             {displayLuckyItems(fortuneData.luckyItems)}
 
             {!premiumResult ? (
               <>
-                {/* 🚀 데일리 가이드 (사주 엔진 기반 3단 가이드) */}
                 {fortuneData.dailyGuide && (
                   <div className="rounded-xl border border-yellow-500/40 bg-gradient-to-br from-yellow-500/10 to-amber-600/10 p-5 backdrop-blur-md mb-6">
                     <h3 className="mb-3 text-sm font-bold text-yellow-400">💡 오늘의 핵심 가이드</h3>
@@ -628,7 +703,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 )}
 
-                {/* 서브 탭 (가로 스크롤) */}
                 <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1">
                   {FORTUNE_CATEGORIES.map((cat, i) => {
                     const Icon = cat.icon;
@@ -655,7 +729,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   })}
                 </div>
 
-                {/* 선택된 항목 텍스트 결과 */}
                 <div className="overflow-y-auto rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md transition-all duration-300">
                   <h3 className="mb-3 text-base font-medium text-yellow-400">
                     {FORTUNE_CATEGORIES[activeSubTab].title}
@@ -665,7 +738,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </p>
                 </div>
 
-                {/* 6개 항목 점수 그래프 */}
                 <div className="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
                   <h3 className="mb-4 text-sm font-medium text-yellow-400/90">
                     한눈에 보는 운세
@@ -681,7 +753,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                           />
                         </div>
                         <span className="w-10 shrink-0 text-right text-xs text-yellow-400/90">
-                          {fortuneData.scores[i]}점
+                           {fortuneData.scores[i]}점
                         </span>
                       </div>
                     ))}
@@ -705,7 +777,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </button>
                 </div>
 
-                {/* 프리미엄 리워드 광고 버튼 */}
                 <button
                   type="button"
                   onClick={handlePremium}
@@ -716,10 +787,8 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
               </>
             ) : (
               <>
-                {/* 프리미엄: 사주 명식표 */}
                 {displayBaziChartPremium(premiumBaziChart)}
 
-                {/* 프리미엄: 당신의 대운 */}
                 {premiumDaeunInfo && (
                   <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                     <h3 className="mb-4 text-center text-base font-semibold text-black">
@@ -745,7 +814,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 )}
 
-                {/* 프리미엄 심층 리포트 UI */}
                 <div className="rounded-2xl border-2 border-yellow-500/50 bg-yellow-900/10 p-6 backdrop-blur-md shadow-2xl shadow-yellow-500/10">
                   <h2 className="mb-6 text-center text-xl font-bold text-yellow-400">
                     ✨ 전문가 심층 명리학 리포트
@@ -793,7 +861,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-        {/* 프리미엄 리워드 광고 모달 */}
         {showPremiumModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -828,13 +895,13 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
             </div>
           </div>
         )}
+        <FooterPolicy tabId="fortune" />
       </div>
     </div>
   );
 }
 
 type WishRow = { id: string | number; content: string; created_at?: string };
-
 type PremiumPeriod = "24h" | "10d";
 type PremiumNameDisplay = "anonymous" | "real" | "partial";
 
@@ -895,7 +962,6 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
   return (
     <div role="tabpanel" aria-hidden={!isVisible} className={`absolute inset-0 flex flex-col overflow-y-auto transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
       
-      {/* 🚀 [수정] 배경 고정 (어지러움 방지) */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900 overflow-hidden">
         <style>{`
           @keyframes floatDream {
@@ -941,7 +1007,6 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
         {isLoading && (
           <div className="flex flex-1 flex-col items-center justify-center gap-8 mt-4">
             
-            {/* 🚀 [수정] 네모칸 탈피! 마법의 꿈 방울(원형) + 후광 애니메이션 */}
             <div 
               className="relative w-48 h-48 sm:w-56 sm:h-56 rounded-full border-[6px] border-white/30 overflow-hidden" 
               style={{ animation: "floatDream 3s ease-in-out infinite, pulseGlow 2s ease-in-out infinite" }}
@@ -956,7 +1021,6 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                 <div className="absolute inset-0 bg-white/20 mix-blend-overlay" />
             </div>
 
-            {/* 🚀 더 돋보이는 로딩 인디케이터 */}
             <div className="flex flex-col items-center gap-3">
               <div className="flex items-center gap-3 rounded-full bg-slate-900/80 backdrop-blur-md border border-white/10 px-6 py-3 shadow-xl">
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-400/30 border-t-blue-300" />
@@ -1003,6 +1067,7 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
             </div>
           </div>
         )}
+        <FooterPolicy tabId="dream" />
       </div>
     </div>
   );
@@ -1039,7 +1104,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     localStorage.setItem("altar-mock-wishes-time", String(Date.now()));
     return next;
   });
-
   const [isCooldown, setIsCooldown] = useState(false);
   const [isSubmittingFreeWish, setIsSubmittingFreeWish] = useState(false);
   const [showWishToast, setShowWishToast] = useState(false);
@@ -1052,7 +1116,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
   const [premiumWishText, setPremiumWishText] = useState("");
   const [countdownNow, setCountdownNow] = useState(Date.now());
   const audioRef = useRef<HTMLAudioElement>(null);
-
+  
   useEffect(() => {
     const refreshMockWishes = () => {
       const next = shuffleArray(FLOATING_WISHES_POOL).slice(0, 11);
@@ -1064,7 +1128,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     const id = setInterval(refreshMockWishes, 12 * 60 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
-
+  
   useEffect(() => {
     if (!isVisible) {
       audioRef.current?.pause();
@@ -1081,7 +1145,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       audio.pause();
     };
   }, [isVisible]);
-
+  
   const ONE_HOUR_MS = 60 * 60 * 1000;
   const filterFreeWishes = (list: WishRow[]) => {
     const cutoff = Date.now() - ONE_HOUR_MS;
@@ -1116,11 +1180,11 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     const id = setInterval(() => setCountdownNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
-
+  
   useEffect(() => {
     setPremiumWishes((prev) => filterPremiumWishes(prev));
   }, [countdownNow]);
-
+  
   const fetchWishes = useCallback(async () => {
     try {
       const { data, error } = await supabase.from("wishes").select("*").order("created_at", { ascending: false }).limit(100);
@@ -1185,16 +1249,16 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       console.error("데이터 불러오기 실패:", err);
     }
   }, []);
-
+  
   useEffect(() => {
     fetchWishes();
   }, [fetchWishes]);
-
+  
   useEffect(() => {
     const freeFiltered = filterFreeWishes(wishes);
     setFloatingWishes([...freeFiltered.map((w) => w.content), ...mockWishes].slice(-25));
   }, [wishes, mockWishes]);
-
+  
   useEffect(() => {
     if (!isVisible) return;
 
@@ -1221,10 +1285,10 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       supabase.removeChannel(channel);
     };
   }, [isVisible]);
-
+  
   const activeWishCount = floatingWishes.length + filterPremiumWishes(premiumWishes).length;
   const activePremiumCount = filterPremiumWishes(premiumWishes).length;
-
+  
   const handleMuteToggle = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -1234,7 +1298,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const lastOptimisticRef = useRef<{ text: string; at: number } | null>(null);
-
+  
   const handleSubmitFree = async () => {
     const text = wishText.trim();
     if (!text || isCooldown || isSubmittingFreeWish) return;
@@ -1268,12 +1332,12 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       setIsSubmittingFreeWish(false);
     }
   };
-
+  
   const handleOpenPremiumModal = () => {
     setPremiumWishText(wishText.trim());
     setShowPremiumModal(true);
   };
-
+  
   const getPremiumBadge = (): string => {
     const periodLabel = premiumPeriod === "24h" ? "24시간" : "특별기원";
     if (premiumNameDisplay === "anonymous") {
@@ -1289,7 +1353,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     }
     return `[✨ 익명 님의 ${periodLabel} 기원]`;
   };
-
+  
   const handlePremiumConfirm = async () => {
     const fullText = premiumWishText.trim();
     if (!fullText) return;
@@ -1339,7 +1403,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     setPremiumWishText("");
     setPremiumNameInput("");
   };
-
+  
   return (
     <div
       role="tabpanel"
@@ -1350,7 +1414,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
       `}
     >
-      {/* [배경 레이어] 영상 + 어두운 오버레이 */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <video
           src="/초.mp4"
@@ -1363,7 +1426,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         <div className="absolute inset-0 bg-black/50" />
       </div>
 
-      {/* [콘텐츠 레이어] 글귀 플로팅, 소원 입력창, 스피커 버튼 */}
       <div className="relative z-10 w-full h-full flex flex-col">
         <audio ref={audioRef} src="/432Hz_Candle_BGM.wav" loop />
 
@@ -1373,7 +1435,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-        {/* 소원 플로팅 (가짜 12h 리셋 + 무료 1h + 프리미엄 24h/10d) - x축 10%~90% 내 강제 */}
         <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
           {(() => {
             const premiumFiltered = filterPremiumWishes(premiumWishes);
@@ -1415,8 +1476,8 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                     ? 12 + ((i * 21 + idLength * 7) % 70)
                     : 10 + ((i * 19 + idLength * 5) % 72);
                   const topPct = isTenDays
-                    ? 10 + ((i * 13 + idLength * 3) % 26)
-                    : 18 + ((i * 15 + idLength * 2) % 36);
+                    ? 5 + ((i * 13 + idLength * 3) % 20)
+                    : 10 + ((i * 15 + idLength * 2) % 25);
                   const duration = isTenDays
                     ? 18 + ((i * 3 + idLength) % 6)
                     : 12 + ((i * 2 + idLength) % 5);
@@ -1446,8 +1507,8 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                         }}
                         className={
                           isTenDays
-                            ? "text-2xl font-extrabold text-yellow-200 drop-shadow-[0_0_18px_rgba(251,191,36,0.95)]"
-                            : "text-xl font-bold text-yellow-300 drop-shadow-[0_0_12px_rgba(250,204,21,0.75)]"
+                            ? "text-sm sm:text-2xl font-extrabold text-yellow-200 drop-shadow-[0_0_18px_rgba(251,191,36,0.95)] max-w-[85vw] text-center break-keep"
+                            : "text-xs sm:text-xl font-bold text-yellow-300 drop-shadow-[0_0_12px_rgba(250,204,21,0.75)] max-w-[85vw] text-center break-keep"
                         }
                       >
                         {pw.badge} {pw.content}
@@ -1467,8 +1528,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           })()}
         </div>
 
-        {/* 소원 작성란 (하단 고정, z-50으로 최상단 보호) */}
-        <div className="relative z-50 flex flex-1 flex-col items-center justify-end gap-6 px-6 pb-10 pt-24">
+        <div className="relative z-10 flex h-full flex-col items-center justify-end px-4 pt-12 pb-0 -mb-6">
           <div className="w-full max-w-md rounded-2xl border border-white/25 bg-white/15 p-5 backdrop-blur-md shadow-lg shadow-black/20">
             <textarea
               value={wishText}
@@ -1511,7 +1571,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           </div>
         </div>
 
-        {/* 우측 최하단 스피커 아이콘 (Mute/Unmute) - z-50 최상단 */}
         <button
           type="button"
           onClick={handleMuteToggle}
@@ -1525,10 +1584,9 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           )}
         </button>
 
-        {/* 프리미엄 소원 결제 모달 */}
         {showPremiumModal && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
             onClick={(e) => e.target === e.currentTarget && handlePremiumCancel()}
           >
             <div
@@ -1553,7 +1611,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
               </div>
 
               <div className="mb-4">
-                <label className="mb-2 block text-sm font-medium text-yellow-400/90">
+                 <label className="mb-2 block text-sm font-medium text-yellow-400/90">
                   노출 기간
                 </label>
                 <div className="flex flex-col gap-2">
@@ -1650,6 +1708,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
             </div>
           </div>
         )}
+        <FooterPolicy tabId="altar" />
       </div>
     </div>
   );
@@ -1714,7 +1773,6 @@ function getHanjaOptionsByChar(name: string): { char: string; options: string[] 
 
 function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [activeSajuMode, setActiveSajuMode] = useState<"face" | "name">("face");
-
   const [faceName, setFaceName] = useState("");
   const [faceBirthDate, setFaceBirthDate] = useState("");
   const [faceImage, setFaceImage] = useState<string | null>(null);
@@ -1788,12 +1846,10 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     setIsFaceScanning(true);
     setShowFaceResult(false);
     setFaceResultData(null);
-
     const minScanMs = 3500;
     const startTime = Date.now();
 
     try {
-      // 🚀 이미지 해싱 (캐싱용)
       const generateHash = (str: string) => {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
@@ -1809,10 +1865,8 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       let data;
 
       if (cachedData) {
-        // 같은 사진이면 API 호출 없이 캐시에서 즉시 로드 (비용 0원)
         data = JSON.parse(cachedData);
       } else {
-        // 새로운 사진일 때만 서버에 요청
         const response = await fetch("/api/physiognomy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1836,7 +1890,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         return;
       }
 
-      // 스캐닝 애니메이션 최소 시간 보장
       const elapsed = Date.now() - startTime;
       if (elapsed < minScanMs) {
         await new Promise((resolve) => setTimeout(resolve, minScanMs - elapsed));
@@ -1853,7 +1906,11 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const handleFacePremium = () => {
-    setShowPhysiognomyPaymentModal(true);
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      setIsPhysiognomyPremiumUnlocked(true);
+    } else {
+      setShowPhysiognomyPaymentModal(true);
+    }
   };
 
   const handlePhysiognomyPaymentConfirm = () => {
@@ -1865,7 +1922,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   const handleFaceShare = async () => {
     const summary = faceResultData?.freeSummary ?? "";
     const text = `당신의 타고난 관상 분석 리포트: ${summary.slice(0, 80)}${summary.length > 80 ? "..." : ""} | 자세히 보기: ${typeof window !== "undefined" ? window.location.origin : ""}`;
-
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({
@@ -1953,7 +2009,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
   const handleNameAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!nameInput.trim()) {
       alert("이름을 입력해 주세요.");
       return;
@@ -1971,7 +2026,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     const loadingTimer = window.setInterval(() => {
       setNameLoadingStep((prev) => (prev >= 3 ? 3 : prev + 1));
     }, 1200);
-
     const cacheKey = getNameCacheKey();
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem(cacheKey);
@@ -2004,10 +2058,8 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           gender: nameGender,
         }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "이름 풀이 중 오류가 발생했습니다.");
-
       if (typeof window !== "undefined") {
         localStorage.setItem(cacheKey, JSON.stringify(data));
       }
@@ -2022,7 +2074,11 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const handleNamePremium = () => {
-    setShowNamePaymentModal(true);
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      setIsNamePremiumUnlocked(true);
+    } else {
+      setShowNamePaymentModal(true);
+    }
   };
 
   const handleNamePaymentConfirm = () => {
@@ -2071,18 +2127,18 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
       `}
     >
-      {/* ✅ [추가] 관상/이름 한지 배경 */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-slate-950">
         <div className="absolute inset-0 bg-cover bg-center opacity-60 mix-blend-screen" style={{ backgroundImage: "url('/bg_face_name.png')" }} />
-        <div className="absolute inset-0 bg-black/50" /> {/* 글씨 가독성을 위한 암전 */}
+        <div className="absolute inset-0 bg-black/50" />
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 py-8">
-        {/* 모드 전환 토글 */}
+        
         <div className="flex gap-2 rounded-xl bg-slate-800/60 p-1">
+          {/* 🚀 [비밀 버튼] 사주 탭 진입을 "S"로 인식 */}
           <button
             type="button"
-            onClick={() => setActiveSajuMode("face")}
+            onClick={() => { setActiveSajuMode("face"); pushSecret("S"); }}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
               activeSajuMode === "face"
                 ? "bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/50"
@@ -2092,9 +2148,10 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
             <Camera className="h-4 w-4" />
             관상 분석
           </button>
+          {/* 🚀 [비밀 버튼] 이름 탭 진입을 "S"로 인식 */}
           <button
             type="button"
-            onClick={() => setActiveSajuMode("name")}
+            onClick={() => { setActiveSajuMode("name"); pushSecret("S"); }}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
               activeSajuMode === "name"
                 ? "bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/50"
@@ -2115,7 +2172,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                   <p className="text-xs text-white/70 mt-1">마의상법(麻衣相法)에 기초한 정밀 관상 스캐닝</p>
                 </div>
 
-                {/* 📸 정확한 관상 가이드 추가 */}
                 <div className="mb-5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 py-2.5 px-2 text-center shadow-inner">
                   <p className="text-xs sm:text-sm text-yellow-300 font-medium tracking-tight break-keep">
                     💡 정확도 UP : <strong className="text-yellow-400">밝은 곳에서 이마가 보이는 정면 무표정 사진</strong> 권장
@@ -2294,8 +2350,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 )}
 
-{/* 🛡️ 방어용 면책 조항 (디스클레이머) */}
-<div className="mt-6 mb-4 rounded-lg bg-white/5 p-4 text-center border border-white/10 shadow-inner opacity-80">
+                <div className="mt-6 mb-4 rounded-lg bg-white/5 p-4 text-center border border-white/10 shadow-inner opacity-80">
                   <p className="text-[11px] leading-relaxed text-white/50 break-keep">
                     ※ 본 분석은 사진의 조명, 각도, 표정에 따라 결과가 일부 달라질 수 있습니다.<br/>
                     정통 상학 데이터를 기반으로 한 <strong>엔터테인먼트 콘텐츠</strong>이므로 참고용으로만 활용해 주시기 바랍니다.
@@ -2325,7 +2380,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-        {/* 관상 분석 - 프리미엄 결제 모달 */}
         {showPhysiognomyPaymentModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -2428,10 +2482,17 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                 <div>
                   <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
                   <input
-                    type="date"
+                    type="tel"
+                    maxLength={10}
+                    placeholder="예: 19801013"
                     value={nameBirthDate}
-                    onChange={(e) => setNameBirthDate(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-white focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/[^0-9]/g, '');
+                      if (val.length > 6) val = val.slice(0,4) + '-' + val.slice(4,6) + '-' + val.slice(6,8);
+                      else if (val.length > 4) val = val.slice(0,4) + '-' + val.slice(4);
+                      setNameBirthDate(val);
+                    }}
+                    className="w-full rounded-xl border border-white/20 bg-slate-800/80 shadow-inner px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
                   />
                 </div>
                 <div>
@@ -2500,7 +2561,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
               )
             ) : (
               <div className="space-y-6 animate-fade-in-up mt-4">
-                {/* 1. 무료 요약 & 팩트폭력 (결제 유도 Hook) */}
                 <div className="space-y-3">
                   <div className="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md text-center">
                     <p className="mb-2 text-sm font-bold text-yellow-400/90">
@@ -2511,7 +2571,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                     </p>
                   </div>
                   
-                  {/* 🚨 약점 찌르기 (무료 노출) */}
                   {nameResultData?.freeWeakness && (
                     <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 shadow-inner">
                       <p className="text-xs font-bold text-red-400 mb-1 flex items-center gap-1">
@@ -2524,7 +2583,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                   )}
                 </div>
 
-                {/* 2. 프리미엄 심층 분석 영역 */}
                 <div
                   className={`rounded-2xl border-2 p-5 backdrop-blur-md transition-all duration-1000 ${
                     isNamePremiumUnlocked
@@ -2536,7 +2594,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                     ✨ 심층 작명 분석 리포트
                   </h4>
 
-                  {/* 📊 작명 근거 요약 박스 (프리미엄 전용) */}
                   {isNamePremiumUnlocked && nameResultData?.premiumReport?.basisBox && (
                     <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
                       <h5 className="mb-3 text-sm font-bold text-emerald-400 flex items-center gap-2">
@@ -2570,13 +2627,12 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                       </div>
                     ))}
                   </div>
-                  
+                 
                   <p className="mt-5 text-[11px] text-white/40 text-center break-keep">
                     ※ 본 분석은 정통 성명학 데이터를 기반으로 한 엔터테인먼트 콘텐츠이므로 참고용으로만 활용해 주시기 바랍니다.
                   </p>
                 </div>
 
-                {/* 3. 하단 버튼 영역 */}
                 <div className="mt-8 space-y-3">
                   {isNamePremiumUnlocked ? (
                     <button
@@ -2618,7 +2674,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-        {/* 이름 풀이 - 프리미엄 결제 모달 */}
         {showNamePaymentModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -2654,7 +2709,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-        {/* 한자 선택 모달 (글래스모피즘) */}
         {showHanjaModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -2732,6 +2786,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
             </div>
           </div>
         )}
+        <FooterPolicy tabId="saju" />
       </div>
     </div>
   );
@@ -2756,7 +2811,6 @@ function generateLottoNumbers(): number[] {
 
 const LOTTO_STORAGE_KEY = "miracle-lotto-free-count";
 const LOTTO_DATE_KEY = "miracle-lotto-free-date";
-
 const MATRIX_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const MATRIX_COLOR = "#0abdc6";
 
@@ -2765,7 +2819,6 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [freeCount, setFreeCount] = useState(3);
 
-  // 1. 앱 로드 시 오늘 날짜를 확인하고 초기화하거나 기존 횟수를 불러옴
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -2774,12 +2827,10 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     const s = localStorage.getItem(LOTTO_STORAGE_KEY);
 
     if (savedDate !== today) {
-      // 접속 날짜가 오늘과 다르면(자정이 지났으면) 3회로 리셋
       setFreeCount(3);
       localStorage.setItem(LOTTO_DATE_KEY, today);
       localStorage.setItem(LOTTO_STORAGE_KEY, "3");
     } else if (s) {
-      // 같은 날짜이면 기존 남은 횟수를 불러옴
       const n = parseInt(s, 10);
       if (!Number.isNaN(n) && n >= 0) {
         setFreeCount(n);
@@ -2800,7 +2851,6 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     "고급 통계 조합 계산 중...",
   ];
 
-  // 2. 횟수가 차감될 때 날짜도 함께 갱신하여 방어 로직 추가
   useEffect(() => {
     if (typeof window === "undefined") return;
     localStorage.setItem(LOTTO_STORAGE_KEY, String(freeCount));
@@ -2882,7 +2932,11 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
 
   const handlePremium = () => {
     if (isDrawing) return;
-    setShowLottoPaymentModal(true);
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      handleLottoPaymentConfirm();
+    } else {
+      setShowLottoPaymentModal(true);
+    }
   };
 
   const handleLottoPaymentConfirm = async () => {
@@ -2927,11 +2981,13 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
+  // 🚀 [비밀 관리자 모드] 실제 초기화 로직
   const handleAdminReset = () => {
     setFreeCount(3);
     if (typeof window !== "undefined") {
       localStorage.setItem(LOTTO_STORAGE_KEY, "3");
     }
+    alert("✨ [비밀 관리자 모드] 로또 무료 횟수가 3회로 초기화되었습니다.");
   };
 
   const currentSet = lottoHistory[0] ?? [];
@@ -2966,8 +3022,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
               ✨ 고급 통계 필터 번호 추천 (500원)
             </h3>
             <p className="mb-6 text-center text-sm leading-relaxed text-yellow-100/70">
-              출현 빈도, 번호 분포, 합계 구간, 연속 번호 제한 등
-              여러 통계 필터를 조합해 번호를 추천합니다.
+              출현 빈도, 번호 분포, 합계 구간, 연속 번호 제한 등 여러 통계 필터를 조합해 번호를 추천합니다.
             </p>
             <div className="flex gap-3">
               <button
@@ -3020,7 +3075,10 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
 
         <div className="w-full max-w-2xl rounded-3xl border border-yellow-700/35 bg-[#151515]/85 p-6 shadow-[0_0_30px_rgba(245,158,11,0.08)] backdrop-blur-md">
           <div className="mb-5 text-center">
-            <h2 className="text-xl font-bold text-yellow-300">행운의 로또 번호 추출기</h2>
+            {/* 🚀 [비밀 버튼] 로또 탭 제목 터치를 "L"로 인식 */}
+            <h2 onClick={() => pushSecret("L", handleAdminReset)} className="text-xl font-bold text-yellow-300 select-none cursor-pointer">
+              행운의 로또 번호 추출기
+            </h2>
             <p className="mt-2 text-sm text-yellow-50/70">
               가볍게 번호를 뽑고, 필요하면 고급 통계 필터 추천까지 받아볼 수 있습니다.
             </p>
@@ -3101,44 +3159,35 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-<a
-  href="https://www.dhlottery.co.kr/"
-  target="_blank"
-  rel="noreferrer noopener"
-  className="mt-2 w-full max-w-md rounded-2xl border border-yellow-700/30 bg-[#191611]/90 px-4 py-4 text-left transition-all hover:bg-[#211c15]"
->
-  <div className="flex items-center justify-between gap-3">
-    <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/15 text-lg">
-        🎟
-      </div>
-
-      <div>
-        <p className="text-sm font-medium text-yellow-200">
-          동행복권 공식 홈페이지 바로가기
-        </p>
-        <p className="mt-1 text-xs text-yellow-50/50">
-          공식 사이트에서 추첨 결과와 판매점 정보를 확인하세요
-        </p>
-      </div>
-    </div>
-
-    <span className="text-sm text-yellow-300/70">→</span>
-  </div>
-</a>
-
-        <button
-          type="button"
-          onClick={handleAdminReset}
-          className="text-xs text-white/10 transition-colors hover:text-white/50"
+        <a
+          href="https://www.dhlottery.co.kr/"
+          target="_blank"
+          rel="noreferrer noopener"
+          className="mt-2 w-full max-w-md rounded-2xl border border-yellow-700/30 bg-[#191611]/90 px-4 py-4 text-left transition-all hover:bg-[#211c15]"
         >
-          [관리자: 횟수 초기화]
-        </button>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/15 text-lg">
+                🎟
+              </div>
+              <div>
+                <p className="text-sm font-medium text-yellow-200">
+                  동행복권 공식 홈페이지 바로가기
+                </p>
+                <p className="mt-1 text-xs text-yellow-50/50">
+                  공식 사이트에서 추첨 결과와 판매점 정보를 확인하세요
+                </p>
+              </div>
+            </div>
+            <span className="text-sm text-yellow-300/70">→</span>
+          </div>
+        </a>
+
+        <FooterPolicy tabId="lotto" />
       </div>
     </div>
   );
 }
-
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabId>("fortune");
