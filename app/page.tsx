@@ -43,60 +43,53 @@ async function captureAndShareElement(
   }
 
   try {
-    const prevScrollX = window.scrollX;
-    const prevScrollY = window.scrollY;
-
-    window.scrollTo(0, 0);
-
     const canvas = await html2canvas(target, {
-      backgroundColor: "#0f172a",
-      scale: Math.min(window.devicePixelRatio || 2, 2),
+      backgroundColor: "#020817",
+      scale: 2,
       useCORS: true,
-      logging: false,
-      scrollX: 0,
-      scrollY: -window.scrollY,
+      logging: true,
+      allowTaint: false,
     });
 
-    window.scrollTo(prevScrollX, prevScrollY);
+    const dataUrl = canvas.toDataURL("image/png");
 
-    const blob: Blob | null = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/png", 1)
-    );
+    // PC에서는 파일 공유보다 다운로드가 더 안정적
+    const isMobile =
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    if (!blob) {
-      throw new Error("이미지 생성 실패");
+    if (isMobile && navigator.share) {
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const file = new File(
+        [blob],
+        options?.fileName ?? "result-share.png",
+        { type: "image/png" }
+      );
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: options?.title ?? "결과 공유",
+          text: options?.text ?? "결과 이미지를 확인해보세요.",
+          files: [file],
+        });
+        return;
+      }
     }
 
-    const fileName = options?.fileName ?? "result-share.png";
-    const file = new File([blob], fileName, { type: "image/png" });
-
-    if (
-      typeof navigator !== "undefined" &&
-      navigator.share &&
-      navigator.canShare &&
-      navigator.canShare({ files: [file] })
-    ) {
-      await navigator.share({
-        title: options?.title ?? "결과 공유",
-        text: options?.text ?? "결과 이미지를 확인해보세요.",
-        files: [file],
-      });
-      return;
-    }
-
-    const url = URL.createObjectURL(blob);
+    // 기본 fallback: 다운로드
     const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
+    a.href = dataUrl;
+    a.download = options?.fileName ?? "result-share.png";
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
-
-    alert("이 기기에서는 직접 이미지 공유가 제한되어 PNG로 저장했습니다.");
   } catch (error) {
-    console.error(error);
-    alert("이미지 공유 중 오류가 발생했습니다.");
+    console.error("captureAndShareElement error:", error);
+
+    const message =
+      error instanceof Error ? error.message : String(error);
+
+    alert(`이미지 공유 오류: ${message}`);
   }
 }
 
