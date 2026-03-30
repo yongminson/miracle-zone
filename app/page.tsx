@@ -1488,28 +1488,37 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     return `[✨ 익명 님의 ${periodLabel} 기원]`;
   };
   
-  // 🚀 프리미엄 결제창 띄우기 함수 (토스페이먼츠)
+  // 🚀 프리미엄 결제창 띄우기 함수 (버튼 반응형 완벽 보완)
   const handlePremiumConfirm = () => {
     if (!premiumWishText.trim()) return;
 
     if (typeof window !== "undefined") {
       const IMP = (window as any).IMP;
+      
+      // 1. 스크립트 로딩 실패 시
       if (!IMP) {
-        alert("결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+        alert("🚨 결제 시스템을 불러오지 못했습니다. 키보드 [F5]를 눌러 새로고침 후 다시 시도해주세요!");
         return;
       }
 
       // 🔑 대표님의 포트원 가맹점 식별코드!
+      IMP.init("imp61375123"); 
+
+      const amount = premiumPeriod === "24h" ? 1900 : 6900;
+      const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
+
+      // 2. 버튼이 정상적으로 눌렸음을 알림 + 팝업 차단 안내
+      alert("✨ 토스 결제창을 띄웁니다!\n(만약 화면이 안 뜨면 인터넷 창 오른쪽 위 '팝업 차단'을 해제해주세요)");
+
       IMP.request_pay(
         {
-          pg: "tosspayments",
+          pg: "tosspayments", 
           pay_method: "card",
           merchant_uid: `mid_${new Date().getTime()}`,
           name: name,
           amount: amount,
           buyer_email: "test@ymstudio.co.kr",
           buyer_name: "명운 사용자",
-          // 🚀 [추가됨] 모바일에서 결제 끝나고 우리 앱으로 돌아올 주소!!
           m_redirect_url: typeof window !== "undefined" ? window.location.href : "", 
         },
         async (rsp: any) => {
@@ -1518,7 +1527,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
             setShowPremiumModal(false);
             setPremiumWishText("");
           } else {
-            alert(`결제가 취소되었거나 실패했습니다: ${rsp.error_msg || "사용자 취소"}`);
+            alert(`결제가 취소/실패했습니다: ${rsp.error_msg || "사용자 취소"}`);
           }
         }
       );
@@ -3270,7 +3279,7 @@ export default function Home() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
-  
+
   // 🚀 [추가됨] 로그인 상태 확인 및 감지
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
