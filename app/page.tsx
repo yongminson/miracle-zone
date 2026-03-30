@@ -871,29 +871,35 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                 </div>
 
                 <div className="flex gap-3">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
   <button
     type="button"
     onClick={handleFortuneLinkShare}
-    className="w-full rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95"
+    className="min-h-[88px] w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95 flex flex-col items-center justify-center text-center"
   >
-    🔗 링크 공유
+    <span className="text-xl leading-none">🔗</span>
+    <span className="mt-2">링크 공유</span>
   </button>
+
   <button
     type="button"
     onClick={handleShare}
-    className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95"
+    className="min-h-[88px] w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-3 py-4 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95 flex flex-col items-center justify-center text-center"
   >
-    🖼️ 이미지 공유
+    <span className="text-xl leading-none">🖼️</span>
+    <span className="mt-2">이미지 공유</span>
+  </button>
+
+  <button
+    type="button"
+    onClick={handleReset}
+    className="min-h-[88px] w-full rounded-2xl border border-white/20 bg-white/5 px-3 py-4 text-sm font-bold text-white/80 transition-all hover:bg-white/10 active:scale-95 flex flex-col items-center justify-center text-center"
+  >
+    <span className="text-xl leading-none">↺</span>
+    <span className="mt-2">다시 하기</span>
+    <span className="text-[11px] text-white/50">(처음으로)</span>
   </button>
 </div>
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  >
-                    ↺ 다시 하기 (처음으로)
-                  </button>
                 </div>
 
                 <button
@@ -959,22 +965,35 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 </div>
 
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={handleShare}
-                    className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  >
-                    📤 운세 결과 공유하기
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  >
-                    ↺ 다시 하기 (처음으로)
-                  </button>
-                </div>
+                <div className="space-y-3">
+  <div className="grid grid-cols-2 gap-3">
+    <button
+      type="button"
+      onClick={handleFortuneLinkShare}
+      className="min-h-[88px] w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95 flex flex-col items-center justify-center text-center"
+    >
+      <span className="text-xl leading-none">🔗</span>
+      <span className="mt-2">링크 공유</span>
+    </button>
+
+    <button
+      type="button"
+      onClick={handleShare}
+      className="min-h-[88px] w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-3 py-4 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95 flex flex-col items-center justify-center text-center"
+    >
+      <span className="text-xl leading-none">🖼️</span>
+      <span className="mt-2">이미지 공유</span>
+    </button>
+  </div>
+
+  <button
+    type="button"
+    onClick={handleReset}
+    className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-bold text-white/80 transition-all hover:bg-white/10 active:scale-95"
+  >
+    ↺ 다시 하기 (처음으로)
+  </button>
+</div>
               </>
             )}
           </div>
