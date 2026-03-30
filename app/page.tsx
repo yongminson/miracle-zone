@@ -875,29 +875,25 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   <button
     type="button"
     onClick={handleFortuneLinkShare}
-    className="min-h-[88px] w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95 flex flex-col items-center justify-center text-center"
+    className="h-[88px] w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-2 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95 flex items-center justify-center text-center leading-tight"
   >
-    <span className="text-xl leading-none">🔗</span>
-    <span className="mt-2">링크 공유</span>
+    🔗 링크 공유
   </button>
 
   <button
     type="button"
     onClick={handleShare}
-    className="min-h-[88px] w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-3 py-4 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95 flex flex-col items-center justify-center text-center"
+    className="h-[88px] w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-2 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95 flex items-center justify-center text-center leading-tight"
   >
-    <span className="text-xl leading-none">🖼️</span>
-    <span className="mt-2">이미지 공유</span>
+    🖼️ 이미지 공유
   </button>
 
   <button
     type="button"
     onClick={handleReset}
-    className="min-h-[88px] w-full rounded-2xl border border-white/20 bg-white/5 px-3 py-4 text-sm font-bold text-white/80 transition-all hover:bg-white/10 active:scale-95 flex flex-col items-center justify-center text-center"
+    className="h-[88px] w-full rounded-2xl border border-white/20 bg-white/5 px-2 text-sm font-bold text-white/80 transition-all hover:bg-white/10 active:scale-95 flex items-center justify-center text-center leading-tight"
   >
-    <span className="text-xl leading-none">↺</span>
-    <span className="mt-2">다시 하기</span>
-    <span className="text-[11px] text-white/50">(처음으로)</span>
+    ↺ 다시 하기 (처음으로)
   </button>
 </div>
                 </div>
