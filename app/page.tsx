@@ -1563,13 +1563,13 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         )}
 
         <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-          {/* 🚀 풍등처럼 위로 올라가는 애니메이션 추가 */}
+          {/* 🚀 프리미엄 소원: 화면 아래에서 위로 올라가는 애니메이션 */}
           <style>{`
             @keyframes float-up-premium {
-              0% { transform: translateY(110vh) scale(0.9); opacity: 0; }
-              10% { opacity: 1; transform: translateY(90vh) scale(1); }
-              90% { opacity: 1; transform: translateY(10vh) scale(1); }
-              100% { transform: translateY(-20vh) scale(0.9); opacity: 0; }
+              0% { top: 110%; opacity: 0; transform: translateX(-50%) scale(0.9); }
+              10% { opacity: 1; transform: translateX(-50%) scale(1); }
+              90% { opacity: 1; transform: translateX(-50%) scale(1); }
+              100% { top: -20%; opacity: 0; transform: translateX(-50%) scale(0.9); }
             }
           `}</style>
           
@@ -1580,29 +1580,30 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                 {floatingWishes.map((wish, i) => (
                   <div
                     key={`wish-${i}`}
-                    className="absolute -translate-x-1/2"
+                    className="absolute"
                     style={{
-                      left: `${10 + ((i * 17 + 5) % 81)}%`,
+                      /* 화면 양끝 15%~85% 사이에서만 나타나도록 제한 (짤림 방지) */
+                      left: `${15 + ((i * 17 + 5) % 70)}%`,
                       top: `${30 + (i * 11 % 41)}%`,
+                      transform: "translateX(-50%)",
                       animation: `float-wish-center ${10 + (i % 9)}s ease-out infinite`,
                       animationDelay: `${(i * 0.7) % 8}s`,
                       width: "max-content",
-                      maxWidth: "85%",
+                      maxWidth: "85vw", /* 모바일/PC 모두 화면 폭의 85%를 넘지 않음 */
                     }}
                   >
-                    <p style={{ whiteSpace: "normal", wordBreak: "keep-all", textAlign: "center" }} className="text-sm font-medium text-white/60 px-3">
+                    <p style={{ whiteSpace: "pre-wrap", wordBreak: "keep-all", textAlign: "center" }} className="text-sm font-medium text-white/60 px-3">
                       {wish}
                     </p>
                   </div>
                 ))}
                 
-                {/* 🚀 프리미엄 소원: 아래에서 위로 유유히 흘러감 */}
+                {/* 🚀 프리미엄 소원 렌더링 */}
                 {premiumFiltered.slice(-6).map((pw, i) => {
                   const idLength = String(pw.id).length;
                   const isTenDays = pw.period === "10d";
                   
-                  // 위치와 속도를 화면 크기에 맞게 재조정
-                  const leftPct = 10 + ((i * 25 + idLength * 7) % 80);
+                  const leftPct = 15 + ((i * 25 + idLength * 7) % 70); // 양끝 짤림 방지
                   const duration = isTenDays ? 22 + (i % 5) : 18 + (i % 5);
                   const delay = `${(i * 3.5) % 10}s`;
                   const remaining = getPremiumRemainingMs(pw);
@@ -1610,21 +1611,20 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                   return (
                     <div
                       key={pw.id}
-                      className="absolute -translate-x-1/2"
+                      className="absolute"
                       style={{
                         left: `${leftPct}%`,
-                        bottom: `-20%`, // 화면 아래에서 시작
                         animation: `float-up-premium ${duration}s linear infinite`,
                         animationDelay: delay,
                         width: "max-content",
-                        maxWidth: "90%",
+                        maxWidth: "90vw",
                       }}
                     >
-                      <div className="flex flex-col items-center justify-center bg-black/20 backdrop-blur-sm px-4 py-3 rounded-2xl border border-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.1)]">
+                      <div className="flex flex-col items-center justify-center bg-black/30 backdrop-blur-sm px-4 py-3 rounded-2xl border border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.15)]">
                         <p className={
                             isTenDays
-                              ? "text-base sm:text-2xl font-extrabold text-yellow-200 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)] text-center break-keep leading-snug"
-                              : "text-sm sm:text-xl font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] text-center break-keep leading-snug"
+                              ? "text-base sm:text-xl font-extrabold text-yellow-200 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)] text-center break-keep leading-snug whitespace-pre-wrap"
+                              : "text-sm sm:text-lg font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] text-center break-keep leading-snug whitespace-pre-wrap"
                           }
                         >
                           {pw.badge}<br/>{pw.content}
@@ -1641,14 +1641,14 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           })()}
         </div>
 
-        {/* 🚀 입력창 크기 축소 & 여백 조정 */}
-        <div className="relative z-10 flex flex-1 flex-col items-center justify-end px-4 pb-8 mt-auto">
-          <div className="w-full max-w-md rounded-2xl border border-white/20 bg-black/40 p-4 backdrop-blur-md shadow-2xl">
+        {/* 🚀 입력창을 화면 맨 아래 빈 공간으로 밀착시킴 (pb-8 -> pb-2) */}
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-end px-4 pb-2 mt-auto">
+          <div className="w-full max-w-md rounded-2xl border border-white/20 bg-black/60 p-4 backdrop-blur-md shadow-2xl">
             <textarea
               value={wishText}
               onChange={(e) => setWishText(e.target.value)}
               placeholder="소원을 적어주세요..."
-              rows={2} // 입력창 높이 줄임
+              rows={2}
               className="w-full resize-none rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-amber-50 placeholder-amber-200/60 focus:border-yellow-500/60 focus:outline-none focus:ring-2 focus:ring-yellow-500/40"
             />
 
@@ -1685,7 +1685,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
 
-        {/* 프리미엄 결제 모달 (유지) */}
         {showPremiumModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => handlePremiumCancel()}>
             <div className="w-full max-w-md rounded-2xl border-2 border-yellow-500/50 bg-slate-900/90 p-5 shadow-2xl shadow-yellow-500/10 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
