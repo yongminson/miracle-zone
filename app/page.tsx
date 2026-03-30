@@ -43,11 +43,61 @@ async function captureAndShareElement(
   }
 
   try {
-    const dataUrl = await toPng(target, {
+    const shareUrl = window.location.origin;
+
+    // 원본을 복제
+    const clonedTarget = target.cloneNode(true) as HTMLElement;
+    clonedTarget.style.margin = "0";
+    clonedTarget.style.width = `${target.offsetWidth}px`;
+
+    // 바깥 래퍼 생성
+    const wrapper = document.createElement("div");
+    wrapper.style.background = "#020817";
+    wrapper.style.padding = "24px";
+    wrapper.style.width = `${target.offsetWidth + 48}px`;
+    wrapper.style.boxSizing = "border-box";
+    wrapper.style.display = "flex";
+    wrapper.style.flexDirection = "column";
+    wrapper.style.gap = "16px";
+
+    // 하단 링크 박스 생성
+    const footer = document.createElement("div");
+    footer.style.background = "#0f172a";
+    footer.style.border = "1px solid rgba(234,179,8,0.35)";
+    footer.style.borderRadius = "16px";
+    footer.style.padding = "14px 16px";
+    footer.style.textAlign = "center";
+    footer.style.color = "#f8fafc";
+    footer.style.fontSize = "14px";
+    footer.style.lineHeight = "1.6";
+    footer.innerHTML = `
+      <div style="font-weight:700; color:#facc15; margin-bottom:6px;">
+        결과가 궁금하다면 여기서 확인
+      </div>
+      <div style="font-size:13px; color:#cbd5e1; word-break:break-all;">
+        ${shareUrl}
+      </div>
+    `;
+
+    wrapper.appendChild(clonedTarget);
+    wrapper.appendChild(footer);
+
+    // 화면 밖 임시 영역에 붙이기
+    const tempContainer = document.createElement("div");
+    tempContainer.style.position = "fixed";
+    tempContainer.style.left = "-99999px";
+    tempContainer.style.top = "0";
+    tempContainer.style.zIndex = "-1";
+    tempContainer.appendChild(wrapper);
+    document.body.appendChild(tempContainer);
+
+    const dataUrl = await toPng(wrapper, {
       cacheBust: true,
       pixelRatio: 2,
       backgroundColor: "#020817",
     });
+
+    document.body.removeChild(tempContainer);
 
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -59,17 +109,10 @@ async function captureAndShareElement(
         options?.fileName ?? "result-share.png",
         { type: "image/png" }
       );
-    
-      const shareUrl = window.location.href;
-    
+
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: options?.title ?? "결과 공유",
-          text:
-            (options?.text ?? "결과 이미지를 확인해보세요.") +
-            "\n\n" +
-            `링크: ${shareUrl}`,
-          url: shareUrl,
           files: [file],
         });
         return;
