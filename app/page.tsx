@@ -1113,7 +1113,7 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
         />
       </div>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-6 py-8 min-h-[80vh]">
+      <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 pt-4 pb-12 min-h-full">
         {!isLoading && !resultData && (
           <form onSubmit={handleDreamAnalyze} className="w-full max-w-md rounded-3xl border border-white/20 bg-slate-900/80 p-8 backdrop-blur-xl shadow-[0_0_40px_rgba(0,0,0,0.5)]">
             <div className="text-center mb-6">
@@ -1569,7 +1569,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+<div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
           {(() => {
             const premiumFiltered = filterPremiumWishes(premiumWishes);
             return (
