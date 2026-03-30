@@ -5,7 +5,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
-import { toPng } from "html-to-image";
+import html2canvas from "html2canvas";
 import {
   Sparkles,
   BookOpen,
@@ -28,6 +28,77 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju";
+
+async function captureAndShareElement(
+  target: HTMLElement | null,
+  options?: {
+    fileName?: string;
+    title?: string;
+    text?: string;
+  }
+) {
+  if (!target) {
+    alert("공유할 화면을 찾을 수 없습니다.");
+    return;
+  }
+
+  try {
+    const prevScrollX = window.scrollX;
+    const prevScrollY = window.scrollY;
+
+    window.scrollTo(0, 0);
+
+    const canvas = await html2canvas(target, {
+      backgroundColor: "#0f172a",
+      scale: Math.min(window.devicePixelRatio || 2, 2),
+      useCORS: true,
+      logging: false,
+      scrollX: 0,
+      scrollY: -window.scrollY,
+    });
+
+    window.scrollTo(prevScrollX, prevScrollY);
+
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob(resolve, "image/png", 1)
+    );
+
+    if (!blob) {
+      throw new Error("이미지 생성 실패");
+    }
+
+    const fileName = options?.fileName ?? "result-share.png";
+    const file = new File([blob], fileName, { type: "image/png" });
+
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.share &&
+      navigator.canShare &&
+      navigator.canShare({ files: [file] })
+    ) {
+      await navigator.share({
+        title: options?.title ?? "결과 공유",
+        text: options?.text ?? "결과 이미지를 확인해보세요.",
+        files: [file],
+      });
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    alert("이 기기에서는 직접 이미지 공유가 제한되어 PNG로 저장했습니다.");
+  } catch (error) {
+    console.error(error);
+    alert("이미지 공유 중 오류가 발생했습니다.");
+  }
+}
 
 // 🚀 [비밀 관리자 모드 로직] 전역 패턴 감지기
 let secretPattern = "";
@@ -226,7 +297,9 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   const [premiumResult, setPremiumResult] = useState<PremiumReport | null>(null);
   const [premiumBaziChart, setPremiumBaziChart] = useState<BaziChart | null>(null);
   const [premiumDaeunInfo, setPremiumDaeunInfo] = useState<DaeunInfo | null>(null);
+  const shareResultRef = useRef<HTMLDivElement | null>(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+
   const [activeSubTab, setActiveSubTab] = useState(0);
   const [isPremiumLoading, setIsPremiumLoading] = useState(false);
   const [premiumLoadingStep, setPremiumLoadingStep] = useState(0);
@@ -248,6 +321,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     setPremiumLoadingStep(0);
     setShowResult(false);
     setFortuneData(null);
+
     const cacheKey = getCacheKey();
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem(cacheKey);
@@ -283,19 +357,29 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
       const res = await fetch("/api/fortune", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gender, birthDate, calendarType, birthTime }),
+        body: JSON.stringify({
+          gender,
+          birthDate,
+          calendarType,
+          birthTime,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "운세 분석 중 오류가 발생했습니다.");
-      
+
+      if (!res.ok) {
+        throw new Error(data.error || "운세 분석 중 오류가 발생했습니다.");
+      }
+
       const minLoadingMs = 4000;
       const elapsed = Date.now() - startTime;
       if (elapsed < minLoadingMs) {
         await new Promise((r) => setTimeout(r, minLoadingMs - elapsed));
       }
+
       if (typeof window !== "undefined") {
         localStorage.setItem(cacheKey, JSON.stringify(data));
       }
+
       setFortuneData(data);
       setActiveSubTab(0);
       setShowResult(true);
@@ -339,7 +423,10 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     const premiumCacheKey = getPremiumCacheKey();
   
     const loadingTimer = window.setInterval(() => {
-      setPremiumLoadingStep((prev) => (prev >= 3 ? 3 : prev + 1));
+      setPremiumLoadingStep((prev) => {
+        if (prev >= 3) return 3;
+        return prev + 1;
+      });
     }, 1200);
 
     try {
@@ -347,7 +434,11 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         const cached = localStorage.getItem(premiumCacheKey);
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (parsed && parsed.premiumReport && parsed.baziChart) {
+          const hasValidStructure =
+            parsed &&
+            parsed.premiumReport &&
+            parsed.baziChart;
+          if (hasValidStructure) {
             await new Promise((r) => setTimeout(r, 2200));
             setPremiumResult(parsed.premiumReport ?? null);
             setPremiumBaziChart(parsed.baziChart ?? null);
@@ -357,6 +448,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
             setIsLoading(false);
             return;
           }
+  
           localStorage.removeItem(premiumCacheKey);
         }
       }
@@ -365,19 +457,31 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
       const res = await fetch("/api/fortune", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gender, birthDate, calendarType, birthTime, isPremium: true }),
+        body: JSON.stringify({
+          gender,
+          birthDate,
+          calendarType,
+          birthTime,
+          isPremium: true,
+        }),
       });
+  
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "운세 분석 중 오류가 발생했습니다.");
-      
+  
+      if (!res.ok) {
+        throw new Error(data.error || "운세 분석 중 오류가 발생했습니다.");
+      }
+  
       const minLoadingMs = 4800;
       const elapsed = Date.now() - startTime;
       if (elapsed < minLoadingMs) {
         await new Promise((r) => setTimeout(r, minLoadingMs - elapsed));
       }
+  
       if (typeof window !== "undefined") {
         localStorage.setItem(premiumCacheKey, JSON.stringify(data));
       }
+  
       setPremiumResult(data.premiumReport ?? null);
       setPremiumBaziChart(data.baziChart ?? null);
       setPremiumDaeunInfo(data.daeunInfo ?? null);
@@ -390,73 +494,12 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
-  // 🚀 [완벽한 공유 로직] html-to-image 최신 기술 적용
   const handleShare = async () => {
-    alert("결과 이미지를 생성 중입니다. 잠시만 기다려주세요 📸");
-
-    const lucky = fortuneData?.luckyItems;
-    const summary = fortuneData ? `총운 ${fortuneData.scores[0]}점: ${fortuneData.texts[0]?.slice(0, 30)}...` : "심층 명리학 리포트";
-    const text = `[명운] 오늘의 운세 🔮\n\n${summary}${lucky ? `\n🎨 행운의 색: ${lucky.color}\n🔢 행운의 번호: ${lucky.number}` : ""}\n\n👇 내 운세 자세히 보기\n${typeof window !== "undefined" ? window.location.origin : ""}`;
-
-    let file: File | null = null;
-    
-    try {
-      const element = document.getElementById("fortune-result-card");
-      if (element) {
-        // 최신 기술로 화려한 CSS까지 완벽하게 사진으로 구워냄
-        const dataUrl = await toPng(element, { 
-          cacheBust: true, 
-          backgroundColor: "#0f172a",
-          pixelRatio: 2
-        });
-        
-        // 이미지 파일로 변환
-        const res = await fetch(dataUrl);
-        const blob = await res.blob();
-        file = new File([blob], "miracle_fortune.png", { type: "image/png" });
-      }
-    } catch (err) {
-      console.error("이미지 생성 실패:", err);
-    }
-
-    if (!file) {
-      alert("이미지 캡처에 실패하여 텍스트만 공유됩니다.");
-    }
-
-    // 모바일 환경 카톡 공유 띄우기
-    if (typeof navigator !== "undefined" && navigator.share) {
-      try {
-        if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            title: "명운 오늘의 운세",
-            text: text,
-            files: [file] 
-          });
-          return; 
-        } else {
-          await navigator.share({ title: "명운 오늘의 운세", text });
-          return;
-        }
-      } catch (err) {
-        console.log("공유 취소 또는 에러", err);
-      }
-    }
-
-    // PC 환경 (이미지 자동 다운로드 + 글씨 복사)
-    try {
-      await navigator.clipboard?.writeText(text);
-      if (file) {
-         const link = document.createElement("a");
-         link.href = URL.createObjectURL(file);
-         link.download = "miracle_fortune.png";
-         link.click();
-         alert("✅ 운세 결과 이미지가 다운로드 되었습니다!\nPC 카톡 창에 첨부해주세요.");
-      } else {
-         alert("✅ 운세 텍스트가 복사되었습니다!");
-      }
-    } catch {
-      alert("공유하기를 지원하지 않는 기기입니다.");
-    }
+    await captureAndShareElement(shareResultRef.current, {
+      fileName: "fortune-result.png",
+      title: "오늘의 운세",
+      text: "오늘의 운세 결과 이미지입니다.",
+    });
   };
 
   const displayBaziChartPremium = (bazi: BaziChart | null | undefined) => {
@@ -471,10 +514,17 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         <h3 className="mb-4 text-center text-sm font-semibold text-black">사주팔자 (만세력)</h3>
         <div className="grid grid-cols-4 gap-2">
           {cols.map(({ key, label, cell }) => (
-            <div key={key} className="flex flex-col items-center justify-center rounded border border-slate-200 bg-slate-50 py-3">
+            <div
+              key={key}
+              className="flex flex-col items-center justify-center rounded border border-slate-200 bg-slate-50 py-3"
+            >
               <span className="mb-1 text-xs font-medium text-slate-600">{label}</span>
-              <span className="font-serif text-3xl font-bold text-black">{cell?.stem || "－"}</span>
-              <span className="font-serif text-3xl font-semibold text-slate-800">{cell?.branch || "－"}</span>
+              <span className="font-serif text-3xl font-bold text-black">
+                {cell?.stem || "－"}
+              </span>
+              <span className="font-serif text-3xl font-semibold text-slate-800">
+                {cell?.branch || "－"}
+              </span>
             </div>
           ))}
         </div>
@@ -493,7 +543,10 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {items.map((item) => (
-          <div key={item.label} className="rounded-xl border border-yellow-500/30 bg-yellow-900/10 px-4 py-3 backdrop-blur-sm">
+          <div
+            key={item.label}
+            className="rounded-xl border border-yellow-500/30 bg-yellow-900/10 px-4 py-3 backdrop-blur-sm"
+          >
             <span className="text-lg">{item.icon}</span>
             <p className="mt-1 text-xs text-yellow-400/80">{item.label}</p>
             <p className="text-sm font-medium text-yellow-300">{item.value}</p>
@@ -504,7 +557,15 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   };
 
   return (
-    <div role="tabpanel" aria-hidden={!isVisible} className={`absolute inset-0 flex flex-col overflow-y-auto transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
+    <div
+      role="tabpanel"
+      aria-hidden={!isVisible}
+      className={`
+        absolute inset-0 flex flex-col overflow-y-auto
+        transition-opacity duration-500 ease-out
+        ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
+      `}
+    >
       <div className="fixed inset-0 z-0 pointer-events-none bg-slate-950">
         <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: "url('/bg_fortune.jpg')" }} />
         {isVisible && (
@@ -514,7 +575,11 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
               @keyframes shooting { 0% { transform: translate(0, 0) rotate(-45deg); opacity: 1; } 20% { opacity: 0; } 100% { transform: translate(-800px, 800px) rotate(-45deg); opacity: 0; } }
             `}</style>
             {Array.from({length: 30}).map((_, i) => (
-              <div key={i} className="absolute bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" style={{ top: `${Math.random() * 50}%`, left: `${Math.random() * 100}%`, width: `${Math.random() * 2 + 1}px`, height: `${Math.random() * 2 + 1}px`, animation: `twinkle ${Math.random() * 3 + 2}s infinite ease-in-out ${Math.random() * 2}s`}} />
+              <div key={i} className="absolute bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" style={{
+                top: `${Math.random() * 50}%`, left: `${Math.random() * 100}%`,
+                width: `${Math.random() * 2 + 1}px`, height: `${Math.random() * 2 + 1}px`,
+                animation: `twinkle ${Math.random() * 3 + 2}s infinite ease-in-out ${Math.random() * 2}s`
+              }} />
             ))}
             <div className="absolute w-[120px] h-[1px] bg-gradient-to-r from-transparent to-white" style={{ top: '10%', left: '80%', animation: 'shooting 6s linear infinite 1s' }} />
             <div className="absolute w-[180px] h-[2px] bg-gradient-to-r from-transparent to-white/80" style={{ top: '0%', left: '60%', animation: 'shooting 8s linear infinite 4s' }} />
@@ -526,36 +591,60 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
 
       <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 py-8">
         {!isLoading && !showResult && (
-          <form onSubmit={handleSubmit} className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md">
-            <h2 className="text-center text-lg font-medium text-yellow-400 mb-6">오늘의 운세</h2>
+          <form
+            onSubmit={handleSubmit}
+            className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-md"
+          >
+            <h2 className="text-center text-lg font-medium text-yellow-400 mb-6">
+              오늘의 운세
+            </h2>
+
             <div className="space-y-5">
               <div>
                 <label className="mb-2 block text-sm text-yellow-400/80">성별</label>
                 <div className="flex gap-4">
                   <label className="flex cursor-pointer items-center gap-2">
-                    <input type="radio" name="gender" value="male" checked={gender === "male"} onChange={() => setGender("male")} className="accent-yellow-500" />
+                    <input
+                      type="radio"
+                      name="gender"
+                      value="male"
+                      checked={gender === "male"}
+                      onChange={() => setGender("male")}
+                      className="accent-yellow-500"
+                    />
                     <span className="text-white/90">남</span>
                   </label>
                   <label className="flex cursor-pointer items-center gap-2">
-                    <input type="radio" name="gender" value="female" checked={gender === "female"} onChange={() => setGender("female")} className="accent-yellow-500" />
+                    <input
+                      type="radio"
+                      name="gender"
+                      value="female"
+                      checked={gender === "female"}
+                      onChange={() => setGender("female")}
+                      className="accent-yellow-500"
+                    />
                     <span className="text-white/90">여</span>
                   </label>
                 </div>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
-                <input type="tel" maxLength={10} placeholder="예: 19801013" value={birthDate} onChange={(e) => {
-                    let val = e.target.value.replace(/[^0-9]/g, '');
-                    if (val.length > 6) val = val.slice(0,4) + '-' + val.slice(4,6) + '-' + val.slice(6,8);
-                    else if (val.length > 4) val = val.slice(0,4) + '-' + val.slice(4);
-                    setBirthDate(val);
+              <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
+              <input type="tel" maxLength={10} placeholder="예: 19801013" value={birthDate} onChange={(e) => {
+                  let val = e.target.value.replace(/[^0-9]/g, '');
+                  if (val.length > 6) val = val.slice(0,4) + '-' + val.slice(4,6) + '-' + val.slice(6,8);
+                  else if (val.length > 4) val = val.slice(0,4) + '-' + val.slice(4);
+                  setBirthDate(val);
                 }} className="w-full rounded-xl border border-white/20 bg-slate-800/80 shadow-inner px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30" />
               </div>
 
               <div>
                 <label className="mb-2 block text-sm text-yellow-400/80">음/양력</label>
-                <select value={calendarType} onChange={(e) => setCalendarType(e.target.value as "solar" | "lunar" | "lunar-leap")} className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-white focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30">
+                <select
+                  value={calendarType}
+                  onChange={(e) => setCalendarType(e.target.value as "solar" | "lunar" | "lunar-leap")}
+                  className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-white focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+                >
                   <option value="solar" className="bg-slate-800 text-white">양력</option>
                   <option value="lunar" className="bg-slate-800 text-white">음력 평달</option>
                   <option value="lunar-leap" className="bg-slate-800 text-white">음력 윤달</option>
@@ -564,14 +653,23 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
 
               <div>
                 <label className="mb-2 block text-sm text-yellow-400/80">태어난 시간</label>
-                <select value={birthTime} onChange={(e) => setBirthTime(e.target.value)} className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-white focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30">
+                <select
+                  value={birthTime}
+                  onChange={(e) => setBirthTime(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-white focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+                >
                   {BIRTH_TIME_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value} className="bg-slate-800 text-white">{opt.label}</option>
+                    <option key={opt.value} value={opt.value} className="bg-slate-800 text-white">
+                      {opt.label}
+                    </option>
                   ))}
                 </select>
               </div>
 
-              <button type="submit" className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-3 text-sm font-medium text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-3 text-sm font-medium text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+              >
                 우주의 기운으로 운세 보기
               </button>
             </div>
@@ -581,7 +679,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         {isLoading && (
           <div className="flex flex-1 flex-col items-center justify-center gap-6">
             <div className="relative">
-              <div className="h-14 w-14 animate-[fortune-spin_1.2s_linear_infinite] rounded-full border-2 border-yellow-500/30 border-t-yellow-400" />
+               <div className="h-14 w-14 animate-[fortune-spin_1.2s_linear_infinite] rounded-full border-2 border-yellow-500/30 border-t-yellow-400" />
               <div className="absolute inset-2 rounded-full border border-yellow-500/20" />
             </div>
 
@@ -591,27 +689,50 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
               </p>
             ) : (
               <div className="w-full max-w-md space-y-4 text-center">
-                <p className="text-lg font-semibold text-yellow-400">전문가 심층 명리학 리포트 생성 중</p>
+                <p className="text-lg font-semibold text-yellow-400">
+                  전문가 심층 명리학 리포트 생성 중
+                </p>
+
                 <div className="space-y-2 rounded-2xl border border-yellow-500/20 bg-white/5 p-4 backdrop-blur-md">
-                  {["원국 만세력 계산 정리", "오행 분포와 일간 기운 분석", "오늘 기준 해석 포인트 추출", "심층 리포트 문장 정리"].map((label, index) => {
+                  {[
+                    "원국 만세력 계산 정리",
+                    "오행 분포와 일간 기운 분석",
+                    "오늘 기준 해석 포인트 추출",
+                    "심층 리포트 문장 정리",
+                  ].map((label, index) => {
                     const done = premiumLoadingStep > index;
                     const active = premiumLoadingStep === index;
+
                     return (
-                      <div key={label} className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm ${done ? "bg-yellow-500/15 text-yellow-300" : active ? "bg-white/10 text-white" : "bg-transparent text-white/50"}`}>
-                        <span>{label}</span>
-                        <span>{done ? "완료" : active ? "진행중" : "대기"}</span>
+                      <div
+                        key={label}
+                        className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm ${
+                          done
+                            ? "bg-yellow-500/15 text-yellow-300"
+                            : active
+                            ? "bg-white/10 text-white"
+                            : "bg-transparent text-white/50"
+                        }`}
+                      >
+                         <span>{label}</span>
+                        <span>
+                          {done ? "완료" : active ? "진행중" : "대기"}
+                        </span>
                       </div>
                     );
                   })}
                 </div>
-                <p className="text-sm text-yellow-300/80">사주 원국과 오늘 기준 흐름을 함께 정리하고 있습니다...</p>
+
+                <p className="text-sm text-yellow-300/80">
+                  사주 원국과 오늘 기준 흐름을 함께 정리하고 있습니다...
+                </p>
               </div>
-            )}
+             )}
           </div>
         )}
 
         {showResult && !isLoading && fortuneData && (
-          <div id="fortune-result-card" className="w-full max-w-2xl space-y-6 pt-4 pb-4 p-4 rounded-2xl bg-slate-900">
+          <div ref={shareResultRef} className="w-full max-w-2xl space-y-6 pt-4 pb-4">
             {displayLuckyItems(fortuneData.luckyItems)}
 
             {!premiumResult ? (
@@ -620,9 +741,18 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   <div className="rounded-xl border border-yellow-500/40 bg-gradient-to-br from-yellow-500/10 to-amber-600/10 p-5 backdrop-blur-md mb-6">
                     <h3 className="mb-3 text-sm font-bold text-yellow-400">💡 오늘의 핵심 가이드</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-white/80">
-                      <div className="bg-black/20 p-3 rounded-lg"><span className="block text-yellow-500/80 text-xs mb-1">핵심 포인트</span>{fortuneData.dailyGuide.point}</div>
-                      <div className="bg-black/20 p-3 rounded-lg"><span className="block text-red-400/80 text-xs mb-1">오늘의 한 줄 전략</span>{fortuneData.dailyGuide.strategy}</div>
-                      <div className="sm:col-span-2 bg-black/20 p-3 rounded-lg"><span className="block text-green-400/80 text-xs mb-1">행동 지침</span>{fortuneData.dailyGuide.action}</div>
+                      <div className="bg-black/20 p-3 rounded-lg">
+                        <span className="block text-yellow-500/80 text-xs mb-1">핵심 포인트</span>
+                        {fortuneData.dailyGuide.point}
+                      </div>
+                      <div className="bg-black/20 p-3 rounded-lg">
+                        <span className="block text-red-400/80 text-xs mb-1">오늘의 한 줄 전략</span>
+                        {fortuneData.dailyGuide.strategy}
+                      </div>
+                      <div className="sm:col-span-2 bg-black/20 p-3 rounded-lg">
+                        <span className="block text-green-400/80 text-xs mb-1">행동 지침</span>
+                        {fortuneData.dailyGuide.action}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -632,44 +762,80 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                     const Icon = cat.icon;
                     const isActive = activeSubTab === i;
                     return (
-                      <button key={cat.id} type="button" onClick={() => setActiveSubTab(i)} className={`flex shrink-0 flex-col items-center gap-1 rounded-xl px-4 py-3 min-w-[80px] transition-all duration-200 ${isActive ? "bg-yellow-500/20 ring-2 ring-yellow-500/50 shadow-[0_0_12px_rgba(234,179,8,0.3)]" : "bg-slate-800/60 border border-slate-600/50 hover:bg-slate-700/60"}`}>
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setActiveSubTab(i)}
+                        className={`
+                          flex shrink-0 flex-col items-center gap-1 rounded-xl px-4 py-3 min-w-[80px]
+                          transition-all duration-200
+                          ${isActive
+                            ? "bg-yellow-500/20 ring-2 ring-yellow-500/50 shadow-[0_0_12px_rgba(234,179,8,0.3)]"
+                            : "bg-slate-800/60 border border-slate-600/50 hover:bg-slate-700/60"}
+                        `}
+                      >
                         <Icon className={`h-6 w-6 ${cat.color}`} strokeWidth={2} />
-                        <span className={`text-xs font-medium ${isActive ? "text-yellow-400" : "text-white/80"}`}>{cat.title}</span>
+                        <span className={`text-xs font-medium ${isActive ? "text-yellow-400" : "text-white/80"}`}>
+                          {cat.title}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
 
                 <div className="overflow-y-auto rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md transition-all duration-300">
-                  <h3 className="mb-3 text-base font-medium text-yellow-400">{FORTUNE_CATEGORIES[activeSubTab].title}</h3>
-                  <p className="text-sm leading-relaxed text-white/80">{fortuneData.texts[activeSubTab]}</p>
+                  <h3 className="mb-3 text-base font-medium text-yellow-400">
+                    {FORTUNE_CATEGORIES[activeSubTab].title}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-white/80">
+                    {fortuneData.texts[activeSubTab]}
+                  </p>
                 </div>
 
                 <div className="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
-                  <h3 className="mb-4 text-sm font-medium text-yellow-400/90">한눈에 보는 운세</h3>
+                  <h3 className="mb-4 text-sm font-medium text-yellow-400/90">
+                    한눈에 보는 운세
+                  </h3>
                   <div className="space-y-3">
                     {FORTUNE_CATEGORIES.map((cat, i) => (
                       <div key={cat.id} className="flex items-center gap-3">
                         <span className="w-16 shrink-0 text-xs text-white/80">{cat.title}</span>
                         <div className="flex-1 h-2 overflow-hidden rounded-full bg-slate-700">
-                          <div className="h-full rounded-full bg-yellow-400 transition-all duration-500" style={{ width: `${fortuneData.scores[i]}%` }} />
+                          <div
+                            className="h-full rounded-full bg-yellow-400 transition-all duration-500"
+                            style={{ width: `${fortuneData.scores[i]}%` }}
+                          />
                         </div>
-                        <span className="w-10 shrink-0 text-right text-xs text-yellow-400/90">{fortuneData.scores[i]}점</span>
+                        <span className="w-10 shrink-0 text-right text-xs text-yellow-400/90">
+                           {fortuneData.scores[i]}점
+                        </span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex gap-3 mt-6 mb-4">
-                  <button type="button" onClick={handleShare} className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+                  >
                     📤 운세 결과 공유하기
                   </button>
-                  <button type="button" onClick={handleReset} className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+                  >
                     ↺ 다시 하기 (처음으로)
                   </button>
                 </div>
 
-                <button type="button" onClick={handlePremium} className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-4 text-base font-bold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePremium}
+                  className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-4 text-base font-bold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 flex items-center justify-center gap-2"
+                >
                   <span>✨</span> 광고 보고 상세 운세 보기
                 </button>
               </>
@@ -679,40 +845,69 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
 
                 {premiumDaeunInfo && (
                   <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                    <h3 className="mb-4 text-center text-base font-semibold text-black">당신의 대운 (10년 주기 운세 변화)</h3>
-                    <p className="mb-4 text-sm text-slate-700">귀하는 {premiumDaeunInfo.startAge}살을 기준으로 운세의 큰 변화가 일어납니다.</p>
+                    <h3 className="mb-4 text-center text-base font-semibold text-black">
+                      당신의 대운 (10년 주기 운세 변화)
+                    </h3>
+                    <p className="mb-4 text-sm text-slate-700">
+                      귀하는 {premiumDaeunInfo.startAge}살을 기준으로 운세의 큰 변화가 일어납니다.
+                    </p>
                     <div className="space-y-3 rounded border border-slate-200 bg-slate-50 p-4">
-                      <div><span className="text-xs font-medium text-slate-500">현재 대운</span><p className="mt-1 font-serif text-lg font-bold text-black">{premiumDaeunInfo.currentCycle}</p></div>
-                      <div><span className="text-xs font-medium text-slate-500">현재 대운 특징</span><p className="mt-1 text-sm leading-relaxed text-slate-800">{premiumDaeunInfo.currentDescription}</p></div>
+                      <div>
+                        <span className="text-xs font-medium text-slate-500">현재 대운</span>
+                        <p className="mt-1 font-serif text-lg font-bold text-black">
+                          {premiumDaeunInfo.currentCycle}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-slate-500">현재 대운 특징</span>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-800">
+                          {premiumDaeunInfo.currentDescription}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
 
                 <div className="rounded-2xl border-2 border-yellow-500/50 bg-yellow-900/10 p-6 backdrop-blur-md shadow-2xl shadow-yellow-500/10">
-                  <h2 className="mb-6 text-center text-xl font-bold text-yellow-400">✨ 전문가 심층 명리학 리포트</h2>
+                  <h2 className="mb-6 text-center text-xl font-bold text-yellow-400">
+                    ✨ 전문가 심층 명리학 리포트
+                  </h2>
+
                   <div className="space-y-10">
-                    {[
-                      { key: "daeun", title: "[원국 흐름 해석]", content: premiumResult.daeun },
-                      { key: "monthlyAdvice", title: "[오늘의 핵심 조언]", content: premiumResult.monthlyAdvice },
-                      { key: "wealth", title: "[재물운]", content: premiumResult.wealth },
-                      { key: "love", title: "[연애운]", content: premiumResult.love },
-                      { key: "career", title: "[직장·진로운]", content: premiumResult.career },
-                      { key: "health", title: "[건강운]", content: premiumResult.health },
-                    ].map(({ key, title, content }) => (
+                  {[
+                    { key: "daeun", title: "[원국 흐름 해석]", content: premiumResult.daeun },
+                    { key: "monthlyAdvice", title: "[오늘의 핵심 조언]", content: premiumResult.monthlyAdvice },
+                    { key: "wealth", title: "[재물운]", content: premiumResult.wealth },
+                    { key: "love", title: "[연애운]", content: premiumResult.love },
+                    { key: "career", title: "[직장·진로운]", content: premiumResult.career },
+                    { key: "health", title: "[건강운]", content: premiumResult.health },
+                  ].map(({ key, title, content }) => (
                       <section key={key} className="space-y-4">
-                        <h3 className="text-base font-semibold text-yellow-400">{title}</h3>
-                        <p className="leading-loose text-white/90 text-slate-200 whitespace-pre-wrap">{content}</p>
+                        <h3 className="text-base font-semibold text-yellow-400">
+                          {title}
+                        </h3>
+                        <p className="leading-loose text-white/90 text-slate-200 whitespace-pre-wrap">
+                          {content}
+                        </p>
                       </section>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex gap-3 mt-6">
-                  <button type="button" onClick={handleShare} className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">
-                    📤 심층 리포트 결과 공유하기
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+                  >
+                    📤 운세 결과 공유하기
                   </button>
-                  <button type="button" onClick={handleReset} className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">
-                    ↺ 처음으로
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+                  >
+                    ↺ 다시 하기 (처음으로)
                   </button>
                 </div>
               </>
@@ -721,13 +916,35 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         )}
 
         {showPremiumModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && setShowPremiumModal(false)}>
-            <div className="w-full max-w-md rounded-2xl border-2 border-yellow-500/50 bg-slate-900/90 p-6 shadow-2xl shadow-yellow-500/10 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="mb-4 text-center text-lg font-semibold text-yellow-400">✨ 전문가 심층 명리학 리포트 무료 열람</h3>
-              <p className="mb-6 text-center text-sm text-white/70">짧은 광고를 시청하시면 대운과 재물·연애·직장·건강운 심층 분석 리포트를 <strong className="text-yellow-300">무료로</strong> 확인하실 수 있습니다.</p>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={(e) => e.target === e.currentTarget && setShowPremiumModal(false)}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border-2 border-yellow-500/50 bg-slate-900/90 p-6 shadow-2xl shadow-yellow-500/10 backdrop-blur-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="mb-4 text-center text-lg font-semibold text-yellow-400">
+                ✨ 전문가 심층 명리학 리포트 무료 열람
+              </h3>
+              <p className="mb-6 text-center text-sm text-white/70">
+                짧은 광고를 시청하시면 대운과 재물·연애·직장·건강운 심층 분석 리포트를 <strong className="text-yellow-300">무료로</strong> 확인하실 수 있습니다.
+              </p>
               <div className="flex gap-3">
-                <button type="button" onClick={() => setShowPremiumModal(false)} className="flex-1 rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10">취소</button>
-                <button type="button" onClick={handlePremiumConfirm} className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50">▶ 광고 보고 리포트 열기</button>
+                <button
+                  type="button"
+                  onClick={() => setShowPremiumModal(false)}
+                  className="flex-1 rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePremiumConfirm}
+                  className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+                >
+                  ▶ 광고 보고 리포트 열기
+                </button>
               </div>
             </div>
           </div>
