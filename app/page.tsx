@@ -1500,32 +1500,25 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       }
 
       // 🔑 대표님의 포트원 가맹점 식별코드!
-      IMP.init("imp61375123"); 
-
-      // 기간에 따른 결제 금액 설정
-      const amount = premiumPeriod === "24h" ? 1900 : 6900;
-      const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
-
       IMP.request_pay(
         {
-          pg: "tosspayments", // 토스 채널
+          pg: "tosspayments",
           pay_method: "card",
           merchant_uid: `mid_${new Date().getTime()}`,
           name: name,
           amount: amount,
-          buyer_email: "test@ymstudio.co.kr", // 에러 방지용 임시 이메일
-          buyer_name: "명운 사용자", // 에러 방지용 임시 이름
+          buyer_email: "test@ymstudio.co.kr",
+          buyer_name: "명운 사용자",
+          // 🚀 [추가됨] 모바일에서 결제 끝나고 우리 앱으로 돌아올 주소!!
+          m_redirect_url: typeof window !== "undefined" ? window.location.href : "", 
         },
         async (rsp: any) => {
           if (rsp.success) {
-            // 🚀 결제 성공!
             alert("✨ 결제가 성공적으로 완료되었습니다!");
             setShowPremiumModal(false);
             setPremiumWishText("");
-            // (DB 저장 로직은 테스트 후 추가)
           } else {
-            // 결제 취소 또는 실패
-            alert(`결제가 취소되었거나 실패했습니다: ${rsp.error_msg}`);
+            alert(`결제가 취소되었거나 실패했습니다: ${rsp.error_msg || "사용자 취소"}`);
           }
         }
       );
@@ -3258,6 +3251,26 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
+  // 🚀 [여기에 통째로 추가해 주세요!!] 모바일 결제 후 돌아왔을 때 결과 처리
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const impSuccess = urlParams.get("imp_success");
+    const errorMsg = urlParams.get("error_msg");
+    const payReturn = urlParams.get("imp_uid"); // 결제하고 돌아온 유저인지 확인
+
+    if (payReturn) {
+      if (impSuccess === "true") {
+        alert("✨ (모바일) 결제가 성공적으로 완료되었습니다!");
+        setActiveTab("altar"); // 다시 제단 탭으로 돌려보냄
+      } else {
+        alert(`결제가 취소/실패했습니다: ${errorMsg || "사용자 취소"}`);
+      }
+      // 알림창 계속 뜨는 거 방지용 URL 청소
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+  
   // 🚀 [추가됨] 로그인 상태 확인 및 감지
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
