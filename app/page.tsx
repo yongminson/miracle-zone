@@ -1488,48 +1488,48 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     return `[✨ 익명 님의 ${periodLabel} 기원]`;
   };
   
-  const handlePremiumConfirm = async () => {
-    const fullText = premiumWishText.trim();
-    if (!fullText) return;
-  
-        setShowPremiumModal(false);
-    let savedDisplayName = "";
-    if (premiumNameDisplay === "real" || premiumNameDisplay === "partial") {
-      savedDisplayName = premiumNameInput.trim();
+  // 🚀 프리미엄 결제창 띄우기 함수 (토스페이먼츠)
+  const handlePremiumConfirm = () => {
+    if (!premiumWishText.trim()) return;
+
+    if (typeof window !== "undefined") {
+      const IMP = (window as any).IMP;
+      if (!IMP) {
+        alert("결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+
+      // 🔑 대표님의 포트원 가맹점 식별코드!
+      IMP.init("imp61375123"); 
+
+      // 기간에 따른 결제 금액 설정
+      const amount = premiumPeriod === "24h" ? 1900 : 6900;
+      const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
+
+      IMP.request_pay(
+        {
+          pg: "tosspayments", // 토스 채널
+          pay_method: "card",
+          merchant_uid: `mid_${new Date().getTime()}`,
+          name: name,
+          amount: amount,
+          buyer_email: "test@ymstudio.co.kr", // 에러 방지용 임시 이메일
+          buyer_name: "명운 사용자", // 에러 방지용 임시 이름
+        },
+        async (rsp: any) => {
+          if (rsp.success) {
+            // 🚀 결제 성공!
+            alert("✨ 결제가 성공적으로 완료되었습니다!");
+            setShowPremiumModal(false);
+            setPremiumWishText("");
+            // (DB 저장 로직은 테스트 후 추가)
+          } else {
+            // 결제 취소 또는 실패
+            alert(`결제가 취소되었거나 실패했습니다: ${rsp.error_msg}`);
+          }
+        }
+      );
     }
-  
-    const { error } = await supabase.from("wishes").insert({
-      content: fullText,
-      duration: premiumPeriod,
-      display_mode: premiumNameDisplay,
-      display_name: savedDisplayName,
-    });
-    if (error) {
-      const errorMessage =
-        typeof error === "object" && error !== null
-          ? JSON.stringify(error, null, 2)
-          : String(error);
-      alert(`프리미엄 소원 저장 실패\n\n${errorMessage}`);
-      return;
-    }
-  
-    const localPremium: PremiumWish = {
-      id: `prem-${Date.now()}`,
-      content: fullText,
-      badge: getPremiumBadge(),
-      period: premiumPeriod,
-      createdAt: Date.now(),
-    };
-    setPremiumWishes((prev) =>
-      filterPremiumWishes([...prev, localPremium])
-    );
-    
-    setWishToastMessage("소원이 올라갔습니다.");
-    setShowWishToast(true);
-    setTimeout(() => setShowWishToast(false), 1800);
-    setPremiumWishText("");
-    setPremiumNameInput("");
-    setPremiumNameDisplay("anonymous");
   };
 
   const handlePremiumCancel = () => {
