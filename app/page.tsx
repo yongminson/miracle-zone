@@ -1825,6 +1825,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [showPhysiognomyPaymentModal, setShowPhysiognomyPaymentModal] = useState(false);
   const [isPhysiognomyPremiumUnlocked, setIsPhysiognomyPremiumUnlocked] = useState(false);
   const faceShareResultRef = useRef<HTMLDivElement | null>(null);
+  const nameShareResultRef = useRef<HTMLDivElement | null>(null);
 
   const [nameGender, setNameGender] = useState<"male" | "female">("male");
   const [nameBirthDate, setNameBirthDate] = useState("");
@@ -1966,6 +1967,14 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       fileName: "physiognomy-result.png",
       title: "관상 분석 결과",
       text: `관상 분석 결과 이미지입니다.\n자세히 보기: ${window.location.origin}`,
+    });
+  };
+
+  const handleNameShare = async () => {
+    await captureAndShareElement(nameShareResultRef.current, {
+      fileName: "name-result.png",
+      title: "이름 풀이 결과",
+      text: `이름 풀이 결과 이미지입니다.\n자세히 보기: ${window.location.origin}`,
     });
   };
 
@@ -2663,22 +2672,12 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                 <div className="mt-8 space-y-3">
                   {isNamePremiumUnlocked ? (
                     <button
-                    type="button"
-                    onClick={async () => {
-                      const hanjaText = nameHanja ? ` (${nameHanja})` : "";
-                      const summaryText = nameResultData?.freeSummary?.slice(0, 60) ?? "";
-                      const originUrl = typeof window !== "undefined" ? window.location.origin : "";
-                      const text = `이름 풀이: ${nameInput}${hanjaText} - ${summaryText}... | ${originUrl}`;
-                      
-                      if (navigator.share) {
-                        try { await navigator.share({ title: "이름 풀이", text, url: window.location.href }); return; } catch {}
-                      }
-                      try { await navigator.clipboard?.writeText(text); alert("복사되었습니다!"); } catch { alert("공유 지원 불가"); }
-                    }}
-                    className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95"
-                  >
-                    📤 이름 풀이 결과 공유하기
-                  </button>
+  type="button"
+  onClick={handleNameShare}
+  className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20"
+>
+  📤 이름 풀이 결과 공유하기
+</button>
                   ) : (
                     <button
                       type="button"
