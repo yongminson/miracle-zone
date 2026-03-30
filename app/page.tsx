@@ -1488,56 +1488,92 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     return `[✨ 익명 님의 ${periodLabel} 기원]`;
   };
   
-  // 🚀 프리미엄 결제창 띄우기 함수 (PC/모바일 충돌 완벽 해결)
-  const handlePremiumConfirm = () => {
-    if (!premiumWishText.trim()) return;
+  // 🚀 프리미엄 결제창 띄우기 함수 (PC/모바일 충돌 완벽 해결 및 서버 검증 로직 추가)
+const handlePremiumConfirm = () => {
+  if (!premiumWishText.trim()) return;
 
-    if (typeof window !== "undefined") {
-      const IMP = (window as any).IMP;
-      
-      if (!IMP) {
-        alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!");
-        return;
-      }
-
-      IMP.init("imp61375123"); 
-
-      const amount = premiumPeriod === "24h" ? 1900 : 6900;
-      const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
-      
-      // 🚀 현재 기기가 모바일인지 PC인지 확인!
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-      // 결제 기본 데이터
-      const payData: any = {
-        pg: "tosspayments", 
-        pay_method: "card",
-        merchant_uid: `mid_${new Date().getTime()}`,
-        name: name,
-        amount: amount,
-        buyer_email: "test@ymstudio.co.kr",
-        buyer_name: "명운 사용자",
-      };
-
-      // 🚨 핵심 해결: 모바일일 때만 돌아올 주소를 넣는다! (PC에 넣으면 튕김)
-      if (isMobile) {
-        payData.m_redirect_url = window.location.href;
-      }
-
-      IMP.request_pay(payData, function (rsp: any) {
-        if (rsp.success) {
-          // 🚀 진짜 결제 성공!
-          alert("✨ 결제가 성공적으로 완료되었습니다!");
-          setShowPremiumModal(false);
-          setPremiumWishText("");
-        } else {
-          // 상세 에러코드 확인용
-          console.log("결제 실패 상세:", rsp);
-          alert(`결제 실패: ${rsp.error_msg || "사용자 취소"}\n(에러코드: ${rsp.error_code || "없음"})`);
-        }
-      });
+  if (typeof window !== "undefined") {
+    const IMP = (window as any).IMP;
+    if (!IMP) {
+      alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!");
+      return;
     }
-  };
+
+    // 포트원 가맹점 식별코드
+    IMP.init("imp61375123"); 
+
+    const amount = premiumPeriod === "24h" ? 1900 : 6900;
+    const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
+    
+    // 🚀 현재 기기가 모바일인지 PC인지 확인
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    // 결제 기본 데이터 세팅
+    const payData: any = {
+      pg: "tosspayments.iamporttest", // 안정적인 테스트를 위해 iamporttest 명시
+      pay_method: "card",
+      merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`, // 고유성 강화
+      name: name,
+      amount: amount,
+      buyer_email: user?.email || "test@ymstudio.co.kr", // Supabase 유저 정보가 있다면 활용
+      buyer_name: user?.user_metadata?.name || "명운 사용자",
+    };
+
+    // 모바일일 때만 돌아올 주소를 넣는다 (PC에 넣으면 튕김)
+    if (isMobile) {
+      payData.m_redirect_url = window.location.href;
+    }
+
+    IMP.request_pay(payData, async function (rsp: any) {
+      if (rsp.success) {
+        // 🚀 [보안 필수] 프론트에서 넘어온 success는 믿지 마세요!
+        // 여기서 바로 DB에 Insert하지 않고, 검증 API를 호출합니다.
+        try {
+          const verifyRes = await fetch("/api/payments/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              imp_uid: rsp.imp_uid,
+              merchant_uid: rsp.merchant_uid,
+              amount: amount,
+              wishText: premiumWishText,
+              period: premiumPeriod,
+              nameDisplay: premiumNameDisplay,
+              nameInput: premiumNameInput,
+            }),
+          });
+
+          const verifyData = await verifyRes.json();
+
+          if (verifyRes.ok && verifyData.success) {
+            alert("✨ 결제가 성공적으로 완료되었으며 제단에 소원이 올라갔습니다!");
+            setShowPremiumModal(false);
+            setPremiumWishText("");
+            setPremiumNameInput("");
+            
+            // TODO: 렌더링을 위해 데이터를 다시 불러옵니다 (기존 fetchWishes 함수 호출)
+            fetchWishes();
+          } else {
+            alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+          }
+        } catch (error) {
+          console.error("결제 검증 오류:", error);
+          alert("서버 통신 중 오류가 발생했습니다. 고객센터에 문의해주세요.");
+        }
+      } else {
+        // 🚀 PC 환경에서 앱카드로 결제 후 무의식적으로 닫기(X)를 누른 경우에 대한 방어 로직
+        console.warn("결제 실패/취소 상세:", rsp);
+        
+        const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
+        if (isUserCancel && !isMobile) {
+          alert(`결제가 취소되었습니다.\n💡 스마트폰에서 결제 승인 후, 반드시 PC 화면 결제창의 [결제 완료] 버튼을 눌러주셔야 정상 처리됩니다.`);
+        } else {
+          alert(`결제 실패: ${rsp.error_msg || "알 수 없는 오류"}\n(에러코드: ${rsp.error_code || "없음"})`);
+        }
+      }
+    });
+  }
+};
 
   const handlePremiumCancel = () => {
     setShowPremiumModal(false);
