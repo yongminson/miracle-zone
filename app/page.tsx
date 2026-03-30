@@ -535,6 +535,29 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     });
   };
 
+  const handleFortuneLinkShare = async () => {
+    const shareUrl = window.location.href;
+    const text = `오늘의 운세 결과 보러가기\n${shareUrl}`;
+  
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "오늘의 운세",
+          text,
+          url: shareUrl,
+        });
+        return;
+      } catch {}
+    }
+  
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 복사되었습니다.");
+    } catch {
+      alert("링크 공유를 지원하지 않는 환경입니다.");
+    }
+  };
+
   const displayBaziChartPremium = (bazi: BaziChart | null | undefined) => {
     const cols = [
       { key: "year", label: "년주", cell: bazi?.year },
@@ -848,13 +871,22 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                 </div>
 
                 <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={handleShare}
-                    className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  >
-                    📤 운세 결과 공유하기
-                  </button>
+                <div className="grid grid-cols-2 gap-3">
+  <button
+    type="button"
+    onClick={handleFortuneLinkShare}
+    className="w-full rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95"
+  >
+    🔗 링크 공유
+  </button>
+  <button
+    type="button"
+    onClick={handleShare}
+    className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95"
+  >
+    🖼️ 이미지 공유
+  </button>
+</div>
                   <button
                     type="button"
                     onClick={handleReset}
@@ -2024,6 +2056,53 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     });
   };
 
+  const handleFaceLinkShare = async () => {
+    const shareUrl = window.location.href;
+    const text = `관상 분석 결과 보러가기\n${shareUrl}`;
+  
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "관상 분석 결과",
+          text,
+          url: shareUrl,
+        });
+        return;
+      } catch {}
+    }
+  
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 복사되었습니다.");
+    } catch {
+      alert("링크 공유를 지원하지 않는 환경입니다.");
+    }
+  };
+  
+  const handleNameLinkShare = async () => {
+    const shareUrl = window.location.href;
+    const hanjaText = nameHanja ? ` (${nameHanja})` : "";
+    const text = `이름 풀이 결과 보러가기\n${nameInput}${hanjaText}\n${shareUrl}`;
+  
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "이름 풀이 결과",
+          text,
+          url: shareUrl,
+        });
+        return;
+      } catch {}
+    }
+  
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 복사되었습니다.");
+    } catch {
+      alert("링크 공유를 지원하지 않는 환경입니다.");
+    }
+  };
+
   const handleFaceReset = () => {
     setFaceName("");
     setFaceBirthDate("");
@@ -2441,14 +2520,23 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
                 <div className="mt-8 space-y-3">
                   {isPhysiognomyPremiumUnlocked ? (
-                    <button
-                      type="button"
-                      onClick={handleFaceShare}
-                      className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95"
-                    >
-                      📤 관상 결과 공유하기
-                    </button>
-                  ) : null}
+  <div className="grid grid-cols-2 gap-3">
+    <button
+      type="button"
+      onClick={handleFaceLinkShare}
+      className="w-full rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95"
+    >
+      🔗 링크 공유
+    </button>
+    <button
+      type="button"
+      onClick={handleFaceShare}
+      className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95"
+    >
+      🖼️ 이미지 공유
+    </button>
+  </div>
+) : null}
                   <button
                     type="button"
                     onClick={handleFaceReset}
@@ -2717,13 +2805,23 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
                 <div className="mt-8 space-y-3">
                   {isNamePremiumUnlocked ? (
+                    <div className="grid grid-cols-2 gap-3">
                     <button
-  type="button"
-  onClick={handleNameShare}
-  className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20"
->
-  📤 이름 풀이 결과 공유하기
-</button>
+                      type="button"
+                      onClick={handleNameLinkShare}
+                      className="w-full rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20"
+                    >
+                      🔗 링크 공유
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNameShare}
+                      className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20"
+                    >
+                      🖼️ 이미지 공유
+                    </button>
+                  </div>
+
                   ) : (
                     <button
                       type="button"
