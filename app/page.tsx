@@ -392,11 +392,16 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
 
   // 🚀 [마법의 공유 버튼 로직] 화면 캡처 + 스마트폰 네이티브 카톡 공유
   const handleShare = async () => {
+    // 1. 모바일 캡처 지연을 방지하기 위한 UI 알림 (중요!)
+    alert("결과 이미지를 생성 중입니다. 잠시만 기다려주세요 📸\n(환경에 따라 1~2초 소요됩니다)");
+
     const lucky = fortuneData?.luckyItems;
     const summary = fortuneData ? `총운 ${fortuneData.scores[0]}점: ${fortuneData.texts[0]?.slice(0, 30)}...` : "심층 명리학 리포트";
     const text = `[명운] 오늘의 운세 🔮\n\n${summary}${lucky ? `\n🎨 행운의 색: ${lucky.color}\n🔢 행운의 번호: ${lucky.number}` : ""}\n\n👇 내 운세 자세히 보기\n${typeof window !== "undefined" ? window.location.origin : ""}`;
 
     let file: File | null = null;
+    
+    // 2. 완벽하게 캡처될 때까지 대기
     try {
       const element = document.getElementById("fortune-result-card");
       if (element) {
@@ -404,7 +409,8 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
           backgroundColor: "#0f172a", 
           scale: 2,
           useCORS: true, 
-          allowTaint: true 
+          allowTaint: true,
+          scrollY: -window.scrollY // 모바일 화면 짤림 방지
         });
         const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
         if (blob) {
@@ -415,21 +421,32 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
       console.error("캡처 실패:", err);
     }
 
-    // 모바일 기기(아이폰/갤럭시) 카톡 공유 띄우기
+    // (디버깅용) 캡처가 진짜 실패했는지 확인
+    if (!file) {
+      alert("폰 환경 제한으로 이미지 생성에 실패하여 텍스트만 공유됩니다.");
+    }
+
+    // 3. 모바일 네이티브 공유 띄우기
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
-        const shareData: ShareData = { title: "명운 오늘의 운세", text };
         if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-          shareData.files = [file];
+          // 카카오톡이 이미지를 인식할 수 있도록 files 배열 명시
+          await navigator.share({
+            title: "명운 오늘의 운세",
+            text: text,
+            files: [file]
+          });
+          return; 
+        } else {
+          await navigator.share({ title: "명운 오늘의 운세", text });
+          return;
         }
-        await navigator.share(shareData);
-        return; 
       } catch (err) {
         console.log("사용자가 공유를 취소했거나 에러 발생", err);
       }
     }
 
-    // PC 환경일 경우 다운로드 및 텍스트 복사로 대체
+    // 4. PC 환경 폴백
     try {
       await navigator.clipboard?.writeText(text);
       if (file) {
