@@ -5,7 +5,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 import {
   Sparkles,
   BookOpen,
@@ -390,9 +390,9 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
-  // 🚀 [마법의 공유 버튼 로직] 화면 캡처 + 스마트폰 네이티브 카톡 공유
+  // 🚀 [완벽한 공유 로직] html-to-image 최신 기술 적용
   const handleShare = async () => {
-    alert("결과 이미지를 생성 중입니다. 잠시만 기다려주세요 📸\n(환경에 따라 1~2초 소요됩니다)");
+    alert("결과 이미지를 생성 중입니다. 잠시만 기다려주세요 📸");
 
     const lucky = fortuneData?.luckyItems;
     const summary = fortuneData ? `총운 ${fortuneData.scores[0]}점: ${fortuneData.texts[0]?.slice(0, 30)}...` : "심층 명리학 리포트";
@@ -403,41 +403,34 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     try {
       const element = document.getElementById("fortune-result-card");
       if (element) {
-        // 모바일에서 스크롤이 내려가 있으면 화면이 짤리는 버그 방지 (순간적으로 맨 위로 올림)
-        const originalScroll = window.scrollY;
-        window.scrollTo(0, 0);
-
-        const canvas = await html2canvas(element, { 
-          backgroundColor: "#0f172a", 
-          scale: 2,
-          useCORS: true, 
-          // 🚨 allowTaint 옵션 완벽 삭제 (갤럭시 S24 보안 에러 주범)
-          logging: false
+        // 최신 기술로 화려한 CSS까지 완벽하게 사진으로 구워냄
+        const dataUrl = await toPng(element, { 
+          cacheBust: true, 
+          backgroundColor: "#0f172a",
+          pixelRatio: 2
         });
-
-        window.scrollTo(0, originalScroll); // 캡처 후 원래 스크롤로 원상복구
-
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-        if (blob) {
-          file = new File([blob], "miracle_fortune.png", { type: "image/png" });
-        }
+        
+        // 이미지 파일로 변환
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        file = new File([blob], "miracle_fortune.png", { type: "image/png" });
       }
     } catch (err) {
-      console.error("캡처 실패:", err);
+      console.error("이미지 생성 실패:", err);
     }
 
     if (!file) {
-      alert("갤럭시 보안 정책 등으로 이미지 생성에 실패했습니다. 텍스트만 공유됩니다.");
+      alert("이미지 캡처에 실패하여 텍스트만 공유됩니다.");
     }
 
-    // 모바일 기기(아이폰/갤럭시) 카톡 공유 띄우기
+    // 모바일 환경 카톡 공유 띄우기
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             title: "명운 오늘의 운세",
             text: text,
-            files: [file] // 👈 사진 파일 전송!
+            files: [file] 
           });
           return; 
         } else {
@@ -445,11 +438,11 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
           return;
         }
       } catch (err) {
-        console.log("사용자가 공유를 취소했거나 에러 발생", err);
+        console.log("공유 취소 또는 에러", err);
       }
     }
 
-    // PC 환경일 경우 다운로드 및 텍스트 복사로 대체
+    // PC 환경 (이미지 자동 다운로드 + 글씨 복사)
     try {
       await navigator.clipboard?.writeText(text);
       if (file) {
@@ -457,9 +450,9 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
          link.href = URL.createObjectURL(file);
          link.download = "miracle_fortune.png";
          link.click();
-         alert("✅ 운세 결과 이미지가 다운로드 되었습니다!\nPC 사진첩을 확인하시고 카톡에 첨부해주세요.");
+         alert("✅ 운세 결과 이미지가 다운로드 되었습니다!\nPC 카톡 창에 첨부해주세요.");
       } else {
-         alert("운세 텍스트가 복사되었습니다!");
+         alert("✅ 운세 텍스트가 복사되었습니다!");
       }
     } catch {
       alert("공유하기를 지원하지 않는 기기입니다.");
