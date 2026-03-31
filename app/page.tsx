@@ -1488,7 +1488,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     return `[✨ 익명 님의 ${periodLabel} 기원]`;
   };
   
-  // 🚀 프리미엄 결제창 띄우기 함수 (user 참조 에러 해결 & 서버 검증 로직 포함)
+  // 🚀 프리미엄 결제창 띄우기 함수 (F500 채널 에러 해결 및 서버 검증 로직 포함)
   const handlePremiumConfirm = () => {
     if (!premiumWishText.trim()) return;
 
@@ -1505,9 +1505,9 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-      // 💡 해결: user 변수 참조 에러 방지를 위해 임시 하드코딩 (나중에 Props로 넘겨받으면 수정)
+      // 💡 해결: pg 값을 원래대로 "tosspayments"로 복구! (F500 에러 및 PC 먹통 해결)
       const payData: any = {
-        pg: "tosspayments.iamporttest", 
+        pg: "tosspayments", 
         pay_method: "card",
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: name,
@@ -1551,7 +1551,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
             }
           } catch (error) {
             console.error("결제 검증 오류:", error);
-            // 아직 API 라우트가 없으면 이쪽으로 빠지거나 404 에러가 날 수 있습니다.
             alert("서버 통신 중 오류가 발생했습니다. (아직 검증 API가 만들어지지 않았을 수 있습니다)");
           }
         } else {
@@ -1560,7 +1559,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
           
           if (isUserCancel && !isMobile) {
-            alert(`결제가 취소되었습니다.\n💡 스마트폰에서 결제 승인 후, 반드시 PC 화면 결제창의 [결제 완료] 버튼을 눌러주셔야 정상 처리됩니다.`);
+            alert(`결제가 취소되었습니다.\n💡 스마트폰(앱카드)으로 결제를 마치셨다면, PC 화면의 결제창이 스스로 닫힐 때까지 'X'를 누르지 말고 잠시만 기다려주세요!`);
           } else {
             alert(`결제 실패: ${rsp.error_msg || "알 수 없는 오류"}\n(에러코드: ${rsp.error_code || "없음"})`);
           }
