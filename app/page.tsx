@@ -36,14 +36,24 @@ function AdminDashboard() {
     if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
       setIsAdmin(true);
       const fetchStats = async () => {
-        const { data } = await supabase.from("visitors").select("visit_date, visit_count");
+        // 🚀 visitors 테이블에서 전체 데이터를 가져옴
+        const { data, error } = await supabase.from("visitors").select("visit_date, visit_count");
+        
+        if (error) {
+          console.error("데이터 로딩 실패:", error.message);
+          return;
+        }
+
         if (data) {
           const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
-          let total = 0; let daily = 0;
+          let total = 0; 
+          let daily = 0;
+          
           data.forEach(row => {
-            total += row.visit_count;
-            if (row.visit_date === todayStr) daily = row.visit_count;
+            total += (row.visit_count || 0);
+            if (row.visit_date === todayStr) daily = (row.visit_count || 0);
           });
+          
           setStats({ daily, total });
         }
       };
@@ -3536,14 +3546,23 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // 🚀 [추가] 하루에 한 번 방문자 수 측정 로직
+  // 🚀 방문자 수 측정 로직 (중복 방지는 로컬 스토리지만 사용)
   useEffect(() => {
     if (typeof window === "undefined") return;
+    
     const trackVisitor = async () => {
       const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+      
+      // 오늘 방문한 적이 없을 때만 실행
       if (localStorage.getItem("visited_today") !== today) {
-        await supabase.rpc("increment_visitor").catch(() => {});
-        localStorage.setItem("visited_today", today);
+        const { error } = await supabase.rpc("increment_visitor");
+        
+        if (!error) {
+          // 성공했을 때만 도장 찍기
+          localStorage.setItem("visited_today", today);
+        } else {
+          console.error("방문 카운팅 실패:", error.message);
+        }
       }
     };
     trackVisitor();
