@@ -1558,18 +1558,55 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     return `[✨ 익명 님의 ${periodLabel} 기원]`;
   };
   
-  // 🚀 프리미엄 결제창 띄우기 함수 (app_scheme 추가 및 상세 에러 로깅)
+  // 🚀 프리미엄 결제창 띄우기 함수 (운영자 프리패스 적용)
   const handlePremiumConfirm = () => {
     if (!premiumWishText.trim()) return;
 
     if (typeof window !== "undefined") {
+      const amount = premiumPeriod === "24h" ? 1900 : 6900;
+
+      // 🚀 1. 운영자 절대 프리패스 (결제 모듈 생략하고 즉시 DB 저장!)
+      if (localStorage.getItem("MASTER_ADMIN") === "true") {
+        alert("✨ [운영자 프리패스] 결제 없이 즉시 프리미엄 소원을 제단에 올립니다!");
+        
+        fetch("/api/payments/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paymentType: "altar",
+            imp_uid: `admin_bypass_${Date.now()}`, // 가짜 결제 ID 생성
+            merchant_uid: `mid_admin_${Date.now()}`,
+            amount: amount,
+            wishText: premiumWishText,
+            period: premiumPeriod,
+            nameDisplay: premiumNameDisplay,
+            nameInput: premiumNameInput,
+          }),
+        }).then(async (res) => {
+          const data = await res.json();
+          if (data.success) {
+            setShowPremiumModal(false);
+            setPremiumWishText("");
+            setPremiumNameInput("");
+            if (typeof fetchWishes === 'function') fetchWishes(); 
+          } else {
+            alert(`🚨 등록 실패: ${data.message}`);
+          }
+        }).catch(() => {
+          alert("서버 오류가 발생했습니다.");
+        });
+        
+        return; // 💡 여기서 함수를 종료시켜 아래의 실제 결제 로직으로 넘어가지 않게 막음
+      }
+
+      // 2. 일반 유저 실제 결제 로직
       const IMP = (window as any).IMP;
       if (!IMP) {
         alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!");
         return;
       }
 
-      IMP.init("imp61375123"); 
+      IMP.init("imp61375123");
 
       const amount = premiumPeriod === "24h" ? 1900 : 6900;
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
