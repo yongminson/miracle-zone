@@ -49,17 +49,17 @@ export async function POST(request: NextRequest) {
 
     const title = `${String(dreamText).slice(0, 20)}... 꿈 해몽, 길몽일까 흉몽일까?`;
 
-    // 🚀 [수정 완료] 모든 필수 데이터를 DB에 함께 저장합니다.
+    // 🚀 [핵심] 모든 필수 데이터를 DB에 넣고 생성된 ID를 받아옵니다.
     const { data: insertedData, error: insertError } = await supabase
       .from("dreams")
       .insert({
-        user_input: dreamText,      // 사용자가 입력한 꿈 원본
-        title: title,               // 블로그용 제목
-        summary: parsed.summary,    // AI가 요약한 내용
-        details: parsed.details,    // AI의 상세 해몽
-        action_guide: parsed.actionGuide, // AI의 행동 지침
-        dream_type: parsed.type,    // 길몽/흉몽 구분
-        score: parsed.score         // 꿈 점수
+        user_input: dreamText,
+        title: title,
+        summary: parsed.summary,
+        details: parsed.details,
+        action_guide: parsed.actionGuide,
+        dream_type: parsed.type,
+        score: parsed.score
       })
       .select("id")
       .single();
@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `DB 저장 실패: ${insertError.message}` }, { status: 500 });
     }
 
+    // 🚀 정상적으로 저장되었다면, db_id를 프론트로 넘겨줍니다!
     return NextResponse.json({ ...parsed, db_id: insertedData.id });
   } catch (error: any) {
     console.error("Dream API Error:", error);
