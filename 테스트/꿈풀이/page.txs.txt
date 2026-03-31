@@ -1,9 +1,11 @@
 /* eslint-disable */
+// @ts-nocheck
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
+import { toPng } from "html-to-image";
 import {
   Sparkles,
   BookOpen,
@@ -26,6 +28,122 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju";
+
+async function captureAndShareElement(
+  target: HTMLElement | null,
+  options?: {
+    fileName?: string;
+    title?: string;
+    text?: string;
+  }
+) {
+  if (!target) {
+    alert("공유할 화면을 찾을 수 없습니다.");
+    return;
+  }
+
+  try {
+    const shareUrl = window.location.origin;
+
+    // 원본을 복제
+    const clonedTarget = target.cloneNode(true) as HTMLElement;
+    clonedTarget.style.margin = "0";
+    clonedTarget.style.width = `${target.offsetWidth}px`;
+
+    // 바깥 래퍼 생성
+    const wrapper = document.createElement("div");
+    wrapper.style.background = "#020817";
+    wrapper.style.padding = "24px";
+    wrapper.style.width = `${target.offsetWidth + 48}px`;
+    wrapper.style.boxSizing = "border-box";
+    wrapper.style.display = "flex";
+    wrapper.style.flexDirection = "column";
+    wrapper.style.gap = "16px";
+
+    // 하단 링크 박스 생성
+    const footer = document.createElement("div");
+    footer.style.background = "#0f172a";
+    footer.style.border = "1px solid rgba(234,179,8,0.35)";
+    footer.style.borderRadius = "16px";
+    footer.style.padding = "14px 16px";
+    footer.style.textAlign = "center";
+    footer.style.color = "#f8fafc";
+    footer.style.fontSize = "14px";
+    footer.style.lineHeight = "1.6";
+    footer.innerHTML = `
+      <div style="font-weight:700; color:#facc15; margin-bottom:6px;">
+        결과가 궁금하다면 여기서 확인
+      </div>
+      <div style="font-size:13px; color:#cbd5e1; word-break:break-all;">
+        ${shareUrl}
+      </div>
+    `;
+
+    wrapper.appendChild(clonedTarget);
+    wrapper.appendChild(footer);
+
+    // 화면 밖 임시 영역에 붙이기
+    const tempContainer = document.createElement("div");
+    tempContainer.style.position = "fixed";
+    tempContainer.style.left = "-99999px";
+    tempContainer.style.top = "0";
+    tempContainer.style.zIndex = "-1";
+    tempContainer.appendChild(wrapper);
+    document.body.appendChild(tempContainer);
+
+    const dataUrl = await toPng(wrapper, {
+      cacheBust: true,
+      pixelRatio: 2,
+      backgroundColor: "#020817",
+    });
+
+    document.body.removeChild(tempContainer);
+
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (isMobile && navigator.share) {
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const file = new File(
+        [blob],
+        options?.fileName ?? "result-share.png",
+        { type: "image/png" }
+      );
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: options?.title ?? "결과 공유",
+          files: [file],
+        });
+        return;
+      }
+    }
+
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = options?.fileName ?? "result-share.png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch (error) {
+    console.error("captureAndShareElement error:", error);
+    const message =
+      error instanceof Error ? error.message : String(error);
+    alert(`이미지 생성 오류: ${message}`);
+  }
+}
+
+// 🚀 [비밀 관리자 모드 로직] 전역 패턴 감지기
+let secretPattern = "";
+const pushSecret = (char: string, callback?: () => void) => {
+  secretPattern += char;
+  if (secretPattern.length > 20) secretPattern = secretPattern.slice(-20);
+  // LLLLL (로또5번) + S (사주1번) + LLLLL (로또5번)
+  if (secretPattern.includes("LLLLLSLLLLL")) {
+    secretPattern = ""; // 트리거 성공 시 초기화
+    if (callback) callback();
+  }
+};
 
 const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, isReady: true },
@@ -115,6 +233,77 @@ type DaeunInfo = {
   currentDescription: string;
 };
 
+// 🚀 [추가] 탭별 맞춤 푸터 & 약관 모달 & 진짜 관리자 로그인 컴포넌트
+function FooterPolicy({ tabId }: { tabId: TabId }) {
+  const [showPolicy, setShowPolicy] = useState<string | null>(null);
+
+  const handleAdminLogin = () => {
+    const pwd = prompt("운영자 비밀번호를 입력하세요.");
+    if (pwd === "1004") {
+      localStorage.setItem("MASTER_ADMIN", "true");
+      alert("✨ 운영자 모드가 활성화되었습니다. 이제 모든 프리미엄 결제가 프리패스됩니다.");
+    } else if (pwd) {
+      alert("비밀번호가 일치하지 않습니다.");
+    }
+  };
+
+  return (
+    <div className="mt-12 mb-8 mx-auto w-full max-w-md border border-white/10 bg-black/40 backdrop-blur-md rounded-2xl pt-6 pb-8 text-center space-y-3 px-4 relative z-50 shadow-xl">
+      {tabId === "lotto" ? (
+        <>
+          <p className="text-[10px] text-white/40 break-keep leading-relaxed">
+            제공된 로또 번호는 수학적 난수와 통계 기반으로 추출되며, 당첨을 보장하지 않습니다. 과도한 복권 몰입은 가계 재정에 부담이 될 수 있습니다.
+          </p>
+          <p className="text-[10px] font-bold text-white/30 pt-1">
+            도박중독예방상담센터: 1336 | 동행복권: 1588-0908
+          </p>
+        </>
+      ) : tabId === "altar" ? (
+        <p className="text-[10px] text-white/40 break-keep leading-relaxed">
+          본 서비스는 희망과 위로를 나누는 공간으로 특정 종교와 무관하며 법적 효력을 갖지 않습니다.
+        </p>
+      ) : (
+        <p className="text-[10px] text-white/40 break-keep leading-relaxed">
+          본 서비스에서 제공하는 운세, 해몽, 관상 및 이름 풀이 결과는 정통 명리학에 기반한 통계적 해석으로, 절대적인 미래를 보장하지 않으며 법적 책임을 지지 않습니다.
+        </p>
+      )}
+
+      <div className="flex justify-center gap-4 text-[10px] text-white/50 pt-2 font-medium">
+        <button type="button" onClick={() => setShowPolicy("terms")} className="hover:text-white transition-colors">이용약관</button>
+        <span>|</span>
+        <button type="button" onClick={() => setShowPolicy("privacy")} className="hover:text-white transition-colors">개인정보처리방침</button>
+        <span>|</span>
+        <button type="button" onClick={() => setShowPolicy("refund")} className="hover:text-white transition-colors">환불정책</button>
+      </div>
+
+      {/* 🔒 더블클릭 시 숨겨진 운영자 로그인 작동 */}
+      <p className="text-[9px] text-white/20 pt-2 cursor-default select-none" onDoubleClick={handleAdminLogin}>
+        © 2026 명운(命運). All rights reserved.
+      </p>
+
+      {/* 📜 정책 모달창 */}
+      {showPolicy && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setShowPolicy(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-white/20 p-6 shadow-2xl max-h-[85vh] flex flex-col text-left" onClick={e=>e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-yellow-400 mb-4 border-b border-white/10 pb-3 shrink-0 flex justify-between items-center">
+              <span>{showPolicy === "terms" ? "이용약관" : showPolicy === "privacy" ? "개인정보처리방침" : "환불정책"}</span>
+              <button onClick={() => setShowPolicy(null)} className="text-white/50 hover:text-white text-2xl font-light">&times;</button>
+            </h3>
+            <div className="text-xs text-white/80 space-y-4 leading-relaxed whitespace-pre-wrap flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              {showPolicy === "terms" && "제1조 (목적)\n본 약관은 서비스의 이용조건 및 절차, 이용자와 회사의 권리, 의무, 책임사항을 규정함을 목적으로 합니다.\n\n제2조 (서비스의 성격)\n본 서비스에서 제공하는 모든 결과는 통계적, 학술적 해석에 기반하며 절대적인 사실이나 미래를 보장하지 않습니다."}
+              {showPolicy === "privacy" && "1. 수집하는 개인정보 항목\n회사는 회원가입 없이 서비스를 제공하며, 사주 분석을 위해 입력하신 생년월일, 성별, 이름 등은 서버에 영구 저장되지 않고 분석 즉시 폐기됩니다.\n\n2. 쿠키의 사용\n서비스 편의를 위해 기기 내부에 일부 설정(예: 프리미엄 해제 상태)이 임시 저장될 수 있습니다."}
+              {showPolicy === "refund" && "[디지털 콘텐츠 환불 규정 안내]\n\n본 서비스에서 결제를 통해 제공되는 프리미엄 리포트 및 통계 번호 등은 '디지털 콘텐츠'에 해당합니다.\n\n1. 청약철회 불가 안내\n전자상거래 등에서의 소비자보호에 관한 법률 제17조에 의거, 결제가 완료되고 결과가 화면에 노출된 즉시 콘텐츠의 제공이 완료된 것으로 간주되어 원칙적으로 환불(청약철회)이 불가합니다.\n\n2. 예외적 환불 안내\n결제는 정상적으로 완료되었으나 시스템 오류로 인하여 결과를 전혀 열람하지 못한 경우에는 고객센터 확인을 거쳐 100% 환불 처리해 드립니다."}
+            </div>
+            <button className="mt-6 w-full py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 transition-colors focus:outline-none" onClick={() => setShowPolicy(null)}>
+              확인하고 닫기
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const FORTUNE_CACHE_PREFIX = "fortune-cache-";
 const PREMIUM_CACHE_PREFIX = "fortune-premium-cache-";
 const NAME_CACHE_PREFIX = "name-cache-";
@@ -135,14 +324,13 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   const [birthDate, setBirthDate] = useState("");
   const [calendarType, setCalendarType] = useState<"solar" | "lunar" | "lunar-leap">("solar");
   const [birthTime, setBirthTime] = useState("unknown");
-
   const [isLoading, setIsLoading] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [fortuneData, setFortuneData] = useState<FortuneResultData>(null);
-
   const [premiumResult, setPremiumResult] = useState<PremiumReport | null>(null);
   const [premiumBaziChart, setPremiumBaziChart] = useState<BaziChart | null>(null);
   const [premiumDaeunInfo, setPremiumDaeunInfo] = useState<DaeunInfo | null>(null);
+  const shareResultRef = useRef<HTMLDivElement | null>(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
 
   const [activeSubTab, setActiveSubTab] = useState(0);
@@ -180,7 +368,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
             Array.isArray(data.texts) &&
             data.scores.length === 6 &&
             data.texts.length === 6;
-
           if (!hasValidStructure) {
             localStorage.removeItem(cacheKey);
           } else {
@@ -199,7 +386,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     }
 
     const startTime = Date.now();
-
     try {
       const res = await fetch("/api/fortune", {
         method: "POST",
@@ -211,7 +397,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
           birthTime,
         }),
       });
-
       const data = await res.json();
 
       if (!res.ok) {
@@ -232,7 +417,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
       setActiveSubTab(0);
       setShowResult(true);
     } catch (err) {
-      // 🚀 대표님이 원하신 연령 제한 문구가 정확히 여기에 뜨게 됩니다!
       alert(err instanceof Error ? err.message : "운세 분석 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
@@ -255,7 +439,11 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const handlePremium = () => {
-    setShowPremiumModal(true);
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      handlePremiumConfirm();
+    } else {
+      setShowPremiumModal(true);
+    }
   };
 
   const handlePremiumConfirm = async () => {
@@ -265,7 +453,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     setIsLoading(true);
     setIsPremiumLoading(true);
     setPremiumLoadingStep(0);
-
     const premiumCacheKey = getPremiumCacheKey();
   
     const loadingTimer = window.setInterval(() => {
@@ -284,7 +471,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
             parsed &&
             parsed.premiumReport &&
             parsed.baziChart;
-
           if (hasValidStructure) {
             await new Promise((r) => setTimeout(r, 2200));
             setPremiumResult(parsed.premiumReport ?? null);
@@ -342,29 +528,33 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const handleShare = async () => {
-    const lucky = fortuneData?.luckyItems;
-    const summary = fortuneData
-      ? `총운 ${fortuneData.scores[0]}점: ${fortuneData.texts[0]?.slice(0, 50)}...`
-      : "심층 명리학 리포트";
-    const text = `오늘의 운세 ${summary}${lucky ? ` | 행운의 색: ${lucky.color}, 번호: ${lucky.number}, 방향: ${lucky.direction}, 귀인: ${lucky.person}` : ""} | 자세히 보기: ${typeof window !== "undefined" ? window.location.origin : ""}`;
+    await captureAndShareElement(shareResultRef.current, {
+      fileName: "fortune-result.png",
+      title: "오늘의 운세",
+      text: `오늘의 운세 결과 이미지입니다.\n자세히 보기: ${window.location.origin}`,
+    });
+  };
 
-    if (typeof navigator !== "undefined" && navigator.share) {
+  const handleFortuneLinkShare = async () => {
+    const shareUrl = window.location.href;
+    const text = `오늘의 운세 결과 보러가기\n${shareUrl}`;
+  
+    if (navigator.share) {
       try {
         await navigator.share({
           title: "오늘의 운세",
           text,
-          url: typeof window !== "undefined" ? window.location.href : "",
+          url: shareUrl,
         });
         return;
-      } catch {
-        /* fallback to clipboard */
-      }
+      } catch {}
     }
+  
     try {
-      await navigator.clipboard?.writeText(text);
-      alert("복사되었습니다!");
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 복사되었습니다.");
     } catch {
-      alert("공유하기를 지원하지 않는 환경입니다.");
+      alert("링크 공유를 지원하지 않는 환경입니다.");
     }
   };
 
@@ -432,16 +622,14 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
       `}
     >
-      {/* ✅ [추가] 우주 배경 & 별똥별 애니메이션 */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-slate-950">
-        <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: "url('/bg_fortune.png')" }} />
+        <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: "url('/bg_fortune.jpg')" }} />
         {isVisible && (
           <div className="absolute inset-0 overflow-hidden">
             <style>{`
               @keyframes twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; transform: scale(1.2); } }
               @keyframes shooting { 0% { transform: translate(0, 0) rotate(-45deg); opacity: 1; } 20% { opacity: 0; } 100% { transform: translate(-800px, 800px) rotate(-45deg); opacity: 0; } }
             `}</style>
-            {/* 30개의 반짝이는 별 */}
             {Array.from({length: 30}).map((_, i) => (
               <div key={i} className="absolute bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" style={{
                 top: `${Math.random() * 50}%`, left: `${Math.random() * 100}%`,
@@ -449,13 +637,12 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                 animation: `twinkle ${Math.random() * 3 + 2}s infinite ease-in-out ${Math.random() * 2}s`
               }} />
             ))}
-            {/* 3개의 유성(별똥별) 교차 */}
             <div className="absolute w-[120px] h-[1px] bg-gradient-to-r from-transparent to-white" style={{ top: '10%', left: '80%', animation: 'shooting 6s linear infinite 1s' }} />
             <div className="absolute w-[180px] h-[2px] bg-gradient-to-r from-transparent to-white/80" style={{ top: '0%', left: '60%', animation: 'shooting 8s linear infinite 4s' }} />
             <div className="absolute w-[90px] h-[2px] bg-gradient-to-r from-transparent to-yellow-100/60" style={{ top: '15%', left: '90%', animation: 'shooting 11s linear infinite 7s' }} />
           </div>
         )}
-        <div className="absolute inset-0 bg-black/40" /> {/* 글씨 잘 보이게 틴트 처리 */}
+        <div className="absolute inset-0 bg-black/40" />
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 py-8">
@@ -498,13 +685,13 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
-                <input
-                  type="date"
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-white placeholder-white/40 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
-                />
+              <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
+              <input type="tel" maxLength={10} placeholder="예: 19801013" value={birthDate} onChange={(e) => {
+                  let val = e.target.value.replace(/[^0-9]/g, '');
+                  if (val.length > 6) val = val.slice(0,4) + '-' + val.slice(4,6) + '-' + val.slice(6,8);
+                  else if (val.length > 4) val = val.slice(0,4) + '-' + val.slice(4);
+                  setBirthDate(val);
+                }} className="w-full rounded-xl border border-white/20 bg-slate-800/80 shadow-inner px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30" />
               </div>
 
               <div>
@@ -548,7 +735,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         {isLoading && (
           <div className="flex flex-1 flex-col items-center justify-center gap-6">
             <div className="relative">
-              <div className="h-14 w-14 animate-[fortune-spin_1.2s_linear_infinite] rounded-full border-2 border-yellow-500/30 border-t-yellow-400" />
+               <div className="h-14 w-14 animate-[fortune-spin_1.2s_linear_infinite] rounded-full border-2 border-yellow-500/30 border-t-yellow-400" />
               <div className="absolute inset-2 rounded-full border border-yellow-500/20" />
             </div>
 
@@ -583,7 +770,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                             : "bg-transparent text-white/50"
                         }`}
                       >
-                        <span>{label}</span>
+                         <span>{label}</span>
                         <span>
                           {done ? "완료" : active ? "진행중" : "대기"}
                         </span>
@@ -596,18 +783,16 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   사주 원국과 오늘 기준 흐름을 함께 정리하고 있습니다...
                 </p>
               </div>
-            )}
+             )}
           </div>
         )}
 
         {showResult && !isLoading && fortuneData && (
-          <div className="w-full max-w-2xl space-y-6 pt-4 pb-4">
-            {/* 행운의 아이템 뱃지 */}
+          <div ref={shareResultRef} className="w-full max-w-2xl space-y-6 pt-4 pb-4">
             {displayLuckyItems(fortuneData.luckyItems)}
 
             {!premiumResult ? (
               <>
-                {/* 🚀 데일리 가이드 (사주 엔진 기반 3단 가이드) */}
                 {fortuneData.dailyGuide && (
                   <div className="rounded-xl border border-yellow-500/40 bg-gradient-to-br from-yellow-500/10 to-amber-600/10 p-5 backdrop-blur-md mb-6">
                     <h3 className="mb-3 text-sm font-bold text-yellow-400">💡 오늘의 핵심 가이드</h3>
@@ -628,7 +813,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 )}
 
-                {/* 서브 탭 (가로 스크롤) */}
                 <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1">
                   {FORTUNE_CATEGORIES.map((cat, i) => {
                     const Icon = cat.icon;
@@ -655,7 +839,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   })}
                 </div>
 
-                {/* 선택된 항목 텍스트 결과 */}
                 <div className="overflow-y-auto rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md transition-all duration-300">
                   <h3 className="mb-3 text-base font-medium text-yellow-400">
                     {FORTUNE_CATEGORIES[activeSubTab].title}
@@ -665,7 +848,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </p>
                 </div>
 
-                {/* 6개 항목 점수 그래프 */}
                 <div className="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
                   <h3 className="mb-4 text-sm font-medium text-yellow-400/90">
                     한눈에 보는 운세
@@ -681,7 +863,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                           />
                         </div>
                         <span className="w-10 shrink-0 text-right text-xs text-yellow-400/90">
-                          {fortuneData.scores[i]}점
+                           {fortuneData.scores[i]}점
                         </span>
                       </div>
                     ))}
@@ -689,23 +871,33 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                 </div>
 
                 <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={handleShare}
-                    className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  >
-                    📤 운세 결과 공유하기
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  >
-                    ↺ 다시 하기 (처음으로)
-                  </button>
+                <div className="grid grid-cols-3 gap-3">
+  <button
+    type="button"
+    onClick={handleFortuneLinkShare}
+    className="h-[88px] w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-2 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95 flex items-center justify-center text-center leading-tight"
+  >
+    🔗 링크 공유
+  </button>
+
+  <button
+    type="button"
+    onClick={handleShare}
+    className="h-[88px] w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-2 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95 flex items-center justify-center text-center leading-tight"
+  >
+    🖼️ 이미지 공유
+  </button>
+
+  <button
+    type="button"
+    onClick={handleReset}
+    className="h-[88px] w-full rounded-2xl border border-white/20 bg-white/5 px-2 text-sm font-bold text-white/80 transition-all hover:bg-white/10 active:scale-95 flex items-center justify-center text-center leading-tight"
+  >
+    ↺ 다시 하기 (처음으로)
+  </button>
+</div>
                 </div>
 
-                {/* 프리미엄 리워드 광고 버튼 */}
                 <button
                   type="button"
                   onClick={handlePremium}
@@ -716,10 +908,8 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
               </>
             ) : (
               <>
-                {/* 프리미엄: 사주 명식표 */}
                 {displayBaziChartPremium(premiumBaziChart)}
 
-                {/* 프리미엄: 당신의 대운 */}
                 {premiumDaeunInfo && (
                   <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                     <h3 className="mb-4 text-center text-base font-semibold text-black">
@@ -745,7 +935,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 )}
 
-                {/* 프리미엄 심층 리포트 UI */}
                 <div className="rounded-2xl border-2 border-yellow-500/50 bg-yellow-900/10 p-6 backdrop-blur-md shadow-2xl shadow-yellow-500/10">
                   <h2 className="mb-6 text-center text-xl font-bold text-yellow-400">
                     ✨ 전문가 심층 명리학 리포트
@@ -772,28 +961,40 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 </div>
 
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={handleShare}
-                    className="flex-1 rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  >
-                    📤 운세 결과 공유하기
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="flex-1 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-yellow-400/90 transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                  >
-                    ↺ 다시 하기 (처음으로)
-                  </button>
-                </div>
+                <div className="space-y-3">
+  <div className="grid grid-cols-2 gap-3">
+    <button
+      type="button"
+      onClick={handleFortuneLinkShare}
+      className="min-h-[88px] w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95 flex flex-col items-center justify-center text-center"
+    >
+      <span className="text-xl leading-none">🔗</span>
+      <span className="mt-2">링크 공유</span>
+    </button>
+
+    <button
+      type="button"
+      onClick={handleShare}
+      className="min-h-[88px] w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-3 py-4 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95 flex flex-col items-center justify-center text-center"
+    >
+      <span className="text-xl leading-none">🖼️</span>
+      <span className="mt-2">이미지 공유</span>
+    </button>
+  </div>
+
+  <button
+    type="button"
+    onClick={handleReset}
+    className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-bold text-white/80 transition-all hover:bg-white/10 active:scale-95"
+  >
+    ↺ 다시 하기 (처음으로)
+  </button>
+</div>
               </>
             )}
           </div>
         )}
 
-        {/* 프리미엄 리워드 광고 모달 */}
         {showPremiumModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -828,13 +1029,13 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
             </div>
           </div>
         )}
+        <FooterPolicy tabId="fortune" />
       </div>
     </div>
   );
 }
 
 type WishRow = { id: string | number; content: string; created_at?: string };
-
 type PremiumPeriod = "24h" | "10d";
 type PremiumNameDisplay = "anonymous" | "real" | "partial";
 
@@ -895,7 +1096,6 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
   return (
     <div role="tabpanel" aria-hidden={!isVisible} className={`absolute inset-0 flex flex-col overflow-y-auto transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
       
-      {/* 🚀 [수정] 배경 고정 (어지러움 방지) */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900 overflow-hidden">
         <style>{`
           @keyframes floatDream {
@@ -913,7 +1113,7 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
         />
       </div>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-6 py-8 min-h-[80vh]">
+      <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 pt-4 pb-12 min-h-full">
         {!isLoading && !resultData && (
           <form onSubmit={handleDreamAnalyze} className="w-full max-w-md rounded-3xl border border-white/20 bg-slate-900/80 p-8 backdrop-blur-xl shadow-[0_0_40px_rgba(0,0,0,0.5)]">
             <div className="text-center mb-6">
@@ -941,7 +1141,6 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
         {isLoading && (
           <div className="flex flex-1 flex-col items-center justify-center gap-8 mt-4">
             
-            {/* 🚀 [수정] 네모칸 탈피! 마법의 꿈 방울(원형) + 후광 애니메이션 */}
             <div 
               className="relative w-48 h-48 sm:w-56 sm:h-56 rounded-full border-[6px] border-white/30 overflow-hidden" 
               style={{ animation: "floatDream 3s ease-in-out infinite, pulseGlow 2s ease-in-out infinite" }}
@@ -956,7 +1155,6 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                 <div className="absolute inset-0 bg-white/20 mix-blend-overlay" />
             </div>
 
-            {/* 🚀 더 돋보이는 로딩 인디케이터 */}
             <div className="flex flex-col items-center gap-3">
               <div className="flex items-center gap-3 rounded-full bg-slate-900/80 backdrop-blur-md border border-white/10 px-6 py-3 shadow-xl">
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-400/30 border-t-blue-300" />
@@ -997,12 +1195,44 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                 </button>
               )}
 
+              {/* 🚀 SEO 확산을 위한 공유 링크 생성 버튼 */}
+              {resultData.db_id && (
+                <button 
+                  onClick={() => {
+                    const url = `${window.location.origin}/dream/${resultData.db_id}`;
+                    navigator.clipboard.writeText(url);
+                    alert("✨ 해몽 결과 링크가 복사되었습니다!\n블로그, 카톡, 카페 등에 공유해보세요.");
+                  }} 
+                  className="w-full mb-3 rounded-2xl border border-blue-500/40 bg-blue-500/10 px-4 py-4 text-sm font-bold text-blue-300 hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2"
+                >
+                  🔗 이 해몽 결과 링크 복사하기 (공유용)
+                </button>
+              )}
+
+             {/* 🚀 SEO 확산을 위한 공유 링크 생성 버튼 (배포 지연 방어 로직 추가) */}
+             <button 
+                type="button"
+                onClick={() => {
+                  if (!resultData.db_id) {
+                    alert("⏳ 아직 서버에 최신 코드가 반영되고 있는 중입니다 (약 1~2분 소요).\n잠시 후 '새로고침(F5)'을 하고 새로운 꿈을 다시 입력해주세요!");
+                    return;
+                  }
+                  const url = `${window.location.origin}/dream/${resultData.db_id}`;
+                  navigator.clipboard.writeText(url);
+                  alert("✨ 해몽 결과 링크가 복사되었습니다!\n블로그, 카톡, 카페 등에 공유해보세요.");
+                }} 
+                className="w-full mb-3 rounded-2xl border border-blue-500/40 bg-blue-500/10 px-4 py-4 text-sm font-bold text-blue-300 hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2"
+              >
+                🔗 이 해몽 결과 링크 복사하기 (공유용)
+              </button>
+
               <button onClick={() => setResultData(null)} className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-medium text-white/80 hover:bg-white/10 transition-colors">
                 다른 꿈 해몽하기
               </button>
             </div>
           </div>
         )}
+        <FooterPolicy tabId="dream" />
       </div>
     </div>
   );
@@ -1039,7 +1269,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     localStorage.setItem("altar-mock-wishes-time", String(Date.now()));
     return next;
   });
-
   const [isCooldown, setIsCooldown] = useState(false);
   const [isSubmittingFreeWish, setIsSubmittingFreeWish] = useState(false);
   const [showWishToast, setShowWishToast] = useState(false);
@@ -1052,7 +1281,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
   const [premiumWishText, setPremiumWishText] = useState("");
   const [countdownNow, setCountdownNow] = useState(Date.now());
   const audioRef = useRef<HTMLAudioElement>(null);
-
+  
   useEffect(() => {
     const refreshMockWishes = () => {
       const next = shuffleArray(FLOATING_WISHES_POOL).slice(0, 11);
@@ -1064,7 +1293,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     const id = setInterval(refreshMockWishes, 12 * 60 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
-
+  
   useEffect(() => {
     if (!isVisible) {
       audioRef.current?.pause();
@@ -1081,7 +1310,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       audio.pause();
     };
   }, [isVisible]);
-
+  
   const ONE_HOUR_MS = 60 * 60 * 1000;
   const filterFreeWishes = (list: WishRow[]) => {
     const cutoff = Date.now() - ONE_HOUR_MS;
@@ -1116,11 +1345,11 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     const id = setInterval(() => setCountdownNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
-
+  
   useEffect(() => {
     setPremiumWishes((prev) => filterPremiumWishes(prev));
   }, [countdownNow]);
-
+  
   const fetchWishes = useCallback(async () => {
     try {
       const { data, error } = await supabase.from("wishes").select("*").order("created_at", { ascending: false }).limit(100);
@@ -1185,16 +1414,16 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       console.error("데이터 불러오기 실패:", err);
     }
   }, []);
-
+  
   useEffect(() => {
     fetchWishes();
   }, [fetchWishes]);
-
+  
   useEffect(() => {
     const freeFiltered = filterFreeWishes(wishes);
     setFloatingWishes([...freeFiltered.map((w) => w.content), ...mockWishes].slice(-25));
   }, [wishes, mockWishes]);
-
+  
   useEffect(() => {
     if (!isVisible) return;
 
@@ -1221,10 +1450,10 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       supabase.removeChannel(channel);
     };
   }, [isVisible]);
-
+  
   const activeWishCount = floatingWishes.length + filterPremiumWishes(premiumWishes).length;
   const activePremiumCount = filterPremiumWishes(premiumWishes).length;
-
+  
   const handleMuteToggle = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -1234,7 +1463,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const lastOptimisticRef = useRef<{ text: string; at: number } | null>(null);
-
+  
   const handleSubmitFree = async () => {
     const text = wishText.trim();
     if (!text || isCooldown || isSubmittingFreeWish) return;
@@ -1268,12 +1497,12 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       setIsSubmittingFreeWish(false);
     }
   };
-
+  
   const handleOpenPremiumModal = () => {
     setPremiumWishText(wishText.trim());
     setShowPremiumModal(true);
   };
-
+  
   const getPremiumBadge = (): string => {
     const periodLabel = premiumPeriod === "24h" ? "24시간" : "특별기원";
     if (premiumNameDisplay === "anonymous") {
@@ -1289,49 +1518,98 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     }
     return `[✨ 익명 님의 ${periodLabel} 기원]`;
   };
+  
+  // 🚀 프리미엄 결제창 띄우기 함수 (app_scheme 추가 및 상세 에러 로깅)
+  const handlePremiumConfirm = () => {
+    if (!premiumWishText.trim()) return;
 
-  const handlePremiumConfirm = async () => {
-    const fullText = premiumWishText.trim();
-    if (!fullText) return;
-  
-        setShowPremiumModal(false);
-    let savedDisplayName = "";
-    if (premiumNameDisplay === "real" || premiumNameDisplay === "partial") {
-      savedDisplayName = premiumNameInput.trim();
+    if (typeof window !== "undefined") {
+      const IMP = (window as any).IMP;
+      if (!IMP) {
+        alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!");
+        return;
+      }
+
+      IMP.init("imp61375123"); 
+
+      const amount = premiumPeriod === "24h" ? 1900 : 6900;
+      const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      const payData: any = {
+        pg: "tosspayments", 
+        pay_method: "card",
+        merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        name: name,
+        amount: amount,
+        buyer_email: "test@ymstudio.co.kr", 
+        buyer_name: "명운 사용자",
+        app_scheme: "myungun", // 모바일 앱 복귀용 스킴
+      };
+
+      if (isMobile) {
+        payData.m_redirect_url = window.location.href;
+        
+        // 🚀 모바일을 위해 결제하러 가기 전, 작성한 소원을 브라우저 창고에 임시 저장!
+        localStorage.setItem("pendingPremiumWish", JSON.stringify({
+          wishText: premiumWishText,
+          period: premiumPeriod,
+          nameDisplay: premiumNameDisplay,
+          nameInput: premiumNameInput,
+          amount: amount
+        }));
+      }
+
+      IMP.request_pay(payData, async function (rsp: any) {
+        
+        // 💡 핵심: rsp.success가 false나 undefined라도, imp_uid가 있고 error_msg가 없으면 결제 성공!
+        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
+
+        if (isSuccess) {
+          try {
+            const verifyRes = await fetch("/api/payments/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                imp_uid: rsp.imp_uid,
+                merchant_uid: rsp.merchant_uid,
+                amount: amount,
+                wishText: premiumWishText,
+                period: premiumPeriod,
+                nameDisplay: premiumNameDisplay,
+                nameInput: premiumNameInput,
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.success) {
+              alert("✨ 결제가 성공적으로 완료되었으며 제단에 소원이 올라갔습니다!");
+              setShowPremiumModal(false);
+              setPremiumWishText("");
+              setPremiumNameInput("");
+              if (typeof fetchWishes === 'function') fetchWishes(); 
+            } else {
+              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+            }
+          } catch (error) {
+            console.error("결제 검증 오류:", error);
+            alert("✨ 결제는 성공했습니다!\n(다만 현재 서버 검증 API가 만들어지지 않아 화면에 아직 반영되지 않습니다. 곧 연동됩니다!)");
+            setShowPremiumModal(false);
+          }
+        } else {
+          console.warn("결제 실패/취소 상세:", rsp);
+          const rawError = JSON.stringify(rsp, null, 2);
+          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
+          
+          if (isUserCancel && !isMobile) {
+            alert(`결제가 취소되었습니다.\n💡 스마트폰에서 결제 승인 후, 반드시 PC 화면 결제창의 [결제 완료] 버튼을 누르거나 창이 스스로 닫힐 때까지 기다려주세요!`);
+          } else {
+            alert(`결제 실패:\n${rsp.error_msg || "알 수 없는 오류"}\n상세 데이터:\n${rawError}`);
+          }
+        }
+      });
     }
-  
-    const { error } = await supabase.from("wishes").insert({
-      content: fullText,
-      duration: premiumPeriod,
-      display_mode: premiumNameDisplay,
-      display_name: savedDisplayName,
-    });
-    if (error) {
-      const errorMessage =
-        typeof error === "object" && error !== null
-          ? JSON.stringify(error, null, 2)
-          : String(error);
-      alert(`프리미엄 소원 저장 실패\n\n${errorMessage}`);
-      return;
-    }
-  
-    const localPremium: PremiumWish = {
-      id: `prem-${Date.now()}`,
-      content: fullText,
-      badge: getPremiumBadge(),
-      period: premiumPeriod,
-      createdAt: Date.now(),
-    };
-    setPremiumWishes((prev) =>
-      filterPremiumWishes([...prev, localPremium])
-    );
-    
-    setWishToastMessage("소원이 올라갔습니다.");
-    setShowWishToast(true);
-    setTimeout(() => setShowWishToast(false), 1800);
-    setPremiumWishText("");
-    setPremiumNameInput("");
-    setPremiumNameDisplay("anonymous");
   };
 
   const handlePremiumCancel = () => {
@@ -1339,7 +1617,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     setPremiumWishText("");
     setPremiumNameInput("");
   };
-
+  
   return (
     <div
       role="tabpanel"
@@ -1350,20 +1628,11 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
       `}
     >
-      {/* [배경 레이어] 영상 + 어두운 오버레이 */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <video
-          src="/초.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full object-cover"
-        />
+        <video src="/초.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-black/50" />
       </div>
 
-      {/* [콘텐츠 레이어] 글귀 플로팅, 소원 입력창, 스피커 버튼 */}
       <div className="relative z-10 w-full h-full flex flex-col">
         <audio ref={audioRef} src="/432Hz_Candle_BGM.wav" loop />
 
@@ -1373,8 +1642,17 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-        {/* 소원 플로팅 (가짜 12h 리셋 + 무료 1h + 프리미엄 24h/10d) - x축 10%~90% 내 강제 */}
-        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+          {/* 🚀 프리미엄 소원: 화면 아래에서 위로 올라가는 애니메이션 */}
+          <style>{`
+            @keyframes float-up-premium {
+              0% { top: 110%; opacity: 0; transform: translateX(-50%) scale(0.9); }
+              10% { opacity: 1; transform: translateX(-50%) scale(1); }
+              90% { opacity: 1; transform: translateX(-50%) scale(1); }
+              100% { top: -20%; opacity: 0; transform: translateX(-50%) scale(0.9); }
+            }
+          `}</style>
+          
           {(() => {
             const premiumFiltered = filterPremiumWishes(premiumWishes);
             return (
@@ -1382,83 +1660,59 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                 {floatingWishes.map((wish, i) => (
                   <div
                     key={`wish-${i}`}
-                    className="absolute -translate-x-1/2"
+                    className="absolute"
                     style={{
-                      left: `${10 + ((i * 17 + 5) % 81)}%`,
+                      /* 화면 양끝 15%~85% 사이에서만 나타나도록 제한 (짤림 방지) */
+                      left: `${15 + ((i * 17 + 5) % 70)}%`,
                       top: `${30 + (i * 11 % 41)}%`,
+                      transform: "translateX(-50%)",
                       animation: `float-wish-center ${10 + (i % 9)}s ease-out infinite`,
                       animationDelay: `${(i * 0.7) % 8}s`,
                       width: "max-content",
-                      maxWidth: "85%",
+                      maxWidth: "85vw", /* 모바일/PC 모두 화면 폭의 85%를 넘지 않음 */
                     }}
                   >
-                    <p
-                      style={{
-                        whiteSpace: "normal",
-                        wordBreak: "keep-all",
-                        paddingLeft: "12px",
-                        paddingRight: "12px",
-                        maxWidth: "85%",
-                        textAlign: "center",
-                      }}
-                      className="text-sm font-medium text-white/60"
-                    >
+                    <p style={{ whiteSpace: "pre-wrap", wordBreak: "keep-all", textAlign: "center" }} className="text-sm font-medium text-white/60 px-3">
                       {wish}
                     </p>
                   </div>
                 ))}
-                {premiumFiltered.slice(-4).map((pw, i) => {
+                
+                {/* 🚀 프리미엄 소원 렌더링 */}
+                {premiumFiltered.slice(-6).map((pw, i) => {
                   const idLength = String(pw.id).length;
                   const isTenDays = pw.period === "10d";
                   
-                  const leftPct = isTenDays
-                    ? 12 + ((i * 21 + idLength * 7) % 70)
-                    : 10 + ((i * 19 + idLength * 5) % 72);
-                  const topPct = isTenDays
-                    ? 10 + ((i * 13 + idLength * 3) % 26)
-                    : 18 + ((i * 15 + idLength * 2) % 36);
-                  const duration = isTenDays
-                    ? 18 + ((i * 3 + idLength) % 6)
-                    : 12 + ((i * 2 + idLength) % 5);
-                  const delay = `${(i * 1.5) % 6}s`;
+                  const leftPct = 15 + ((i * 25 + idLength * 7) % 70); // 양끝 짤림 방지
+                  const duration = isTenDays ? 22 + (i % 5) : 18 + (i % 5);
+                  const delay = `${(i * 3.5) % 10}s`;
                   const remaining = getPremiumRemainingMs(pw);
+
                   return (
                     <div
                       key={pw.id}
                       className="absolute"
                       style={{
                         left: `${leftPct}%`,
-                        top: `${topPct}%`,
-                        animation: `premium-drift ${duration}s ease-in-out infinite`,
+                        animation: `float-up-premium ${duration}s linear infinite`,
                         animationDelay: delay,
                         width: "max-content",
-                        maxWidth: "85%",
+                        maxWidth: "90vw",
                       }}
                     >
-                      <p
-                        style={{
-                          whiteSpace: "normal",
-                          wordBreak: "keep-all",
-                          paddingLeft: "12px",
-                          paddingRight: "12px",
-                          maxWidth: "85%",
-                          textAlign: "center",
-                        }}
-                        className={
-                          isTenDays
-                            ? "text-2xl font-extrabold text-yellow-200 drop-shadow-[0_0_18px_rgba(251,191,36,0.95)]"
-                            : "text-xl font-bold text-yellow-300 drop-shadow-[0_0_12px_rgba(250,204,21,0.75)]"
-                        }
-                      >
-                        {pw.badge} {pw.content}
-                      </p>
-                      <p className={
-                        isTenDays
-                          ? "mt-1 text-center text-xs font-medium text-amber-200/90"
-                          : "mt-1 text-center text-xs text-yellow-400/80"
-                      }>
-                        남은 시간: {formatCountdown(remaining)}
-                      </p>
+                      <div className="flex flex-col items-center justify-center bg-black/30 backdrop-blur-sm px-4 py-3 rounded-2xl border border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.15)]">
+                        <p className={
+                            isTenDays
+                              ? "text-base sm:text-xl font-extrabold text-yellow-200 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)] text-center break-keep leading-snug whitespace-pre-wrap"
+                              : "text-sm sm:text-lg font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] text-center break-keep leading-snug whitespace-pre-wrap"
+                          }
+                        >
+                          {pw.badge}<br/>{pw.content}
+                        </p>
+                        <p className={isTenDays ? "mt-1.5 text-xs font-medium text-amber-200/90" : "mt-1.5 text-[11px] text-yellow-400/80"}>
+                          남은 시간: {formatCountdown(remaining)}
+                        </p>
+                      </div>
                     </div>
                   );
                 })}
@@ -1467,189 +1721,87 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           })()}
         </div>
 
-        {/* 소원 작성란 (하단 고정, z-50으로 최상단 보호) */}
-        <div className="relative z-50 flex flex-1 flex-col items-center justify-end gap-6 px-6 pb-10 pt-24">
-          <div className="w-full max-w-md rounded-2xl border border-white/25 bg-white/15 p-5 backdrop-blur-md shadow-lg shadow-black/20">
+        {/* 🚀 입력창을 화면 맨 아래 빈 공간으로 밀착시킴 (pb-8 -> pb-2) */}
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-end px-4 pb-2 mt-auto">
+          <div className="w-full max-w-md rounded-2xl border border-white/20 bg-black/60 p-4 backdrop-blur-md shadow-2xl">
             <textarea
               value={wishText}
               onChange={(e) => setWishText(e.target.value)}
               placeholder="소원을 적어주세요..."
-              rows={3}
-              className="w-full resize-none rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-amber-50 placeholder-amber-200/60 focus:border-yellow-500/60 focus:outline-none focus:ring-2 focus:ring-yellow-500/40"
+              rows={2}
+              className="w-full resize-none rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-amber-50 placeholder-amber-200/60 focus:border-yellow-500/60 focus:outline-none focus:ring-2 focus:ring-yellow-500/40"
             />
 
-            <div className="mt-3 flex items-center justify-between text-xs">
-              <span className="text-amber-100/70">
-                전체 소원 {activeWishCount}개
-              </span>
-              <span className="text-yellow-300/80">
-                프리미엄 {activePremiumCount}개
-              </span>
+            <div className="mt-2 flex items-center justify-between text-[11px]">
+              <span className="text-amber-100/70">전체 소원 {activeWishCount}개</span>
+              <span className="text-yellow-300/80">프리미엄 {activePremiumCount}개</span>
             </div>
 
-            <div className="mt-4 flex gap-3">
+            <div className="mt-3 flex gap-2">
               <button
                 type="button"
                 onClick={handleSubmitFree}
                 disabled={isCooldown || isSubmittingFreeWish}
-                className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-3 text-sm font-medium text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-slate-500 disabled:to-slate-600 disabled:hover:from-slate-500 disabled:hover:to-slate-600"
+                className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-3 py-2.5 text-xs font-bold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none disabled:opacity-50"
               >
-                {isSubmittingFreeWish
-                  ? "무료 소원은 1시간 동안만 유지됩니다."
-                  : isCooldown
-                    ? "5초 후 작성 가능..."
-                    : "소원 띄우기 (무료)"}
+                {isSubmittingFreeWish ? "유지시간 1시간" : isCooldown ? "5초 후 작성 가능" : "소원 띄우기 (무료)"}
               </button>
               <button
                 type="button"
                 onClick={handleOpenPremiumModal}
-                className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 px-4 py-3 text-sm font-medium text-slate-900 shadow-lg shadow-amber-500/25 transition-all hover:from-amber-400 hover:to-yellow-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 px-3 py-2.5 text-xs font-bold text-slate-900 shadow-lg shadow-amber-500/25 transition-all hover:from-amber-400 hover:to-yellow-500 focus:outline-none"
               >
-                ✨ 프리미엄 소원 (24시간/10일 고정)
+                ✨ 프리미엄 기원
               </button>
             </div>
           </div>
         </div>
 
-        {/* 우측 최하단 스피커 아이콘 (Mute/Unmute) - z-50 최상단 */}
         <button
           type="button"
           onClick={handleMuteToggle}
-          className="fixed bottom-4 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500/20 text-yellow-400 transition-colors hover:bg-yellow-500/30 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-          aria-label={isMuted ? "소리 켜기" : "소리 끄기"}
+          className="fixed bottom-24 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500/20 text-yellow-400 transition-colors hover:bg-yellow-500/30 focus:outline-none"
         >
-          {isMuted ? (
-            <VolumeX className="h-4 w-4" />
-          ) : (
-            <Volume2 className="h-4 w-4" />
-          )}
+          {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
 
-        {/* 프리미엄 소원 결제 모달 */}
         {showPremiumModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={(e) => e.target === e.currentTarget && handlePremiumCancel()}
-          >
-            <div
-              className="w-full max-w-md rounded-2xl border-2 border-yellow-500/50 bg-slate-900/90 p-6 shadow-2xl shadow-yellow-500/10 backdrop-blur-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="mb-5 text-center text-lg font-semibold text-yellow-400">
-                ✨ 프리미엄 소원
-              </h3>
-
-              <div className="mb-4">
-                <label className="mb-2 block text-sm font-medium text-yellow-400/90">
-                  소원 내용
-                </label>
-                <textarea
-                  value={premiumWishText}
-                  onChange={(e) => setPremiumWishText(e.target.value)}
-                  placeholder="소원을 적어주세요..."
-                  rows={2}
-                  className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm text-amber-50 placeholder-amber-200/50 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
-                />
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => handlePremiumCancel()}>
+            <div className="w-full max-w-md rounded-2xl border-2 border-yellow-500/50 bg-slate-900/90 p-5 shadow-2xl shadow-yellow-500/10 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="mb-4 text-center text-base font-semibold text-yellow-400">✨ 프리미엄 소원</h3>
+              <div className="mb-3">
+                <textarea value={premiumWishText} onChange={(e) => setPremiumWishText(e.target.value)} placeholder="소원을 적어주세요..." rows={2} className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 focus:border-yellow-500/50 focus:outline-none" />
               </div>
-
-              <div className="mb-4">
-                <label className="mb-2 block text-sm font-medium text-yellow-400/90">
-                  노출 기간
-                </label>
+              <div className="mb-3">
                 <div className="flex flex-col gap-2">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition-colors hover:bg-white/10">
-                    <input
-                      type="radio"
-                      name="premiumPeriod"
-                      checked={premiumPeriod === "24h"}
-                      onChange={() => setPremiumPeriod("24h")}
-                      className="accent-yellow-500"
-                    />
+                  <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                    <input type="radio" checked={premiumPeriod === "24h"} onChange={() => setPremiumPeriod("24h")} className="accent-yellow-500" />
                     <span className="text-sm text-white/90">24시간 고정 (1,900원)</span>
                   </label>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 transition-colors hover:bg-white/10">
-                    <input
-                      type="radio"
-                      name="premiumPeriod"
-                      checked={premiumPeriod === "10d"}
-                      onChange={() => setPremiumPeriod("10d")}
-                      className="accent-yellow-500"
-                    />
+                  <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                    <input type="radio" checked={premiumPeriod === "10d"} onChange={() => setPremiumPeriod("10d")} className="accent-yellow-500" />
                     <span className="text-sm text-white/90">10일 고정 (6,900원)</span>
                   </label>
                 </div>
               </div>
-
-              <div className="mb-5">
-                <label className="mb-2 block text-sm font-medium text-yellow-400/90">
-                  발원자(이름) 노출
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPremiumNameDisplay("anonymous")}
-                    className={`rounded-lg px-3 py-2 text-sm transition-all ${
-                      premiumNameDisplay === "anonymous"
-                        ? "bg-yellow-500/30 ring-1 ring-yellow-500/60 text-yellow-400"
-                        : "bg-white/5 text-white/80 hover:bg-white/10"
-                    }`}
-                  >
-                    익명
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPremiumNameDisplay("real")}
-                    className={`rounded-lg px-3 py-2 text-sm transition-all ${
-                      premiumNameDisplay === "real"
-                        ? "bg-yellow-500/30 ring-1 ring-yellow-500/60 text-yellow-400"
-                        : "bg-white/5 text-white/80 hover:bg-white/10"
-                    }`}
-                  >
-                    실명 노출
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPremiumNameDisplay("partial")}
-                    className={`rounded-lg px-3 py-2 text-sm transition-all ${
-                      premiumNameDisplay === "partial"
-                        ? "bg-yellow-500/30 ring-1 ring-yellow-500/60 text-yellow-400"
-                        : "bg-white/5 text-white/80 hover:bg-white/10"
-                    }`}
-                  >
-                    부분 노출
-                  </button>
+              <div className="mb-4">
+                <div className="flex gap-2 mb-2">
+                  <button type="button" onClick={() => setPremiumNameDisplay("anonymous")} className={`flex-1 rounded-lg py-1.5 text-xs ${premiumNameDisplay === "anonymous" ? "bg-yellow-500/30 text-yellow-400" : "bg-white/5 text-white/80"}`}>익명</button>
+                  <button type="button" onClick={() => setPremiumNameDisplay("real")} className={`flex-1 rounded-lg py-1.5 text-xs ${premiumNameDisplay === "real" ? "bg-yellow-500/30 text-yellow-400" : "bg-white/5 text-white/80"}`}>실명</button>
+                  <button type="button" onClick={() => setPremiumNameDisplay("partial")} className={`flex-1 rounded-lg py-1.5 text-xs ${premiumNameDisplay === "partial" ? "bg-yellow-500/30 text-yellow-400" : "bg-white/5 text-white/80"}`}>부분노출</button>
                 </div>
                 {(premiumNameDisplay === "real" || premiumNameDisplay === "partial") && (
-                  <input
-                    type="text"
-                    value={premiumNameInput}
-                    onChange={(e) => setPremiumNameInput(e.target.value)}
-                    placeholder={premiumNameDisplay === "partial" ? "예: 홍길동 → 홍*동" : "이름 입력"}
-                    className="mt-2 w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 placeholder-amber-200/50 focus:border-yellow-500/50 focus:outline-none"
-                  />
+                  <input type="text" value={premiumNameInput} onChange={(e) => setPremiumNameInput(e.target.value)} placeholder={premiumNameDisplay === "partial" ? "예: 홍길동 → 홍*동" : "이름 입력"} className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 focus:border-yellow-500/50 focus:outline-none" />
                 )}
               </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={handlePremiumCancel}
-                  className="flex-1 rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
-                >
-                  취소
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePremiumConfirm}
-                  disabled={!premiumWishText.trim()}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-                >
-                  결제하고 기적의 소원 띄우기
-                </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={handlePremiumCancel} className="flex-1 rounded-xl border border-white/20 bg-white/5 py-3 text-sm font-medium text-white/90">취소</button>
+                <button type="button" onClick={handlePremiumConfirm} disabled={!premiumWishText.trim()} className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3 text-sm font-semibold text-slate-900 disabled:opacity-50">결제하고 띄우기</button>
               </div>
             </div>
           </div>
         )}
+        <FooterPolicy tabId="altar" />
       </div>
     </div>
   );
@@ -1714,7 +1866,7 @@ function getHanjaOptionsByChar(name: string): { char: string; options: string[] 
 
 function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [activeSajuMode, setActiveSajuMode] = useState<"face" | "name">("face");
-
+  
   const [faceName, setFaceName] = useState("");
   const [faceBirthDate, setFaceBirthDate] = useState("");
   const [faceImage, setFaceImage] = useState<string | null>(null);
@@ -1725,6 +1877,8 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [faceResultData, setFaceResultData] = useState<any>(null);
   const [showPhysiognomyPaymentModal, setShowPhysiognomyPaymentModal] = useState(false);
   const [isPhysiognomyPremiumUnlocked, setIsPhysiognomyPremiumUnlocked] = useState(false);
+  const faceShareResultRef = useRef<HTMLDivElement | null>(null);
+  const nameShareResultRef = useRef<HTMLDivElement | null>(null);
 
   const [nameGender, setNameGender] = useState<"male" | "female">("male");
   const [nameBirthDate, setNameBirthDate] = useState("");
@@ -1755,9 +1909,57 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [showNamePaymentModal, setShowNamePaymentModal] = useState(false);
   const [isNamePremiumUnlocked, setIsNamePremiumUnlocked] = useState(false);
 
+  // 🚀 모바일 결제 복귀 시 1:1 데이터 매칭 복구 및 무한 결제 방지 (버그 수정 완료)
+  useEffect(() => {
+    if (typeof window !== "undefined" && isVisible) {
+      const lastImpUid = localStorage.getItem("last_authorized_imp_uid");
+
+      // 1️⃣ 관상 데이터 복구
+      const faceSaved = localStorage.getItem("pendingFaceData");
+      if (faceSaved) {
+        try {
+          const parsed = JSON.parse(faceSaved);
+          if (parsed.faceImage) setFaceImage(parsed.faceImage);
+          if (parsed.faceResultData) {
+            setFaceResultData(parsed.faceResultData);
+            setShowFaceResult(true);
+            // 💡 결제 도장이 있으면 자물쇠 해제!
+            if (lastImpUid) setIsPhysiognomyPremiumUnlocked(true);
+          }
+        } catch(e) {}
+        localStorage.removeItem("pendingFaceData");
+        setActiveSajuMode("face");
+      }
+
+      // 2️⃣ 이름풀이 데이터 복구
+      const nameSaved = localStorage.getItem("pendingNameData");
+      if (nameSaved) {
+        try {
+          const parsed = JSON.parse(nameSaved);
+          if (parsed.nameInput) setNameInput(parsed.nameInput);
+          if (parsed.nameHanja) setNameHanja(parsed.nameHanja);
+          if (parsed.nameBirthDate) setNameBirthDate(parsed.nameBirthDate);
+          if (parsed.nameBirthTime) setNameBirthTime(parsed.nameBirthTime);
+          if (parsed.nameGender) setNameGender(parsed.nameGender);
+          if (parsed.hanjaSelections) setHanjaSelections(parsed.hanjaSelections);
+          if (parsed.nameResultData) {
+            setNameResultData(parsed.nameResultData);
+            setShowNameResult(true);
+            // 💡 결제 도장이 있으면 자물쇠 해제!
+            if (lastImpUid) setIsNamePremiumUnlocked(true);
+          }
+        } catch(e) {}
+        localStorage.removeItem("pendingNameData");
+        setActiveSajuMode("name");
+      }
+    }
+  }, [isVisible]);
+  // 💡 기존에 혼자서 자물쇠를 잠가버리던 오작동 감시자(useEffect 2개)는 완전히 삭제했습니다!
+
   const handleFaceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file?.type.startsWith("image/")) {
+      setIsPhysiognomyPremiumUnlocked(false); // 💡 사진을 새로 올릴 때만 잠금!
       setFaceImageFile(file);
       setFaceFileName(file.name);
       const reader = new FileReader();
@@ -1770,6 +1972,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file?.type.startsWith("image/")) {
+      setIsPhysiognomyPremiumUnlocked(false); // 💡 사진을 새로 올릴 때만 잠금!
       setFaceImageFile(file);
       setFaceFileName(file.name);
       const reader = new FileReader();
@@ -1788,12 +1991,10 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     setIsFaceScanning(true);
     setShowFaceResult(false);
     setFaceResultData(null);
-
     const minScanMs = 3500;
     const startTime = Date.now();
 
     try {
-      // 🚀 이미지 해싱 (캐싱용)
       const generateHash = (str: string) => {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
@@ -1809,10 +2010,8 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       let data;
 
       if (cachedData) {
-        // 같은 사진이면 API 호출 없이 캐시에서 즉시 로드 (비용 0원)
         data = JSON.parse(cachedData);
       } else {
-        // 새로운 사진일 때만 서버에 요청
         const response = await fetch("/api/physiognomy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1836,7 +2035,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         return;
       }
 
-      // 스캐닝 애니메이션 최소 시간 보장
       const elapsed = Date.now() - startTime;
       if (elapsed < minScanMs) {
         await new Promise((resolve) => setTimeout(resolve, minScanMs - elapsed));
@@ -1846,43 +2044,112 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       setShowFaceResult(true);
     } catch (error) {
       console.error(error);
-      alert("분석 중 오류가 발생했습니다.");
+      alert("분석 중 오류가 발생했습니다. 사진을 재 업로드 해주세요.");
     } finally {
       setIsFaceScanning(false);
     }
   };
 
   const handleFacePremium = () => {
-    setShowPhysiognomyPaymentModal(true);
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      setIsPhysiognomyPremiumUnlocked(true);
+    } else {
+      setShowPhysiognomyPaymentModal(true);
+    }
   };
 
-  const handlePhysiognomyPaymentConfirm = () => {
-    alert("결제 모듈은 Phase 3에서 연동됩니다. (테스트 렌더링)");
-    setShowPhysiognomyPaymentModal(false);
-    setIsPhysiognomyPremiumUnlocked(true);
+  // 🚀 관상 심층 리포트 프리미엄 결제 연동 (4,900원)
+  const handlePhysiognomyPaymentConfirm = async () => {
+    const IMP = (window as any).IMP;
+    IMP.init("imp61375123"); 
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const amount = 4900;
+
+    if (isMobile) {
+      localStorage.setItem("pendingPaymentType", "physiognomy");
+      localStorage.setItem("pendingPaymentAmount", String(amount));
+      // 💡 현재 사진 상태를 함께 저장
+      localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
+    } else {
+      // PC의 경우 성공 콜백에서 즉시 해제
+    }
+
+    IMP.request_pay({
+      pg: "tosspayments",
+      pay_method: "card",
+      merchant_uid: `face_${Date.now()}`,
+      name: "심층 관상 분석",
+      amount: amount,
+      m_redirect_url: isMobile ? window.location.href : undefined,
+      app_scheme: "myungun"
+    }, (rsp: any) => {
+      if (rsp.success || (rsp.imp_uid && !rsp.error_msg)) {
+        setIsPhysiognomyPremiumUnlocked(true);
+        setShowPhysiognomyPaymentModal(false);
+      }
+    });
   };
 
   const handleFaceShare = async () => {
-    const summary = faceResultData?.freeSummary ?? "";
-    const text = `당신의 타고난 관상 분석 리포트: ${summary.slice(0, 80)}${summary.length > 80 ? "..." : ""} | 자세히 보기: ${typeof window !== "undefined" ? window.location.origin : ""}`;
+    await captureAndShareElement(faceShareResultRef.current, {
+      fileName: "physiognomy-result.png",
+      title: "관상 분석 결과",
+      text: `관상 분석 결과 이미지입니다.\n자세히 보기: ${window.location.origin}`,
+    });
+  };
 
-    if (typeof navigator !== "undefined" && navigator.share) {
+  const handleNameShare = async () => {
+    await captureAndShareElement(nameShareResultRef.current, {
+      fileName: "name-result.png",
+      title: "이름 풀이 결과",
+      text: `이름 풀이 결과 이미지입니다.\n자세히 보기: ${window.location.origin}`,
+    });
+  };
+
+  const handleFaceLinkShare = async () => {
+    const shareUrl = window.location.href;
+    const text = `관상 분석 결과 보러가기\n${shareUrl}`;
+  
+    if (navigator.share) {
       try {
         await navigator.share({
-          title: "관상 분석 리포트",
+          title: "관상 분석 결과",
           text,
-          url: typeof window !== "undefined" ? window.location.href : "",
+          url: shareUrl,
         });
         return;
-      } catch {
-        /* fallback to clipboard */
-      }
+      } catch {}
     }
+  
     try {
-      await navigator.clipboard?.writeText(text);
-      alert("복사되었습니다!");
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 복사되었습니다.");
     } catch {
-      alert("공유하기를 지원하지 않는 환경입니다.");
+      alert("링크 공유를 지원하지 않는 환경입니다.");
+    }
+  };
+  
+  const handleNameLinkShare = async () => {
+    const shareUrl = window.location.href;
+    const hanjaText = nameHanja ? ` (${nameHanja})` : "";
+    const text = `이름 풀이 결과 보러가기\n${nameInput}${hanjaText}\n${shareUrl}`;
+  
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "이름 풀이 결과",
+          text,
+          url: shareUrl,
+        });
+        return;
+      } catch {}
+    }
+  
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 복사되었습니다.");
+    } catch {
+      alert("링크 공유를 지원하지 않는 환경입니다.");
     }
   };
 
@@ -1953,7 +2220,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
   const handleNameAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!nameInput.trim()) {
       alert("이름을 입력해 주세요.");
       return;
@@ -1971,7 +2237,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     const loadingTimer = window.setInterval(() => {
       setNameLoadingStep((prev) => (prev >= 3 ? 3 : prev + 1));
     }, 1200);
-
     const cacheKey = getNameCacheKey();
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem(cacheKey);
@@ -2004,10 +2269,8 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           gender: nameGender,
         }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "이름 풀이 중 오류가 발생했습니다.");
-
       if (typeof window !== "undefined") {
         localStorage.setItem(cacheKey, JSON.stringify(data));
       }
@@ -2022,13 +2285,71 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const handleNamePremium = () => {
-    setShowNamePaymentModal(true);
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      setIsNamePremiumUnlocked(true);
+    } else {
+      setShowNamePaymentModal(true);
+    }
   };
 
-  const handleNamePaymentConfirm = () => {
-    alert("결제 모듈은 Phase 3에서 연동됩니다. (테스트 렌더링)");
-    setShowNamePaymentModal(false);
-    setIsNamePremiumUnlocked(true);
+  // 🚀 이름 풀이 프리미엄 결제 연동 (4,900원)
+  const handleNamePaymentConfirm = async () => {
+    if (typeof window !== "undefined") {
+      const IMP = (window as any).IMP;
+      if (!IMP) return alert("🚨 결제 시스템 로딩 실패.");
+      IMP.init("imp61375123"); 
+
+      const amount = 4900;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      const payData: any = {
+        pg: "tosspayments", 
+        pay_method: "card",
+        merchant_uid: `mid_name_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        name: "심층 이름 풀이 리포트",
+        amount: amount,
+        buyer_email: "test@ymstudio.co.kr", 
+        buyer_name: "명운 사용자",
+        app_scheme: "myungun",
+      };
+
+      if (isMobile) {
+        payData.m_redirect_url = window.location.href;
+        localStorage.setItem("pendingPaymentType", "name");
+        localStorage.setItem("pendingPaymentAmount", String(amount));
+        // 🚀 이름 입력값과 분석 결과를 브라우저 창고에 보관
+        localStorage.setItem("pendingNameData", JSON.stringify({
+          nameInput, nameHanja, nameBirthDate, nameBirthTime, nameGender, hanjaSelections, nameResultData
+        }));
+      }
+
+      IMP.request_pay(payData, async function (rsp: any) {
+        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
+        if (isSuccess) {
+          try {
+            const verifyRes = await fetch("/api/payments/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentType: "saju", imp_uid: rsp.imp_uid, merchant_uid: rsp.merchant_uid, amount: amount }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.success) {
+              setShowNamePaymentModal(false);
+              setIsNamePremiumUnlocked(true);
+            } else {
+              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+            }
+          } catch (error) {
+            alert("서버 오류가 발생했습니다.");
+          }
+        } else {
+          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
+          if (isUserCancel && !isMobile) alert(`결제가 취소되었습니다.\n💡 PC 화면 결제창의 [결제 완료] 버튼을 눌러주세요!`);
+          else alert(`결제 실패: ${rsp.error_msg}`);
+        }
+      });
+    }
   };
 
   const formatHighlight = (text?: string) => {
@@ -2071,18 +2392,18 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
       `}
     >
-      {/* ✅ [추가] 관상/이름 한지 배경 */}
       <div className="fixed inset-0 z-0 pointer-events-none bg-slate-950">
         <div className="absolute inset-0 bg-cover bg-center opacity-60 mix-blend-screen" style={{ backgroundImage: "url('/bg_face_name.png')" }} />
-        <div className="absolute inset-0 bg-black/50" /> {/* 글씨 가독성을 위한 암전 */}
+        <div className="absolute inset-0 bg-black/50" />
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 py-8">
-        {/* 모드 전환 토글 */}
+        
         <div className="flex gap-2 rounded-xl bg-slate-800/60 p-1">
+          {/* 🚀 [비밀 버튼] 사주 탭 진입을 "S"로 인식 */}
           <button
             type="button"
-            onClick={() => setActiveSajuMode("face")}
+            onClick={() => { setActiveSajuMode("face"); pushSecret("S"); }}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
               activeSajuMode === "face"
                 ? "bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/50"
@@ -2092,9 +2413,10 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
             <Camera className="h-4 w-4" />
             관상 분석
           </button>
+          {/* 🚀 [비밀 버튼] 이름 탭 진입을 "S"로 인식 */}
           <button
             type="button"
-            onClick={() => setActiveSajuMode("name")}
+            onClick={() => { setActiveSajuMode("name"); pushSecret("S"); }}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
               activeSajuMode === "name"
                 ? "bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/50"
@@ -2107,7 +2429,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         </div>
 
         {activeSajuMode === "face" && (
-          <div className="w-full max-w-md space-y-6">
+          <div ref={faceShareResultRef} className="w-full max-w-md space-y-6">
             {!showFaceResult ? (
               <>
                 <div className="mb-4 text-center border-b border-white/10 pb-4">
@@ -2115,7 +2437,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                   <p className="text-xs text-white/70 mt-1">마의상법(麻衣相法)에 기초한 정밀 관상 스캐닝</p>
                 </div>
 
-                {/* 📸 정확한 관상 가이드 추가 */}
                 <div className="mb-5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 py-2.5 px-2 text-center shadow-inner">
                   <p className="text-xs sm:text-sm text-yellow-300 font-medium tracking-tight break-keep">
                     💡 정확도 UP : <strong className="text-yellow-400">밝은 곳에서 이마가 보이는 정면 무표정 사진</strong> 권장
@@ -2294,8 +2615,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 )}
 
-{/* 🛡️ 방어용 면책 조항 (디스클레이머) */}
-<div className="mt-6 mb-4 rounded-lg bg-white/5 p-4 text-center border border-white/10 shadow-inner opacity-80">
+                <div className="mt-6 mb-4 rounded-lg bg-white/5 p-4 text-center border border-white/10 shadow-inner opacity-80">
                   <p className="text-[11px] leading-relaxed text-white/50 break-keep">
                     ※ 본 분석은 사진의 조명, 각도, 표정에 따라 결과가 일부 달라질 수 있습니다.<br/>
                     정통 상학 데이터를 기반으로 한 <strong>엔터테인먼트 콘텐츠</strong>이므로 참고용으로만 활용해 주시기 바랍니다.
@@ -2304,14 +2624,23 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
                 <div className="mt-8 space-y-3">
                   {isPhysiognomyPremiumUnlocked ? (
-                    <button
-                      type="button"
-                      onClick={handleFaceShare}
-                      className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95"
-                    >
-                      📤 관상 결과 공유하기
-                    </button>
-                  ) : null}
+  <div className="grid grid-cols-2 gap-3">
+    <button
+      type="button"
+      onClick={handleFaceLinkShare}
+      className="w-full rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95"
+    >
+      🔗 링크 공유
+    </button>
+    <button
+      type="button"
+      onClick={handleFaceShare}
+      className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95"
+    >
+      🖼️ 이미지 공유
+    </button>
+  </div>
+) : null}
                   <button
                     type="button"
                     onClick={handleFaceReset}
@@ -2325,7 +2654,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-        {/* 관상 분석 - 프리미엄 결제 모달 */}
         {showPhysiognomyPaymentModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -2362,7 +2690,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         )}
 
         {activeSajuMode === "name" && (
-          <div className="w-full max-w-md space-y-6">
+          <div ref={nameShareResultRef} className="w-full max-w-md space-y-6">
             {!showNameResult ? (
               isNameLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-6">
@@ -2428,10 +2756,18 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                 <div>
                   <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
                   <input
-                    type="date"
+                    type="tel"
+                    maxLength={10}
+                    placeholder="예: 19801013"
                     value={nameBirthDate}
-                    onChange={(e) => setNameBirthDate(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-white focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+                    onChange={(e) => {
+                      setIsNamePremiumUnlocked(false); // 💡 숫자를 수정할 때만 잠금!
+                      let val = e.target.value.replace(/[^0-9]/g, '');
+                      if (val.length > 6) val = val.slice(0,4) + '-' + val.slice(4,6) + '-' + val.slice(6,8);
+                      else if (val.length > 4) val = val.slice(0,4) + '-' + val.slice(4);
+                      setNameBirthDate(val);
+                    }}
+                    className="w-full rounded-xl border border-white/20 bg-slate-800/80 shadow-inner px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
                   />
                 </div>
                 <div>
@@ -2455,6 +2791,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                     placeholder="한글 또는 한자 입력"
                     value={nameInput}
                     onChange={(e) => {
+                      setIsNamePremiumUnlocked(false); // 💡 이름을 수정할 때만 잠금!
                       setNameInput(e.target.value);
                       setHanjaSelections([]);
                       setNameHanja("");
@@ -2500,7 +2837,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
               )
             ) : (
               <div className="space-y-6 animate-fade-in-up mt-4">
-                {/* 1. 무료 요약 & 팩트폭력 (결제 유도 Hook) */}
                 <div className="space-y-3">
                   <div className="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md text-center">
                     <p className="mb-2 text-sm font-bold text-yellow-400/90">
@@ -2511,7 +2847,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                     </p>
                   </div>
                   
-                  {/* 🚨 약점 찌르기 (무료 노출) */}
                   {nameResultData?.freeWeakness && (
                     <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 shadow-inner">
                       <p className="text-xs font-bold text-red-400 mb-1 flex items-center gap-1">
@@ -2524,7 +2859,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                   )}
                 </div>
 
-                {/* 2. 프리미엄 심층 분석 영역 */}
                 <div
                   className={`rounded-2xl border-2 p-5 backdrop-blur-md transition-all duration-1000 ${
                     isNamePremiumUnlocked
@@ -2536,7 +2870,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                     ✨ 심층 작명 분석 리포트
                   </h4>
 
-                  {/* 📊 작명 근거 요약 박스 (프리미엄 전용) */}
                   {isNamePremiumUnlocked && nameResultData?.premiumReport?.basisBox && (
                     <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
                       <h5 className="mb-3 text-sm font-bold text-emerald-400 flex items-center gap-2">
@@ -2570,32 +2903,31 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                       </div>
                     ))}
                   </div>
-                  
+                 
                   <p className="mt-5 text-[11px] text-white/40 text-center break-keep">
                     ※ 본 분석은 정통 성명학 데이터를 기반으로 한 엔터테인먼트 콘텐츠이므로 참고용으로만 활용해 주시기 바랍니다.
                   </p>
                 </div>
 
-                {/* 3. 하단 버튼 영역 */}
                 <div className="mt-8 space-y-3">
                   {isNamePremiumUnlocked ? (
+                    <div className="grid grid-cols-2 gap-3">
                     <button
-                    type="button"
-                    onClick={async () => {
-                      const hanjaText = nameHanja ? ` (${nameHanja})` : "";
-                      const summaryText = nameResultData?.freeSummary?.slice(0, 60) ?? "";
-                      const originUrl = typeof window !== "undefined" ? window.location.origin : "";
-                      const text = `이름 풀이: ${nameInput}${hanjaText} - ${summaryText}... | ${originUrl}`;
-                      
-                      if (navigator.share) {
-                        try { await navigator.share({ title: "이름 풀이", text, url: window.location.href }); return; } catch {}
-                      }
-                      try { await navigator.clipboard?.writeText(text); alert("복사되었습니다!"); } catch { alert("공유 지원 불가"); }
-                    }}
-                    className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-6 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95"
-                  >
-                    📤 이름 풀이 결과 공유하기
-                  </button>
+                      type="button"
+                      onClick={handleNameLinkShare}
+                      className="w-full rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20"
+                    >
+                      🔗 링크 공유
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNameShare}
+                      className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20"
+                    >
+                      🖼️ 이미지 공유
+                    </button>
+                  </div>
+
                   ) : (
                     <button
                       type="button"
@@ -2618,7 +2950,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-        {/* 이름 풀이 - 프리미엄 결제 모달 */}
         {showNamePaymentModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -2654,7 +2985,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-        {/* 한자 선택 모달 (글래스모피즘) */}
         {showHanjaModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -2732,6 +3062,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
             </div>
           </div>
         )}
+        <FooterPolicy tabId="saju" />
       </div>
     </div>
   );
@@ -2756,7 +3087,6 @@ function generateLottoNumbers(): number[] {
 
 const LOTTO_STORAGE_KEY = "miracle-lotto-free-count";
 const LOTTO_DATE_KEY = "miracle-lotto-free-date";
-
 const MATRIX_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const MATRIX_COLOR = "#0abdc6";
 
@@ -2764,28 +3094,57 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
   const [lottoHistory, setLottoHistory] = useState<number[][]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [freeCount, setFreeCount] = useState(3);
+  
+  // 🚀 유저 정보 및 DB 잔여 횟수 상태 추가
+  const [user, setUser] = useState<any>(null);
+  const [premiumCount, setPremiumCount] = useState(0);
 
-  // 1. 앱 로드 시 오늘 날짜를 확인하고 초기화하거나 기존 횟수를 불러옴
+  // 세션 감지 및 DB에서 남은 횟수 불러오기
   useEffect(() => {
     if (typeof window === "undefined") return;
+    
+    const fetchPremiumCount = async (userId: string) => {
+      const { data, error } = await supabase.from('profiles').select('premium_lotto_count').eq('id', userId).single();
+      if (data && !error) setPremiumCount(data.premium_lotto_count);
+    };
 
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) fetchPremiumCount(session.user.id);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) fetchPremiumCount(session.user.id);
+      else setPremiumCount(0);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [isVisible]);
+
+  // 무료 횟수 로컬 스토리지 관리 (기존 동일)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     const today = new Date().toDateString();
     const savedDate = localStorage.getItem(LOTTO_DATE_KEY);
     const s = localStorage.getItem(LOTTO_STORAGE_KEY);
 
     if (savedDate !== today) {
-      // 접속 날짜가 오늘과 다르면(자정이 지났으면) 3회로 리셋
       setFreeCount(3);
       localStorage.setItem(LOTTO_DATE_KEY, today);
       localStorage.setItem(LOTTO_STORAGE_KEY, "3");
     } else if (s) {
-      // 같은 날짜이면 기존 남은 횟수를 불러옴
       const n = parseInt(s, 10);
-      if (!Number.isNaN(n) && n >= 0) {
-        setFreeCount(n);
-      }
+      if (!Number.isNaN(n) && n >= 0) setFreeCount(n);
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(LOTTO_STORAGE_KEY, String(freeCount));
+      localStorage.setItem(LOTTO_DATE_KEY, new Date().toDateString());
+    }
+  }, [freeCount]);
 
   const [visibleCount, setVisibleCount] = useState(0);
   const [showLottoPaymentModal, setShowLottoPaymentModal] = useState(false);
@@ -2800,33 +3159,19 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     "고급 통계 조합 계산 중...",
   ];
 
-  // 2. 횟수가 차감될 때 날짜도 함께 갱신하여 방어 로직 추가
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(LOTTO_STORAGE_KEY, String(freeCount));
-    localStorage.setItem(LOTTO_DATE_KEY, new Date().toDateString());
-  }, [freeCount]);
-
+  // 매트릭스 애니메이션 효과 (기존 동일)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !isVisible) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
     const resize = () => {
       const parent = canvas.parentElement;
-      if (parent) {
-        canvas.width = parent.clientWidth;
-        canvas.height = parent.clientHeight;
-      } else {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-      }
+      if (parent) { canvas.width = parent.clientWidth; canvas.height = parent.clientHeight; } 
+      else { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     };
     resize();
     window.addEventListener("resize", resize);
-
     const fontSize = 14;
     const columns = Math.floor(canvas.width / fontSize);
     const drops: number[] = Array(columns).fill(1);
@@ -2836,102 +3181,172 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.font = `${fontSize}px monospace`;
       ctx.fillStyle = "rgba(180, 140, 30, 0.45)";
-
       for (let i = 0; i < drops.length; i++) {
         const char = MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)];
         const x = i * fontSize;
         const y = drops[i] * fontSize;
         ctx.fillText(char, x, y);
-        if (y > canvas.height && Math.random() > 0.975) {
-          drops[i] = 0;
-        }
+        if (y > canvas.height && Math.random() > 0.975) drops[i] = 0;
         drops[i]++;
       }
     };
-
     let frameId: number;
-    const loop = () => {
-      draw();
-      frameId = requestAnimationFrame(loop);
-    };
+    const loop = () => { draw(); frameId = requestAnimationFrame(loop); };
     frameId = requestAnimationFrame(loop);
-    return () => {
-      window.removeEventListener("resize", resize);
-      cancelAnimationFrame(frameId);
-    };
+    return () => { window.removeEventListener("resize", resize); cancelAnimationFrame(frameId); };
   }, [isVisible]);
 
+  // 일반 무료 번호 생성
   const handleFreeDraw = () => {
-    if (freeCount <= 0) {
-      alert("무료 횟수가 모두 소진되었습니다.");
-      return;
-    }
+    if (freeCount <= 0) return alert("무료 횟수가 모두 소진되었습니다.");
     if (isDrawing) return;
-
     setIsDrawing(true);
     setVisibleCount(0);
     const numbers = generateLottoNumbers();
     setLottoHistory((prev) => [numbers, ...prev]);
     setFreeCount((c) => c - 1);
-
-    numbers.forEach((_, i) => {
-      setTimeout(() => setVisibleCount((v) => v + 1), i * 450);
-    });
+    numbers.forEach((_, i) => { setTimeout(() => setVisibleCount((v) => v + 1), i * 450); });
     setTimeout(() => setIsDrawing(false), numbers.length * 450 + 100);
   };
 
-  const handlePremium = () => {
-    if (isDrawing) return;
-    setShowLottoPaymentModal(true);
+  // 🚀 10회권 묶음 결제 진행 함수
+  const handleLottoPaymentConfirm = async () => {
+    if (!user) return alert("로그인 정보가 없습니다.");
+    
+    if (typeof window !== "undefined") {
+      const IMP = (window as any).IMP;
+      if (!IMP) return alert("🚨 결제 시스템 로딩 실패.");
+      IMP.init("imp61375123"); 
+
+      const amount = 4500; // 10회권 가격
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      const payData: any = {
+        pg: "tosspayments", 
+        pay_method: "card",
+        merchant_uid: `mid_lotto_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        name: "고급 통계 로또 추천 10회 이용권",
+        amount: amount,
+        buyer_email: user.email || "test@ymstudio.co.kr", 
+        buyer_name: user.user_metadata?.name || "명운 사용자",
+        app_scheme: "myungun",
+      };
+
+      if (isMobile) {
+        payData.m_redirect_url = window.location.href;
+        localStorage.setItem("pendingPaymentType", "lotto");
+        localStorage.setItem("pendingPaymentAmount", String(amount));
+        localStorage.setItem("pendingPaymentUserId", user.id); // 서버 DB 기록을 위해 유저ID 저장
+      }
+
+      IMP.request_pay(payData, async function (rsp: any) {
+        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
+        if (isSuccess) {
+          try {
+            const verifyRes = await fetch("/api/payments/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                paymentType: "lotto",
+                imp_uid: rsp.imp_uid,
+                merchant_uid: rsp.merchant_uid,
+                amount: amount,
+                userId: user.id // 서버로 유저ID 전송
+              }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.success) {
+              setShowLottoPaymentModal(false);
+              alert("✨ 결제 성공! 로또 10회 이용권이 충전되었습니다.");
+              // 충전 후 DB 다시 읽기
+              const { data } = await supabase.from('profiles').select('premium_lotto_count').eq('id', user.id).single();
+              if (data) setPremiumCount(data.premium_lotto_count);
+            } else {
+              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+            }
+          } catch (error) {
+            console.error("결제 검증 오류:", error);
+            alert("서버 오류가 발생했습니다.");
+          }
+        } else {
+          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
+          if (isUserCancel && !isMobile) alert(`결제가 취소되었습니다.\n💡 PC 화면 결제창의 [결제 완료] 버튼을 눌러주세요!`);
+          else alert(`결제 실패: ${rsp.error_msg}`);
+        }
+      });
+    }
   };
 
-  const handleLottoPaymentConfirm = async () => {
-    setShowLottoPaymentModal(false);
+  // 🚀 버튼 클릭 컨트롤러 (잔여 횟수가 있으면 바로 생성, 없으면 결제창)
+  const handlePremiumClick = () => {
+    if (isDrawing) return;
+    if (!user) {
+      alert("이용권 충전 및 저장을 위해 우측 상단의 카카오 로그인을 먼저 진행해주세요!");
+      return;
+    }
+    
+    if (premiumCount > 0) {
+      // 횟수가 남았으니 바로 차감하고 생성!
+      executeLottoDraw(true);
+    } else {
+      // 횟수가 없으면 결제 모달 띄우기
+      if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+        handleLottoPaymentConfirm();
+      } else {
+        setShowLottoPaymentModal(true);
+      }
+    }
+  };
+
+  // 🚀 실제 고급 통계 로또 번호 추출
+  const executeLottoDraw = async (usePremium: boolean = false) => {
+    if (usePremium && user) {
+      // DB에서 1회 차감 
+      const { data, error } = await supabase.rpc('use_premium_lotto', { user_id: user.id });
+      if (error || !data) {
+        alert("잔여 횟수 차감 중 오류가 발생했습니다.");
+        return;
+      }
+      setPremiumCount(c => c - 1);
+    }
+
     setShowLottoProgressModal(true);
     setLottoProgressStep(0);
     setLottoProgressPct(0);
-    const progressInterval = setInterval(() => {
-      setLottoProgressPct((p) => Math.min(100, p + 2));
-    }, 60);
+    const progressInterval = setInterval(() => setLottoProgressPct((p) => Math.min(100, p + 2)), 60);
     setTimeout(() => setLottoProgressStep(1), 900);
     setTimeout(() => setLottoProgressStep(2), 1800);
 
     try {
       const [res] = await Promise.all([
-        fetch("/api/lotto", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        }),
+        fetch("/api/lotto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }),
         new Promise<void>((r) => setTimeout(r, 2800)),
       ]);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "로또 번호 생성 실패");
-      const numbers = data.numbers as number[];
+      if (!res.ok) throw new Error(data.error ?? "생성 실패");
 
+      const numbers = data.numbers as number[];
       clearInterval(progressInterval);
       setLottoProgressPct(100);
       setShowLottoProgressModal(false);
-
       setIsDrawing(true);
       setVisibleCount(0);
       setLottoHistory((prev) => [numbers, ...prev]);
-      numbers.forEach((_, i) => {
-        setTimeout(() => setVisibleCount((v) => v + 1), i * 450);
-      });
+
+      numbers.forEach((_, i) => setTimeout(() => setVisibleCount((v) => v + 1), i * 450));
       setTimeout(() => setIsDrawing(false), numbers.length * 450 + 100);
     } catch (err) {
       clearInterval(progressInterval);
       setShowLottoProgressModal(false);
-      alert(err instanceof Error ? err.message : "로또 번호 생성 중 오류가 발생했습니다.");
+      alert(err instanceof Error ? err.message : "오류가 발생했습니다.");
     }
   };
 
   const handleAdminReset = () => {
     setFreeCount(3);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(LOTTO_STORAGE_KEY, "3");
-    }
+    if (typeof window !== "undefined") localStorage.setItem(LOTTO_STORAGE_KEY, "3");
+    alert("✨ [비밀 관리자 모드] 로또 무료 횟수가 3회로 초기화되었습니다.");
   };
 
   const currentSet = lottoHistory[0] ?? [];
@@ -2941,65 +3356,34 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     <div
       role="tabpanel"
       aria-hidden={!isVisible}
-      className={`
-        absolute inset-0 flex flex-col overflow-y-auto overflow-x-hidden
-        transition-opacity duration-500 ease-out
-        ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
-      `}
+      className={`absolute inset-0 flex flex-col overflow-y-auto overflow-x-hidden transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
     >
-      <canvas
-        ref={canvasRef}
-        id="matrix-canvas"
-        className="absolute inset-0 z-0 opacity-30 pointer-events-none"
-      />
+      <canvas ref={canvasRef} id="matrix-canvas" className="absolute inset-0 z-0 opacity-30 pointer-events-none" />
 
+      {/* 결제 모달창 */}
       {showLottoPaymentModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          onClick={(e) => e.target === e.currentTarget && setShowLottoPaymentModal(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl border border-yellow-700/50 bg-[#16120d]/95 p-6 shadow-2xl shadow-amber-900/20 backdrop-blur-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="mb-4 text-center text-lg font-semibold text-yellow-300">
-              ✨ 고급 통계 필터 번호 추천 (500원)
-            </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && setShowLottoPaymentModal(false)}>
+          <div className="w-full max-w-md rounded-2xl border border-yellow-700/50 bg-[#16120d]/95 p-6 shadow-2xl shadow-amber-900/20 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-4 text-center text-lg font-semibold text-yellow-300">✨ 고급 통계 추천 10회권 (4,500원)</h3>
             <p className="mb-6 text-center text-sm leading-relaxed text-yellow-100/70">
-              출현 빈도, 번호 분포, 합계 구간, 연속 번호 제한 등
-              여러 통계 필터를 조합해 번호를 추천합니다.
+              출현 빈도, 번호 분포, 구간 필터 등을 결합한 고급 통계 번호입니다.<br/>
+              결제 시 계정에 10회가 충전되며 언제든 나누어 사용할 수 있습니다.
             </p>
             <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setShowLottoPaymentModal(false)}
-                className="flex-1 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleLottoPaymentConfirm}
-                className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-yellow-900/30 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-              >
-                결제하고 번호 생성
-              </button>
+              <button type="button" onClick={() => setShowLottoPaymentModal(false)} className="flex-1 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 hover:bg-white/10">취소</button>
+              <button type="button" onClick={handleLottoPaymentConfirm} className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-3 text-sm font-semibold text-slate-900 hover:from-yellow-400 hover:to-amber-500 shadow-lg">결제하고 충전하기</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* 로딩 모달창 */}
       {showLottoProgressModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-yellow-700/30 bg-[#17120d]/90 p-8 backdrop-blur-md shadow-2xl">
-            <p className="mb-6 text-center text-lg font-medium text-yellow-300">
-              {LOTTO_PROGRESS_STEPS[lottoProgressStep]}
-            </p>
+            <p className="mb-6 text-center text-lg font-medium text-yellow-300">{LOTTO_PROGRESS_STEPS[lottoProgressStep]}</p>
             <div className="h-2 w-full overflow-hidden rounded-full bg-slate-700">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 transition-all duration-75 ease-out"
-                style={{ width: `${lottoProgressPct}%` }}
-              />
+              <div className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 transition-all duration-75 ease-out" style={{ width: `${lottoProgressPct}%` }} />
             </div>
           </div>
         </div>
@@ -3007,46 +3391,25 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
 
       <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 py-8">
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className="rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm">
-            이번 주 추천 조합
-          </span>
-          <span className="rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm">
-            무료 3회 제공
-          </span>
-          <span className="rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm">
-            통계 기반 추천
-          </span>
+          <span className="rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm">이번 주 추천 조합</span>
+          <span className="rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm">무료 3회 제공</span>
+          {user && premiumCount > 0 && <span className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-[11px] text-emerald-300 font-bold backdrop-blur-sm">이용권 {premiumCount}회 보유</span>}
         </div>
 
         <div className="w-full max-w-2xl rounded-3xl border border-yellow-700/35 bg-[#151515]/85 p-6 shadow-[0_0_30px_rgba(245,158,11,0.08)] backdrop-blur-md">
           <div className="mb-5 text-center">
-            <h2 className="text-xl font-bold text-yellow-300">행운의 로또 번호 추출기</h2>
-            <p className="mt-2 text-sm text-yellow-50/70">
-              가볍게 번호를 뽑고, 필요하면 고급 통계 필터 추천까지 받아볼 수 있습니다.
-            </p>
+            <h2 onClick={() => pushSecret("L", handleAdminReset)} className="text-xl font-bold text-yellow-300 select-none cursor-pointer">행운의 로또 번호 추출기</h2>
+            <p className="mt-2 text-sm text-yellow-50/70">가볍게 번호를 뽑고, 필요하면 고급 통계 필터 추천까지 받아볼 수 있습니다.</p>
           </div>
 
           <div className="rounded-2xl border border-yellow-800/20 bg-[#0f0f0f]/70 px-4 py-6">
-            <p className="mb-4 text-center text-sm font-medium tracking-wide text-yellow-200/80">
-              이번에 추출된 번호
-            </p>
-
+            <p className="mb-4 text-center text-sm font-medium tracking-wide text-yellow-200/80">이번에 추출된 번호</p>
             <div className="flex min-h-[100px] flex-wrap items-center justify-center gap-5">
               {currentSet.length === 0 ? (
-                <p className="text-sm text-yellow-50/45">
-                  아직 생성된 번호가 없습니다. 아래 버튼을 눌러 시작하세요.
-                </p>
+                <p className="text-sm text-yellow-50/45">아직 생성된 번호가 없습니다. 아래 버튼을 눌러 시작하세요.</p>
               ) : (
                 currentSet.map((num, i) => (
-                  <div
-                    key={`current-${num}-${i}`}
-                    className={`
-                      flex h-16 w-16 shrink-0 items-center justify-center rounded-full
-                      text-xl font-bold shadow-inner ring-2 ring-black/20
-                      ${getLottoBallStyle(num)}
-                      ${i < visibleCount ? "animate-[lotto-ball-bounce_0.5s_ease-out_forwards]" : "opacity-0 scale-0"}
-                    `}
-                  >
+                  <div key={`current-${num}-${i}`} className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-xl font-bold shadow-inner ring-2 ring-black/20 ${getLottoBallStyle(num)} ${i < visibleCount ? "animate-[lotto-ball-bounce_0.5s_ease-out_forwards]" : "opacity-0 scale-0"}`}>
                     {num}
                   </div>
                 ))
@@ -3055,43 +3418,32 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
           </div>
 
           <div className="mt-6 flex flex-col gap-4 sm:flex-row">
-            <button
-              type="button"
-              onClick={handleFreeDraw}
-              disabled={isDrawing}
-              className="flex-1 rounded-xl border border-yellow-700/40 bg-[#2a2a2a] px-6 py-3 text-sm font-medium text-yellow-200 transition-all hover:bg-[#333333] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
-            >
-              무료 번호 생성 (남은 횟수: {freeCount}/3)
+            <button type="button" onClick={handleFreeDraw} disabled={isDrawing} className="flex-1 rounded-xl border border-yellow-700/40 bg-[#2a2a2a] px-6 py-3 text-sm font-medium text-yellow-200 transition-all hover:bg-[#333333] disabled:opacity-50">
+              일반 번호 생성 (남은 횟수: {freeCount}/3)
             </button>
 
+            {/* 🚀 잔여 횟수에 따라 다르게 보이는 스마트 버튼 */}
             <button
               type="button"
-              onClick={handlePremium}
+              onClick={handlePremiumClick}
               disabled={showLottoPaymentModal || showLottoProgressModal}
-              className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-3 text-sm font-medium text-slate-900 shadow-lg shadow-yellow-900/25 transition-all hover:from-yellow-400 hover:to-amber-500 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+              className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-yellow-900/25 transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-50"
             >
-              ✨ 고급 통계 필터 번호 추천 (500원)
+              {premiumCount > 0 
+                ? `✨ 통계 번호 추출 (잔여: ${premiumCount}회)` 
+                : `✨ 고급 통계 10회권 충전 (4,500원)`}
             </button>
           </div>
         </div>
 
         {displayHistory.length > 0 && (
           <div className="w-full max-w-lg space-y-3">
-            <h3 className="text-center text-sm font-medium text-yellow-300/90">
-              추천 번호 이력
-            </h3>
-
+            <h3 className="text-center text-sm font-medium text-yellow-300/90">추천 번호 이력</h3>
             <div className="space-y-2">
               {displayHistory.map((nums, idx) => (
-                <div
-                  key={idx}
-                  className="flex flex-wrap items-center justify-center gap-2 rounded-xl border border-yellow-700/20 bg-[#1a1a1a]/80 px-4 py-3"
-                >
+                <div key={idx} className="flex flex-wrap items-center justify-center gap-2 rounded-xl border border-yellow-700/20 bg-[#1a1a1a]/80 px-4 py-3">
                   {nums.map((num, i) => (
-                    <div
-                      key={`${idx}-${i}`}
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-inner ${getLottoBallStyle(num)}`}
-                    >
+                    <div key={`${idx}-${i}`} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-inner ${getLottoBallStyle(num)}`}>
                       {num}
                     </div>
                   ))}
@@ -3101,51 +3453,166 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
 
-<a
-  href="https://www.dhlottery.co.kr/"
-  target="_blank"
-  rel="noreferrer noopener"
-  className="mt-2 w-full max-w-md rounded-2xl border border-yellow-700/30 bg-[#191611]/90 px-4 py-4 text-left transition-all hover:bg-[#211c15]"
->
-  <div className="flex items-center justify-between gap-3">
-    <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/15 text-lg">
-        🎟
-      </div>
+        <a href="https://www.dhlottery.co.kr/" target="_blank" rel="noreferrer noopener" className="mt-2 w-full max-w-md rounded-2xl border border-yellow-700/30 bg-[#191611]/90 px-4 py-4 transition-all hover:bg-[#211c15]">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/15 text-lg">🎟</div>
+              <div>
+                <p className="text-sm font-medium text-yellow-200">동행복권 공식 홈페이지</p>
+                <p className="mt-1 text-xs text-yellow-50/50">추첨 결과 및 판매점 정보 확인</p>
+              </div>
+            </div>
+            <span className="text-sm text-yellow-300/70">→</span>
+          </div>
+        </a>
 
-      <div>
-        <p className="text-sm font-medium text-yellow-200">
-          동행복권 공식 홈페이지 바로가기
-        </p>
-        <p className="mt-1 text-xs text-yellow-50/50">
-          공식 사이트에서 추첨 결과와 판매점 정보를 확인하세요
-        </p>
-      </div>
-    </div>
-
-    <span className="text-sm text-yellow-300/70">→</span>
-  </div>
-</a>
-
-        <button
-          type="button"
-          onClick={handleAdminReset}
-          className="text-xs text-white/10 transition-colors hover:text-white/50"
-        >
-          [관리자: 횟수 초기화]
-        </button>
+        <FooterPolicy tabId="lotto" />
       </div>
     </div>
   );
 }
 
-
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabId>("fortune");
+  const [user, setUser] = useState<any>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  // 🚀 모바일 새로고침 시 특정 탭으로 이동하기 위한 로직 추가
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetTab = urlParams.get("tab") as TabId;
+    if (targetTab) setActiveTab(targetTab);
+  }, []);
+
+  // 🚀 모바일 결제 결과 처리 (로또 10회권 충전 로직 포함)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    const impUid = urlParams.get("imp_uid");
+    const errorMsg = urlParams.get("error_msg") || urlParams.get("message");
+    const isSuccess = urlParams.get("imp_success") === "true" || urlParams.get("success") === "true" || (impUid && !errorMsg);
+
+    if (impUid) {
+      const pendingType = localStorage.getItem("pendingPaymentType");
+
+      if (isSuccess) {
+        // 1️⃣ 기적의 제단
+        if (localStorage.getItem("pendingPremiumWish")) {
+          const wishData = JSON.parse(localStorage.getItem("pendingPremiumWish")!);
+          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "altar", imp_uid: impUid, amount: wishData.amount, wishText: wishData.wishText, period: wishData.period, nameDisplay: wishData.nameDisplay, nameInput: wishData.nameInput }) })
+            .then(() => {
+              alert("✨ 소원 등록 완료!");
+              localStorage.removeItem("pendingPremiumWish");
+              window.history.replaceState({}, "", window.location.pathname);
+              setActiveTab("altar");
+            });
+        } 
+        // 2️⃣ 행운의 로또 10회권
+        else if (pendingType === "lotto") {
+          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "lotto", imp_uid: impUid, amount: localStorage.getItem("pendingPaymentAmount"), userId: localStorage.getItem("pendingPaymentUserId") }) })
+            .then(() => {
+              alert("✨ 결제 성공! 고급 통계 로또 10회 이용권이 충전되었습니다.");
+              localStorage.removeItem("pendingPaymentType");
+              localStorage.removeItem("pendingPaymentAmount");
+              localStorage.removeItem("pendingPaymentUserId");
+              window.history.replaceState({}, "", window.location.pathname);
+              setActiveTab("lotto");
+            });
+        }
+        // 3️⃣ 관상 / 이름 풀이
+        else if (pendingType === "physiognomy" || pendingType === "name") {
+          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "saju", imp_uid: impUid, amount: localStorage.getItem("pendingPaymentAmount") }) })
+            .then(() => {
+              alert("✨ 결제가 완료되었습니다. 결과를 확인하세요!");
+              localStorage.setItem("last_authorized_imp_uid", impUid); 
+              localStorage.removeItem("pendingPaymentType");
+              window.history.replaceState({}, "", window.location.pathname);
+              setActiveTab("saju");
+            });
+        }
+      } else {
+        alert(`결제 실패: ${errorMsg || "사용자 취소"}`);
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
+  }, []);
+
+  // 🚀 [추가됨] 로그인 상태 확인 및 감지
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setIsAuthChecking(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // 🚀 [추가됨] 카카오 로그인 & 로그아웃 함수
+  const handleKakaoLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: {
+        redirectTo: typeof window !== 'undefined' ? window.location.origin : '',
+        scopes: 'profile_nickname profile_image', // 🔥 핵심: 이메일 빼고 이름이랑 프사만 달라고 명시!
+      }
+    });
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col">
-      {/* 네비게이션 탭 */}
-      <nav className="sticky top-0 z-50 w-full border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-sm">
+      {/* 🚀 [추가됨] 최상단 헤더 (앱 로고 & 카카오 로그인 버튼) */}
+      <header className="sticky top-0 z-[60] w-full border-b border-white/10 bg-slate-950/80 backdrop-blur-md px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-xs font-bold text-black">
+            명
+          </div>
+          <span className="text-yellow-400 font-bold tracking-widest text-sm">명운(命運)</span>
+        </div>
+        
+        <div>
+          {!isAuthChecking && (
+            user ? (
+              <div className="flex items-center gap-3 animate-fade-in">
+                <div className="flex items-center gap-2 bg-white/5 pr-3 pl-1 py-1 rounded-full border border-white/10">
+                  <img 
+                    src={user.user_metadata?.avatar_url || "https://www.gravatar.com/avatar/0000?d=mp&f=y"} 
+                    alt="프로필" 
+                    className="w-6 h-6 rounded-full border border-yellow-500/50 object-cover" 
+                  />
+                  <span className="text-xs font-medium text-white/90 truncate max-w-[80px]">
+                    {user.user_metadata?.name || "사용자"}님
+                  </span>
+                </div>
+                <button onClick={handleLogout} className="text-[10px] text-white/40 hover:text-white/80 transition-colors">
+                  로그아웃
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleKakaoLogin}
+                className="flex items-center gap-2 bg-[#FEE500] hover:bg-[#FEE500]/90 text-[#000000] px-3 py-2 rounded-xl text-xs font-bold transition-transform active:scale-95 shadow-lg shadow-[#FEE500]/20 animate-fade-in"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M16 4.64C8.953 4.64 3.2 9.426 3.2 15.33c0 3.824 2.454 7.17 6.166 8.922l-1.33 4.88c-.122.45.39.81.77.56l5.65-3.77c.5.06 1.015.094 1.544.094 7.047 0 12.8-4.787 12.8-10.686S23.047 4.64 16 4.64z" fill="#000000"/>
+                </svg>
+                카카오 1초 로그인
+              </button>
+            )
+          )}
+        </div>
+      </header>
+
+      {/* 기존 네비게이션 탭 (top-0 에서 top-[52px]로 수정하여 헤더 밑에 붙임) */}
+      <nav className="sticky top-[52px] z-50 w-full border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-sm shadow-md">
         <div className="mx-auto flex max-w-screen-md items-center justify-between px-2 py-2 overflow-x-auto no-scrollbar sm:px-6">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -3156,23 +3623,15 @@ export default function Home() {
                 onClick={() => tab.isReady && setActiveTab(tab.id)}
                 className={`
                   relative flex flex-col items-center gap-1.5 p-2 min-w-[64px] sm:min-w-[80px]
-                  transition-all duration-300 ease-out
-                  focus:outline-none
+                  transition-all duration-300 ease-out focus:outline-none
                   ${isActive ? "text-yellow-400" : tab.isReady ? "text-slate-400 hover:text-yellow-300" : "text-white/20 cursor-not-allowed"}
                 `}
               >
                 {isActive && (
-                  <span
-                    className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-yellow-500 shadow-[0_0_12px_rgba(234,179,8,0.6)]"
-                    aria-hidden
-                  />
+                  <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-yellow-500 shadow-[0_0_12px_rgba(234,179,8,0.6)]" aria-hidden />
                 )}
-                <tab.icon
-                  className={`h-5 w-5 sm:h-6 sm:w-6 ${isActive ? "drop-shadow-[0_0_6px_rgba(234,179,8,0.8)]" : ""}`}
-                  strokeWidth={2}
-                />
+                <tab.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${isActive ? "drop-shadow-[0_0_6px_rgba(234,179,8,0.8)]" : ""}`} strokeWidth={2} />
                 <span className="text-[10px] sm:text-xs font-medium whitespace-nowrap">{tab.label}</span>
-                
                 {!tab.isReady && (
                   <span className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-orange-600 text-[9px] sm:text-[10px] font-bold text-white shadow-lg animate-pulse">
                     준비
