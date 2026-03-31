@@ -1558,60 +1558,49 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     return `[✨ 익명 님의 ${periodLabel} 기원]`;
   };
   
-  // 🚀 프리미엄 결제창 띄우기 함수 (운영자 프리패스 적용)
+  // 🚀 프리미엄 결제창 띄우기 함수 (포트원 검증 무시 + 완벽 프리패스 적용)
   const handlePremiumConfirm = () => {
     if (!premiumWishText.trim()) return;
 
     if (typeof window !== "undefined") {
       const amount = premiumPeriod === "24h" ? 1900 : 6900;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-      // 🚀 1. 운영자 절대 프리패스 (결제 모듈 생략하고 즉시 DB 저장!)
+      // 🚀 1. 운영자 절대 프리패스 (가짜 결제 ID 안 쓰고, 바로 DB에 직행!)
       if (localStorage.getItem("MASTER_ADMIN") === "true") {
         alert("✨ [운영자 프리패스] 결제 없이 즉시 프리미엄 소원을 제단에 올립니다!");
         
-        fetch("/api/payments/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            paymentType: "altar",
-            imp_uid: `admin_bypass_${Date.now()}`, // 가짜 결제 ID 생성
-            merchant_uid: `mid_admin_${Date.now()}`,
-            amount: amount,
-            wishText: premiumWishText,
-            period: premiumPeriod,
-            nameDisplay: premiumNameDisplay,
-            nameInput: premiumNameInput,
-          }),
-        }).then(async (res) => {
-          const data = await res.json();
-          if (data.success) {
+        // 💡 백엔드 결제 검증 API를 건너뛰고 프론트에서 즉시 DB 저장
+        supabase.from("wishes").insert({
+          content: premiumWishText,
+          duration: premiumPeriod,
+          display_mode: premiumNameDisplay,
+          display_name: premiumNameInput
+        }).then(({ error }) => {
+          if (error) {
+            alert("🚨 제단 등록 실패: " + error.message);
+          } else {
+            alert("✨ 제단에 소원이 성공적으로 올라갔습니다!");
             setShowPremiumModal(false);
             setPremiumWishText("");
             setPremiumNameInput("");
             if (typeof fetchWishes === 'function') fetchWishes(); 
-          } else {
-            alert(`🚨 등록 실패: ${data.message}`);
           }
-        }).catch(() => {
-          alert("서버 오류가 발생했습니다.");
         });
         
-        return; // 💡 여기서 함수를 종료시켜 아래의 실제 결제 로직으로 넘어가지 않게 막음
+        return; // 일반 결제 로직으로 넘어가지 않게 완벽 차단!
       }
 
-      // 2. 일반 유저 실제 결제 로직
+      // 2. 일반 유저 결제 로직 시작
       const IMP = (window as any).IMP;
       if (!IMP) {
         alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!");
         return;
       }
 
-      IMP.init("imp61375123");
-
-      const amount = premiumPeriod === "24h" ? 1900 : 6900;
+      IMP.init("imp61375123"); 
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
+      
       const payData: any = {
         pg: "tosspayments", 
         pay_method: "card",
@@ -1620,13 +1609,11 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         amount: amount,
         buyer_email: "test@ymstudio.co.kr", 
         buyer_name: "명운 사용자",
-        app_scheme: "myungun", // 모바일 앱 복귀용 스킴
+        app_scheme: "myungun", 
       };
 
       if (isMobile) {
         payData.m_redirect_url = window.location.href;
-        
-        // 🚀 모바일을 위해 결제하러 가기 전, 작성한 소원을 브라우저 창고에 임시 저장!
         localStorage.setItem("pendingPremiumWish", JSON.stringify({
           wishText: premiumWishText,
           period: premiumPeriod,
@@ -1637,10 +1624,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       }
 
       IMP.request_pay(payData, async function (rsp: any) {
-        
-        // 💡 핵심: rsp.success가 false나 undefined라도, imp_uid가 있고 error_msg가 없으면 결제 성공!
         const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
-
         if (isSuccess) {
           try {
             const verifyRes = await fetch("/api/payments/verify", {
@@ -1658,7 +1642,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
             });
 
             const verifyData = await verifyRes.json();
-
             if (verifyRes.ok && verifyData.success) {
               alert("✨ 결제가 성공적으로 완료되었으며 제단에 소원이 올라갔습니다!");
               setShowPremiumModal(false);
@@ -1669,20 +1652,13 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
               alert(`🚨 결제 검증 실패: ${verifyData.message}`);
             }
           } catch (error) {
-            console.error("결제 검증 오류:", error);
-            alert("✨ 결제는 성공했습니다!\n(다만 현재 서버 검증 API가 만들어지지 않아 화면에 아직 반영되지 않습니다. 곧 연동됩니다!)");
+            alert("✨ 결제는 성공했습니다!\n(다만 현재 서버 오류로 화면 반영 지연 중)");
             setShowPremiumModal(false);
           }
         } else {
-          console.warn("결제 실패/취소 상세:", rsp);
-          const rawError = JSON.stringify(rsp, null, 2);
           const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
-          
-          if (isUserCancel && !isMobile) {
-            alert(`결제가 취소되었습니다.\n💡 스마트폰에서 결제 승인 후, 반드시 PC 화면 결제창의 [결제 완료] 버튼을 누르거나 창이 스스로 닫힐 때까지 기다려주세요!`);
-          } else {
-            alert(`결제 실패:\n${rsp.error_msg || "알 수 없는 오류"}\n상세 데이터:\n${rawError}`);
-          }
+          if (isUserCancel && !isMobile) alert(`결제가 취소되었습니다.\n💡 스마트폰에서 승인 후, PC 화면 결제창의 [결제 완료]를 꼭 눌러주세요!`);
+          else alert(`결제 실패:\n${rsp.error_msg}`);
         }
       });
     }
