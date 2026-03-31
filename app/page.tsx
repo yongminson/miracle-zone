@@ -496,7 +496,13 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
 
   const handlePremiumConfirm = async () => {
     setShowPremiumModal(false);
-    alert("결제 모듈은 연동 예정입니다. (테스트 렌더링)");
+    
+    // 🚀 운영자 프리패스 체크
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      alert("✨ [운영자 프리패스] 광고 없이 즉시 전문가 리포트를 생성합니다!");
+    } else {
+      alert("결제 모듈은 연동 예정입니다. (테스트 렌더링)");
+    }
   
     setIsLoading(true);
     setIsPremiumLoading(true);
@@ -2085,6 +2091,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
   const handleFacePremium = () => {
     if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      alert("✨ [운영자 프리패스] 결제 없이 즉시 심층 관상 리포트를 확인합니다!");
       setIsPhysiognomyPremiumUnlocked(true);
     } else {
       setShowPhysiognomyPaymentModal(true);
@@ -2319,6 +2326,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
   const handleNamePremium = () => {
     if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      alert("✨ [운영자 프리패스] 결제 없이 즉시 심층 이름 풀이 리포트를 확인합니다!");
       setIsNamePremiumUnlocked(true);
     } else {
       setShowNamePaymentModal(true);
@@ -2622,7 +2630,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent rounded-xl">
                         <p className="text-white font-bold mb-4 drop-shadow-md">전문가 수준의 10가지 심층 풀이가 준비되었습니다.</p>
                         <button 
-                          onClick={(e) => { e.preventDefault(); setShowPhysiognomyPaymentModal(true); }}
+                          onClick={(e) => { e.preventDefault(); handleFacePremium(); }}
                           className="animate-bounce px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-extrabold rounded-full shadow-[0_0_20px_rgba(234,179,8,0.5)]"
                         >
                           🔒 프리미엄 심층 분석 열기
