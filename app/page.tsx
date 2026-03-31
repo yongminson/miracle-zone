@@ -3314,21 +3314,26 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
   // 🚀 버튼 클릭 컨트롤러 (잔여 횟수가 있으면 바로 생성, 없으면 결제창)
   const handlePremiumClick = () => {
     if (isDrawing) return;
+
+    // 1️⃣ 운영자 절대 프리패스 (로그인 무시, 결제 무시하고 즉시 추출!)
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      alert("✨ [운영자 프리패스] 결제 없이 즉시 고급 통계 번호를 추출합니다!");
+      executeLottoDraw(false); // 💡 결제 함수 대신 즉시 실행 함수 호출
+      return;
+    }
+
+    // 2️⃣ 일반 유저 로직
     if (!user) {
       alert("이용권 충전 및 저장을 위해 우측 상단의 카카오 로그인을 먼저 진행해주세요!");
       return;
     }
     
     if (premiumCount > 0) {
-      // 횟수가 남았으니 바로 차감하고 생성!
+      // 횟수가 남았으니 1회 차감하고 생성!
       executeLottoDraw(true);
     } else {
       // 횟수가 없으면 결제 모달 띄우기
-      if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
-        handleLottoPaymentConfirm();
-      } else {
-        setShowLottoPaymentModal(true);
-      }
+      setShowLottoPaymentModal(true);
     }
   };
 
