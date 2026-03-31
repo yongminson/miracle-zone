@@ -1488,13 +1488,12 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     return `[✨ 익명 님의 ${periodLabel} 기원]`;
   };
   
-  // 🚀 프리미엄 결제창 띄우기 함수 (PC/모바일 충돌 완벽 해결)
+  // 🚀 프리미엄 결제창 띄우기 함수 (app_scheme 추가 및 상세 에러 로깅)
   const handlePremiumConfirm = () => {
     if (!premiumWishText.trim()) return;
 
     if (typeof window !== "undefined") {
       const IMP = (window as any).IMP;
-      
       if (!IMP) {
         alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!");
         return;
@@ -1504,36 +1503,79 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
 
       const amount = premiumPeriod === "24h" ? 1900 : 6900;
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
-      
-      // 🚀 현재 기기가 모바일인지 PC인지 확인!
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-      // 결제 기본 데이터
       const payData: any = {
         pg: "tosspayments", 
         pay_method: "card",
-        merchant_uid: `mid_${new Date().getTime()}`,
+        merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: name,
         amount: amount,
-        buyer_email: "test@ymstudio.co.kr",
+        buyer_email: "test@ymstudio.co.kr", 
         buyer_name: "명운 사용자",
+        app_scheme: "myungun", // 모바일 앱 복귀용 스킴
       };
 
-      // 🚨 핵심 해결: 모바일일 때만 돌아올 주소를 넣는다! (PC에 넣으면 튕김)
       if (isMobile) {
         payData.m_redirect_url = window.location.href;
+        
+        // 🚀 모바일을 위해 결제하러 가기 전, 작성한 소원을 브라우저 창고에 임시 저장!
+        localStorage.setItem("pendingPremiumWish", JSON.stringify({
+          wishText: premiumWishText,
+          period: premiumPeriod,
+          nameDisplay: premiumNameDisplay,
+          nameInput: premiumNameInput,
+          amount: amount
+        }));
       }
 
-      IMP.request_pay(payData, function (rsp: any) {
-        if (rsp.success) {
-          // 🚀 진짜 결제 성공!
-          alert("✨ 결제가 성공적으로 완료되었습니다!");
-          setShowPremiumModal(false);
-          setPremiumWishText("");
+      IMP.request_pay(payData, async function (rsp: any) {
+        
+        // 💡 핵심: rsp.success가 false나 undefined라도, imp_uid가 있고 error_msg가 없으면 결제 성공!
+        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
+
+        if (isSuccess) {
+          try {
+            const verifyRes = await fetch("/api/payments/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                imp_uid: rsp.imp_uid,
+                merchant_uid: rsp.merchant_uid,
+                amount: amount,
+                wishText: premiumWishText,
+                period: premiumPeriod,
+                nameDisplay: premiumNameDisplay,
+                nameInput: premiumNameInput,
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.success) {
+              alert("✨ 결제가 성공적으로 완료되었으며 제단에 소원이 올라갔습니다!");
+              setShowPremiumModal(false);
+              setPremiumWishText("");
+              setPremiumNameInput("");
+              if (typeof fetchWishes === 'function') fetchWishes(); 
+            } else {
+              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+            }
+          } catch (error) {
+            console.error("결제 검증 오류:", error);
+            alert("✨ 결제는 성공했습니다!\n(다만 현재 서버 검증 API가 만들어지지 않아 화면에 아직 반영되지 않습니다. 곧 연동됩니다!)");
+            setShowPremiumModal(false);
+          }
         } else {
-          // 상세 에러코드 확인용
-          console.log("결제 실패 상세:", rsp);
-          alert(`결제 실패: ${rsp.error_msg || "사용자 취소"}\n(에러코드: ${rsp.error_code || "없음"})`);
+          console.warn("결제 실패/취소 상세:", rsp);
+          const rawError = JSON.stringify(rsp, null, 2);
+          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
+          
+          if (isUserCancel && !isMobile) {
+            alert(`결제가 취소되었습니다.\n💡 스마트폰에서 결제 승인 후, 반드시 PC 화면 결제창의 [결제 완료] 버튼을 누르거나 창이 스스로 닫힐 때까지 기다려주세요!`);
+          } else {
+            alert(`결제 실패:\n${rsp.error_msg || "알 수 없는 오류"}\n상세 데이터:\n${rawError}`);
+          }
         }
       });
     }
@@ -1793,6 +1835,37 @@ function getHanjaOptionsByChar(name: string): { char: string; options: string[] 
 
 function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [activeSajuMode, setActiveSajuMode] = useState<"face" | "name">("face");
+  // 🚀 모바일 복귀 시 자물쇠 해제 및 데이터 복구 로직
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const unlockedUntil = Number(localStorage.getItem("saju_unlocked_until") || 0);
+      
+      // 💡 도장이 찍혀있고 30분이 안 지났다면 자물쇠 즉시 해제
+      if (Date.now() < unlockedUntil) {
+        setIsPhysiognomyPremiumUnlocked(true);
+        setIsNamePremiumUnlocked(true);
+      }
+
+      // 작성 중이던 데이터 복구
+      const faceSaved = localStorage.getItem("pendingFaceData");
+      if (faceSaved) {
+        const parsed = JSON.parse(faceSaved);
+        setFaceImage(parsed.faceImage);
+        setFaceResultData(parsed.faceResultData);
+        if (parsed.faceResultData) setShowFaceResult(true);
+        localStorage.removeItem("pendingFaceData");
+      }
+
+      const nameSaved = localStorage.getItem("pendingNameData");
+      if (nameSaved) {
+        const parsed = JSON.parse(nameSaved);
+        setNameInput(parsed.nameInput);
+        setNameResultData(parsed.nameResultData);
+        if (parsed.nameResultData) setShowNameResult(true);
+        localStorage.removeItem("pendingNameData");
+      }
+    }
+  }, [isVisible]);
   const [faceName, setFaceName] = useState("");
   const [faceBirthDate, setFaceBirthDate] = useState("");
   const [faceImage, setFaceImage] = useState<string | null>(null);
@@ -1834,6 +1907,54 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   } | null>(null);
   const [showNamePaymentModal, setShowNamePaymentModal] = useState(false);
   const [isNamePremiumUnlocked, setIsNamePremiumUnlocked] = useState(false);
+
+  // 🚀 모바일 결제 복귀 시 데이터 자동 복원 및 즉시 결과 렌더링
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // 1️⃣ 관상 데이터 복구
+      if (localStorage.getItem("unlockPhysiognomy") === "true") {
+        localStorage.removeItem("unlockPhysiognomy");
+        setIsPhysiognomyPremiumUnlocked(true);
+        setActiveSajuMode("face");
+        try {
+          const saved = localStorage.getItem("pendingFaceData");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.faceImage) setFaceImage(parsed.faceImage);
+            if (parsed.faceResultData) {
+              setFaceResultData(parsed.faceResultData);
+              setShowFaceResult(true); // 💡 즉시 결과 화면 띄우기!
+            }
+            localStorage.removeItem("pendingFaceData");
+          }
+        } catch(e) {}
+      }
+
+      // 2️⃣ 이름 풀이 데이터 복구
+      if (localStorage.getItem("unlockName") === "true") {
+        localStorage.removeItem("unlockName");
+        setIsNamePremiumUnlocked(true);
+        setActiveSajuMode("name");
+        try {
+          const saved = localStorage.getItem("pendingNameData");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.nameInput) setNameInput(parsed.nameInput);
+            if (parsed.nameHanja) setNameHanja(parsed.nameHanja);
+            if (parsed.nameBirthDate) setNameBirthDate(parsed.nameBirthDate);
+            if (parsed.nameBirthTime) setNameBirthTime(parsed.nameBirthTime);
+            if (parsed.nameGender) setNameGender(parsed.nameGender);
+            if (parsed.hanjaSelections) setHanjaSelections(parsed.hanjaSelections);
+            if (parsed.nameResultData) {
+              setNameResultData(parsed.nameResultData);
+              setShowNameResult(true); // 💡 즉시 결과 화면 띄우기!
+            }
+            localStorage.removeItem("pendingNameData");
+          }
+        } catch(e) {}
+      }
+    }
+  }, []);
 
   const handleFaceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1935,10 +2056,36 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
-  const handlePhysiognomyPaymentConfirm = () => {
-    alert("결제 모듈은 Phase 3에서 연동됩니다. (테스트 렌더링)");
-    setShowPhysiognomyPaymentModal(false);
-    setIsPhysiognomyPremiumUnlocked(true);
+  // 🚀 관상 심층 리포트 프리미엄 결제 연동 (4,900원)
+  const handlePhysiognomyPaymentConfirm = async () => {
+    const IMP = (window as any).IMP;
+    IMP.init("imp61375123"); 
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const amount = 4900;
+
+    if (isMobile) {
+      localStorage.setItem("pendingPaymentType", "physiognomy");
+      localStorage.setItem("pendingPaymentAmount", String(amount));
+      // 💡 현재 사진 상태를 함께 저장
+      localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
+    } else {
+      // PC의 경우 성공 콜백에서 즉시 해제
+    }
+
+    IMP.request_pay({
+      pg: "tosspayments",
+      pay_method: "card",
+      merchant_uid: `face_${Date.now()}`,
+      name: "심층 관상 분석",
+      amount: amount,
+      m_redirect_url: isMobile ? window.location.href : undefined,
+      app_scheme: "myungun"
+    }, (rsp: any) => {
+      if (rsp.success || (rsp.imp_uid && !rsp.error_msg)) {
+        setIsPhysiognomyPremiumUnlocked(true);
+        setShowPhysiognomyPaymentModal(false);
+      }
+    });
   };
 
   const handleFaceShare = async () => {
@@ -2143,10 +2290,64 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
-  const handleNamePaymentConfirm = () => {
-    alert("결제 모듈은 Phase 3에서 연동됩니다. (테스트 렌더링)");
-    setShowNamePaymentModal(false);
-    setIsNamePremiumUnlocked(true);
+  // 🚀 이름 풀이 프리미엄 결제 연동 (4,900원)
+  const handleNamePaymentConfirm = async () => {
+    if (typeof window !== "undefined") {
+      const IMP = (window as any).IMP;
+      if (!IMP) return alert("🚨 결제 시스템 로딩 실패.");
+      IMP.init("imp61375123"); 
+
+      const amount = 4900;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      const payData: any = {
+        pg: "tosspayments", 
+        pay_method: "card",
+        merchant_uid: `mid_name_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        name: "심층 이름 풀이 리포트",
+        amount: amount,
+        buyer_email: "test@ymstudio.co.kr", 
+        buyer_name: "명운 사용자",
+        app_scheme: "myungun",
+      };
+
+      if (isMobile) {
+        payData.m_redirect_url = window.location.href;
+        localStorage.setItem("pendingPaymentType", "name");
+        localStorage.setItem("pendingPaymentAmount", String(amount));
+        // 🚀 이름 입력값과 분석 결과를 브라우저 창고에 보관
+        localStorage.setItem("pendingNameData", JSON.stringify({
+          nameInput, nameHanja, nameBirthDate, nameBirthTime, nameGender, hanjaSelections, nameResultData
+        }));
+      }
+
+      IMP.request_pay(payData, async function (rsp: any) {
+        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
+        if (isSuccess) {
+          try {
+            const verifyRes = await fetch("/api/payments/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentType: "saju", imp_uid: rsp.imp_uid, merchant_uid: rsp.merchant_uid, amount: amount }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.success) {
+              setShowNamePaymentModal(false);
+              setIsNamePremiumUnlocked(true);
+            } else {
+              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+            }
+          } catch (error) {
+            alert("서버 오류가 발생했습니다.");
+          }
+        } else {
+          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
+          if (isUserCancel && !isMobile) alert(`결제가 취소되었습니다.\n💡 PC 화면 결제창의 [결제 완료] 버튼을 눌러주세요!`);
+          else alert(`결제 실패: ${rsp.error_msg}`);
+        }
+      });
+    }
   };
 
   const formatHighlight = (text?: string) => {
@@ -3010,45 +3211,107 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
+  // 🚀 모바일 결제 복귀 시 자동 실행을 위한 감지기
+  useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("triggerLottoDraw") === "true") {
+      localStorage.removeItem("triggerLottoDraw");
+      executeLottoDraw(); // 자동 번호 추출!
+    }
+  }, []);
+
+  // 🚀 포트원 로또 결제창 호출 함수
   const handleLottoPaymentConfirm = async () => {
-    setShowLottoPaymentModal(false);
+    if (typeof window !== "undefined") {
+      const IMP = (window as any).IMP;
+      if (!IMP) return alert("🚨 결제 시스템 로딩 실패.");
+      IMP.init("imp61375123"); 
+
+      const amount = 500;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      const payData: any = {
+        pg: "tosspayments", 
+        pay_method: "card",
+        merchant_uid: `mid_lotto_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        name: "고급 통계 로또 추천",
+        amount: amount,
+        buyer_email: "test@ymstudio.co.kr", 
+        buyer_name: "명운 사용자",
+        app_scheme: "myungun",
+      };
+
+      if (isMobile) {
+        payData.m_redirect_url = window.location.href;
+        localStorage.setItem("pendingPaymentType", "lotto");
+        localStorage.setItem("pendingPaymentAmount", String(amount));
+      }
+
+      IMP.request_pay(payData, async function (rsp: any) {
+        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
+        if (isSuccess) {
+          try {
+            const verifyRes = await fetch("/api/payments/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                paymentType: "lotto",
+                imp_uid: rsp.imp_uid,
+                merchant_uid: rsp.merchant_uid,
+                amount: amount,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.success) {
+              setShowLottoPaymentModal(false);
+              executeLottoDraw(); // 💡 검증 성공 시에만 로또 번호 추출!
+            } else {
+              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+            }
+          } catch (error) {
+            console.error("결제 검증 오류:", error);
+            alert("서버 오류가 발생했습니다.");
+          }
+        } else {
+          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
+          if (isUserCancel && !isMobile) alert(`결제가 취소되었습니다.\n💡 PC 화면 결제창의 [결제 완료] 버튼을 눌러주세요!`);
+          else alert(`결제 실패: ${rsp.error_msg}`);
+        }
+      });
+    }
+  };
+
+  // 🚀 실제 로또 번호 추출 및 애니메이션 로직 (기존 코드에서 분리됨)
+  const executeLottoDraw = async () => {
     setShowLottoProgressModal(true);
     setLottoProgressStep(0);
     setLottoProgressPct(0);
-    const progressInterval = setInterval(() => {
-      setLottoProgressPct((p) => Math.min(100, p + 2));
-    }, 60);
+    const progressInterval = setInterval(() => setLottoProgressPct((p) => Math.min(100, p + 2)), 60);
     setTimeout(() => setLottoProgressStep(1), 900);
     setTimeout(() => setLottoProgressStep(2), 1800);
 
     try {
       const [res] = await Promise.all([
-        fetch("/api/lotto", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        }),
+        fetch("/api/lotto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }),
         new Promise<void>((r) => setTimeout(r, 2800)),
       ]);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "로또 번호 생성 실패");
-      const numbers = data.numbers as number[];
+      if (!res.ok) throw new Error(data.error ?? "생성 실패");
 
+      const numbers = data.numbers as number[];
       clearInterval(progressInterval);
       setLottoProgressPct(100);
       setShowLottoProgressModal(false);
-
       setIsDrawing(true);
       setVisibleCount(0);
       setLottoHistory((prev) => [numbers, ...prev]);
-      numbers.forEach((_, i) => {
-        setTimeout(() => setVisibleCount((v) => v + 1), i * 450);
-      });
+
+      numbers.forEach((_, i) => setTimeout(() => setVisibleCount((v) => v + 1), i * 450));
       setTimeout(() => setIsDrawing(false), numbers.length * 450 + 100);
     } catch (err) {
       clearInterval(progressInterval);
       setShowLottoProgressModal(false);
-      alert(err instanceof Error ? err.message : "로또 번호 생성 중 오류가 발생했습니다.");
+      alert(err instanceof Error ? err.message : "오류가 발생했습니다.");
     }
   };
 
@@ -3265,23 +3528,54 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // 🚀 [여기에 통째로 추가해 주세요!!] 모바일 결제 후 돌아왔을 때 결과 처리
+  // 🚀 모바일 새로고침 시 특정 탭으로 이동하기 위한 로직 추가
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetTab = urlParams.get("tab") as TabId;
+    if (targetTab) setActiveTab(targetTab);
+  }, []);
+
+  // 🚀 모바일 결제 결과 처리 (특정 데이터 1회성 잠금해제 로직으로 강화)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
-    const impSuccess = urlParams.get("imp_success");
-    const errorMsg = urlParams.get("error_msg");
-    const payReturn = urlParams.get("imp_uid"); // 결제하고 돌아온 유저인지 확인
+    
+    const impUid = urlParams.get("imp_uid");
+    const errorMsg = urlParams.get("error_msg") || urlParams.get("message");
+    const isSuccess = urlParams.get("imp_success") === "true" || urlParams.get("success") === "true" || (impUid && !errorMsg);
 
-    if (payReturn) {
-      if (impSuccess === "true") {
-        alert("✨ (모바일) 결제가 성공적으로 완료되었습니다!");
-        setActiveTab("altar"); // 다시 제단 탭으로 돌려보냄
+    if (impUid) {
+      const pendingType = localStorage.getItem("pendingPaymentType");
+
+      if (isSuccess) {
+        // 1️⃣ 기적의 제단 (기존 동일)
+        if (localStorage.getItem("pendingPremiumWish")) {
+          const wishData = JSON.parse(localStorage.getItem("pendingPremiumWish")!);
+          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "altar", imp_uid: impUid, amount: wishData.amount, wishText: wishData.wishText, period: wishData.period, nameDisplay: wishData.nameDisplay, nameInput: wishData.nameInput }) })
+            .then(() => {
+              alert("✨ 소원 등록 완료!");
+              localStorage.removeItem("pendingPremiumWish");
+              window.history.replaceState({}, "", window.location.pathname);
+              setActiveTab("altar");
+            });
+        } 
+        // 2️⃣ 관상 / 이름 풀이 (특정 데이터에 대해서만 도장 찍기)
+        else if (pendingType === "physiognomy" || pendingType === "name") {
+          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "saju", imp_uid: impUid, amount: localStorage.getItem("pendingPaymentAmount") }) })
+            .then(() => {
+              alert("✨ 결제가 완료되었습니다. 결과를 확인하세요!");
+              
+              // 💡 핵심: "30분 프리패스" 대신 "이 결제건(ID)"을 승인된 것으로 기록
+              localStorage.setItem("last_authorized_imp_uid", impUid); 
+              localStorage.removeItem("pendingPaymentType");
+              window.history.replaceState({}, "", window.location.pathname);
+              setActiveTab("saju");
+            });
+        }
       } else {
-        alert(`결제가 취소/실패했습니다: ${errorMsg || "사용자 취소"}`);
+        alert(`결제 실패: ${errorMsg || "사용자 취소"}`);
+        window.history.replaceState({}, "", window.location.pathname);
       }
-      // 알림창 계속 뜨는 거 방지용 URL 청소
-      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 

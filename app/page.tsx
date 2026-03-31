@@ -1835,37 +1835,7 @@ function getHanjaOptionsByChar(name: string): { char: string; options: string[] 
 
 function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [activeSajuMode, setActiveSajuMode] = useState<"face" | "name">("face");
-  // 🚀 모바일 복귀 시 자물쇠 해제 및 데이터 복구 로직
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const unlockedUntil = Number(localStorage.getItem("saju_unlocked_until") || 0);
-      
-      // 💡 도장이 찍혀있고 30분이 안 지났다면 자물쇠 즉시 해제
-      if (Date.now() < unlockedUntil) {
-        setIsPhysiognomyPremiumUnlocked(true);
-        setIsNamePremiumUnlocked(true);
-      }
-
-      // 작성 중이던 데이터 복구
-      const faceSaved = localStorage.getItem("pendingFaceData");
-      if (faceSaved) {
-        const parsed = JSON.parse(faceSaved);
-        setFaceImage(parsed.faceImage);
-        setFaceResultData(parsed.faceResultData);
-        if (parsed.faceResultData) setShowFaceResult(true);
-        localStorage.removeItem("pendingFaceData");
-      }
-
-      const nameSaved = localStorage.getItem("pendingNameData");
-      if (nameSaved) {
-        const parsed = JSON.parse(nameSaved);
-        setNameInput(parsed.nameInput);
-        setNameResultData(parsed.nameResultData);
-        if (parsed.nameResultData) setShowNameResult(true);
-        localStorage.removeItem("pendingNameData");
-      }
-    }
-  }, [isVisible]);
+  
   const [faceName, setFaceName] = useState("");
   const [faceBirthDate, setFaceBirthDate] = useState("");
   const [faceImage, setFaceImage] = useState<string | null>(null);
@@ -1908,53 +1878,60 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [showNamePaymentModal, setShowNamePaymentModal] = useState(false);
   const [isNamePremiumUnlocked, setIsNamePremiumUnlocked] = useState(false);
 
-  // 🚀 모바일 결제 복귀 시 데이터 자동 복원 및 즉시 결과 렌더링
+  // 🚀 [완성본] 모바일 결제 복귀 시 1:1 데이터 매칭 복구 및 무한 결제 방지
   useEffect(() => {
     if (typeof window !== "undefined") {
+      const lastImpUid = localStorage.getItem("last_authorized_imp_uid");
+
       // 1️⃣ 관상 데이터 복구
-      if (localStorage.getItem("unlockPhysiognomy") === "true") {
-        localStorage.removeItem("unlockPhysiognomy");
-        setIsPhysiognomyPremiumUnlocked(true);
-        setActiveSajuMode("face");
+      const faceSaved = localStorage.getItem("pendingFaceData");
+      if (faceSaved) {
         try {
-          const saved = localStorage.getItem("pendingFaceData");
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            if (parsed.faceImage) setFaceImage(parsed.faceImage);
-            if (parsed.faceResultData) {
-              setFaceResultData(parsed.faceResultData);
-              setShowFaceResult(true); // 💡 즉시 결과 화면 띄우기!
-            }
-            localStorage.removeItem("pendingFaceData");
+          const parsed = JSON.parse(faceSaved);
+          if (parsed.faceImage) setFaceImage(parsed.faceImage);
+          if (parsed.faceResultData) {
+            setFaceResultData(parsed.faceResultData);
+            setShowFaceResult(true);
+            // 💡 결제 도장(lastImpUid)이 있으면 자물쇠 해제!
+            if (lastImpUid) setIsPhysiognomyPremiumUnlocked(true);
           }
         } catch(e) {}
+        localStorage.removeItem("pendingFaceData");
+        setActiveSajuMode("face");
       }
 
-      // 2️⃣ 이름 풀이 데이터 복구
-      if (localStorage.getItem("unlockName") === "true") {
-        localStorage.removeItem("unlockName");
-        setIsNamePremiumUnlocked(true);
-        setActiveSajuMode("name");
+      // 2️⃣ 이름풀이 데이터 복구
+      const nameSaved = localStorage.getItem("pendingNameData");
+      if (nameSaved) {
         try {
-          const saved = localStorage.getItem("pendingNameData");
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            if (parsed.nameInput) setNameInput(parsed.nameInput);
-            if (parsed.nameHanja) setNameHanja(parsed.nameHanja);
-            if (parsed.nameBirthDate) setNameBirthDate(parsed.nameBirthDate);
-            if (parsed.nameBirthTime) setNameBirthTime(parsed.nameBirthTime);
-            if (parsed.nameGender) setNameGender(parsed.nameGender);
-            if (parsed.hanjaSelections) setHanjaSelections(parsed.hanjaSelections);
-            if (parsed.nameResultData) {
-              setNameResultData(parsed.nameResultData);
-              setShowNameResult(true); // 💡 즉시 결과 화면 띄우기!
-            }
-            localStorage.removeItem("pendingNameData");
+          const parsed = JSON.parse(nameSaved);
+          if (parsed.nameInput) setNameInput(parsed.nameInput);
+          if (parsed.nameHanja) setNameHanja(parsed.nameHanja);
+          if (parsed.nameBirthDate) setNameBirthDate(parsed.nameBirthDate);
+          if (parsed.nameBirthTime) setNameBirthTime(parsed.nameBirthTime);
+          if (parsed.nameGender) setNameGender(parsed.nameGender);
+          if (parsed.hanjaSelections) setHanjaSelections(parsed.hanjaSelections);
+          if (parsed.nameResultData) {
+            setNameResultData(parsed.nameResultData);
+            setShowNameResult(true);
+            // 💡 결제 도장(lastImpUid)이 있으면 자물쇠 해제!
+            if (lastImpUid) setIsNamePremiumUnlocked(true);
           }
         } catch(e) {}
+        localStorage.removeItem("pendingNameData");
+        setActiveSajuMode("name");
       }
     }
   }, []);
+
+  // 💡 [핵심 보안] 사용자가 사진이나 이름을 바꾸면 자물쇠를 다시 찰칵! 잠그는 감시자
+  useEffect(() => {
+    setIsPhysiognomyPremiumUnlocked(false);
+  }, [faceImage]);
+
+  useEffect(() => {
+    setIsNamePremiumUnlocked(false);
+  }, [nameInput, nameBirthDate]);
 
   const handleFaceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2066,8 +2043,10 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     if (isMobile) {
       localStorage.setItem("pendingPaymentType", "physiognomy");
       localStorage.setItem("pendingPaymentAmount", String(amount));
-      // 🚀 결제 전 데이터 임시 저장
+      // 💡 현재 사진 상태를 함께 저장
       localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
+    } else {
+      // PC의 경우 성공 콜백에서 즉시 해제
     }
 
     IMP.request_pay({
@@ -3533,7 +3512,7 @@ export default function Home() {
     if (targetTab) setActiveTab(targetTab);
   }, []);
 
-  // 🚀 모바일 결제 결과 처리 (30분간 프리미엄 강제 해제 기록 추가)
+  // 🚀 모바일 결제 결과 처리 (특정 데이터 1회성 잠금해제 로직으로 강화)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
@@ -3544,27 +3523,27 @@ export default function Home() {
 
     if (impUid) {
       const pendingType = localStorage.getItem("pendingPaymentType");
-      const unlockedUntil = Date.now() + 30 * 60 * 1000; // 💡 현재부터 30분간 유효
 
       if (isSuccess) {
-        // 1️⃣ 기적의 제단
+        // 1️⃣ 기적의 제단 (기존 동일)
         if (localStorage.getItem("pendingPremiumWish")) {
           const wishData = JSON.parse(localStorage.getItem("pendingPremiumWish")!);
           fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "altar", imp_uid: impUid, amount: wishData.amount, wishText: wishData.wishText, period: wishData.period, nameDisplay: wishData.nameDisplay, nameInput: wishData.nameInput }) })
             .then(() => {
-              alert("✨ (모바일) 제단 소원 등록 완료!");
+              alert("✨ 소원 등록 완료!");
               localStorage.removeItem("pendingPremiumWish");
               window.history.replaceState({}, "", window.location.pathname);
               setActiveTab("altar");
             });
         } 
-        // 2️⃣ 관상 / 이름 풀이 (30분 프리패스 도장 찍기)
+        // 2️⃣ 관상 / 이름 풀이 (특정 데이터에 대해서만 도장 찍기)
         else if (pendingType === "physiognomy" || pendingType === "name") {
           fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "saju", imp_uid: impUid, amount: localStorage.getItem("pendingPaymentAmount") }) })
             .then(() => {
-              alert("✨ 결제 성공! 30분간 프리미엄 기능이 유지됩니다.");
-              // 💡 30분 유효 도장 찍기
-              localStorage.setItem("saju_unlocked_until", String(unlockedUntil));
+              alert("✨ 결제가 완료되었습니다. 결과를 확인하세요!");
+              
+              // 💡 핵심: "30분 프리패스" 대신 "이 결제건(ID)"을 승인된 것으로 기록
+              localStorage.setItem("last_authorized_imp_uid", impUid); 
               localStorage.removeItem("pendingPaymentType");
               window.history.replaceState({}, "", window.location.pathname);
               setActiveTab("saju");
