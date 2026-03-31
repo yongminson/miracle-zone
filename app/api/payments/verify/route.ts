@@ -9,10 +9,13 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { imp_uid, merchant_uid, amount, wishText, period, nameDisplay, nameInput } = body;
+    const { paymentType, imp_uid, merchant_uid, amount, wishText, period, nameDisplay, nameInput } = body;
 
-    if (!imp_uid || !wishText) {
-      return NextResponse.json({ success: false, message: "필수 데이터가 누락되었습니다." }, { status: 400 });
+    // paymentType이 안 넘어오면 wishText 유무로 제단 결제인지 파악 (하위 호환성)
+    const currentPaymentType = paymentType || (wishText ? "altar" : "unknown");
+
+    if (!imp_uid) {
+      return NextResponse.json({ success: false, message: "필수 데이터(imp_uid)가 누락되었습니다." }, { status: 400 });
     }
 
     /* // 🚀 [보안 필수] 정식 오픈 시 주석을 풀고 포트원 API Key를 .env에 넣어 사용하세요!
@@ -45,17 +48,20 @@ export async function POST(req: Request) {
     }
     */
 
-    // 🚀 Supabase DB 'wishes' 테이블에 프리미엄 소원 저장
-    const { error } = await supabase.from("wishes").insert({
-      content: wishText,
-      duration: period, // '24h' 또는 '10d'
-      display_mode: nameDisplay, // 'anonymous', 'real', 'partial'
-      display_name: nameInput || "",
-    });
-
-    if (error) {
-      console.error("DB Insert Error:", error);
-      return NextResponse.json({ success: false, message: "DB 저장 중 오류가 발생했습니다." }, { status: 500 });
+    // 🚀 결제 타입에 따른 DB 처리 분기
+    if (currentPaymentType === "altar") {
+      const { error } = await supabase.from("wishes").insert({
+        content: wishText,
+        duration: period,
+        display_mode: nameDisplay,
+        display_name: nameInput || "",
+      });
+      if (error) throw error;
+    } else if (currentPaymentType === "lotto") {
+      // 로또는 결제 성공 시 서버에 기록만 남기거나 그냥 패스해도 됩니다.
+      console.log("로또 500원 결제 검증 완료:", imp_uid);
+    } else if (currentPaymentType === "saju") {
+      console.log("관상/사주 결제 검증 완료:", imp_uid);
     }
 
     // 성공 응답! 프론트엔드가 이 응답을 받으면 화면을 새로고침(fetchWishes) 합니다.

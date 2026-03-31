@@ -3052,45 +3052,107 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
+  // 🚀 모바일 결제 복귀 시 자동 실행을 위한 감지기
+  useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("triggerLottoDraw") === "true") {
+      localStorage.removeItem("triggerLottoDraw");
+      executeLottoDraw(); // 자동 번호 추출!
+    }
+  }, []);
+
+  // 🚀 포트원 로또 결제창 호출 함수
   const handleLottoPaymentConfirm = async () => {
-    setShowLottoPaymentModal(false);
+    if (typeof window !== "undefined") {
+      const IMP = (window as any).IMP;
+      if (!IMP) return alert("🚨 결제 시스템 로딩 실패.");
+      IMP.init("imp61375123"); 
+
+      const amount = 500;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      const payData: any = {
+        pg: "tosspayments", 
+        pay_method: "card",
+        merchant_uid: `mid_lotto_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        name: "고급 통계 로또 추천",
+        amount: amount,
+        buyer_email: "test@ymstudio.co.kr", 
+        buyer_name: "명운 사용자",
+        app_scheme: "myungun",
+      };
+
+      if (isMobile) {
+        payData.m_redirect_url = window.location.href;
+        localStorage.setItem("pendingPaymentType", "lotto");
+        localStorage.setItem("pendingPaymentAmount", String(amount));
+      }
+
+      IMP.request_pay(payData, async function (rsp: any) {
+        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
+        if (isSuccess) {
+          try {
+            const verifyRes = await fetch("/api/payments/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                paymentType: "lotto",
+                imp_uid: rsp.imp_uid,
+                merchant_uid: rsp.merchant_uid,
+                amount: amount,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.success) {
+              setShowLottoPaymentModal(false);
+              executeLottoDraw(); // 💡 검증 성공 시에만 로또 번호 추출!
+            } else {
+              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+            }
+          } catch (error) {
+            console.error("결제 검증 오류:", error);
+            alert("서버 오류가 발생했습니다.");
+          }
+        } else {
+          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
+          if (isUserCancel && !isMobile) alert(`결제가 취소되었습니다.\n💡 PC 화면 결제창의 [결제 완료] 버튼을 눌러주세요!`);
+          else alert(`결제 실패: ${rsp.error_msg}`);
+        }
+      });
+    }
+  };
+
+  // 🚀 실제 로또 번호 추출 및 애니메이션 로직 (기존 코드에서 분리됨)
+  const executeLottoDraw = async () => {
     setShowLottoProgressModal(true);
     setLottoProgressStep(0);
     setLottoProgressPct(0);
-    const progressInterval = setInterval(() => {
-      setLottoProgressPct((p) => Math.min(100, p + 2));
-    }, 60);
+    const progressInterval = setInterval(() => setLottoProgressPct((p) => Math.min(100, p + 2)), 60);
     setTimeout(() => setLottoProgressStep(1), 900);
     setTimeout(() => setLottoProgressStep(2), 1800);
 
     try {
       const [res] = await Promise.all([
-        fetch("/api/lotto", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        }),
+        fetch("/api/lotto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) }),
         new Promise<void>((r) => setTimeout(r, 2800)),
       ]);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "로또 번호 생성 실패");
-      const numbers = data.numbers as number[];
+      if (!res.ok) throw new Error(data.error ?? "생성 실패");
 
+      const numbers = data.numbers as number[];
       clearInterval(progressInterval);
       setLottoProgressPct(100);
       setShowLottoProgressModal(false);
-
       setIsDrawing(true);
       setVisibleCount(0);
       setLottoHistory((prev) => [numbers, ...prev]);
-      numbers.forEach((_, i) => {
-        setTimeout(() => setVisibleCount((v) => v + 1), i * 450);
-      });
+
+      numbers.forEach((_, i) => setTimeout(() => setVisibleCount((v) => v + 1), i * 450));
       setTimeout(() => setIsDrawing(false), numbers.length * 450 + 100);
     } catch (err) {
       clearInterval(progressInterval);
       setShowLottoProgressModal(false);
-      alert(err instanceof Error ? err.message : "로또 번호 생성 중 오류가 발생했습니다.");
+      alert(err instanceof Error ? err.message : "오류가 발생했습니다.");
     }
   };
 
@@ -3307,61 +3369,56 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // 🚀 모바일 결제 후 돌아왔을 때 결과 처리 (임시 저장소에서 꺼내서 서버 검증 후 DB 저장)
+  // 🚀 모바일 새로고침 시 특정 탭으로 이동하기 위한 로직 추가
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetTab = urlParams.get("tab") as TabId;
+    if (targetTab) setActiveTab(targetTab);
+  }, []);
+
+  // 🚀 모바일 결제 후 돌아왔을 때 결과 처리 (제단 & 로또 멀티 지원)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
     
     const impUid = urlParams.get("imp_uid");
     const errorMsg = urlParams.get("error_msg") || urlParams.get("message");
-    const isSuccess = urlParams.get("imp_success") === "true" || 
-                      urlParams.get("success") === "true" || 
-                      (impUid && !errorMsg);
+    const isSuccess = urlParams.get("imp_success") === "true" || urlParams.get("success") === "true" || (impUid && !errorMsg);
 
     if (impUid) {
       if (isSuccess) {
-        // 🚀 브라우저 창고에서 아까 적어둔 소원 데이터 꺼내기
-        const pending = localStorage.getItem("pendingPremiumWish");
-        
-        if (pending) {
-          const wishData = JSON.parse(pending);
-          
-          // API를 찔러서 DB에 소원 저장
+        const pendingAltar = localStorage.getItem("pendingPremiumWish");
+        const pendingType = localStorage.getItem("pendingPaymentType");
+
+        // 1️⃣ 기적의 제단 결제인 경우
+        if (pendingAltar) {
+          const wishData = JSON.parse(pendingAltar);
           fetch("/api/payments/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              imp_uid: impUid,
-              merchant_uid: urlParams.get("merchant_uid") || `mid_mobile_${Date.now()}`,
-              amount: wishData.amount,
-              wishText: wishData.wishText,
-              period: wishData.period,
-              nameDisplay: wishData.nameDisplay,
-              nameInput: wishData.nameInput,
-            }),
-          })
-          .then(res => res.json())
-          .then(data => {
-            if (data.success) {
-              alert("✨ (모바일) 결제가 성공적으로 완료되었으며 제단에 소원이 올라갔습니다!");
-            } else {
-              alert(`🚨 결제 검증 실패: ${data.message}`);
-            }
-            // 창고 비우고, URL 파라미터 깔끔하게 치우면서 새로고침 (데이터 화면 반영)
+            body: JSON.stringify({ paymentType: "altar", imp_uid: impUid, merchant_uid: urlParams.get("merchant_uid"), amount: wishData.amount, wishText: wishData.wishText, period: wishData.period, nameDisplay: wishData.nameDisplay, nameInput: wishData.nameInput }),
+          }).then(res => res.json()).then(data => {
+            if (data.success) alert("✨ (모바일) 제단 결제가 완료되었습니다!");
             localStorage.removeItem("pendingPremiumWish");
-            window.location.href = window.location.pathname; 
-          })
-          .catch(() => {
-            alert("서버 통신 오류로 소원 등록에 실패했습니다.");
-            localStorage.removeItem("pendingPremiumWish");
-            window.history.replaceState({}, document.title, window.location.pathname);
+            window.location.href = window.location.pathname + "?tab=altar"; 
           });
-        } else {
-          // 이미 처리되었거나 창고가 빈 경우
-          window.history.replaceState({}, document.title, window.location.pathname);
+        } 
+        // 2️⃣ 행운의 로또 결제인 경우
+        else if (pendingType === "lotto") {
+          fetch("/api/payments/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentType: "lotto", imp_uid: impUid, merchant_uid: urlParams.get("merchant_uid"), amount: localStorage.getItem("pendingPaymentAmount") }),
+          }).then(res => res.json()).then(data => {
+            localStorage.removeItem("pendingPaymentType");
+            localStorage.removeItem("pendingPaymentAmount");
+            if (data.success) {
+              alert("✨ (모바일) 결제 성공! 고급 통계 로또 번호를 추출합니다.");
+              localStorage.setItem("triggerLottoDraw", "true"); // 로또 애니메이션 방아쇠
+            }
+            window.location.href = window.location.pathname + "?tab=lotto"; // 로또 탭으로 강제 이동
+          });
         }
-        
-        setActiveTab("altar"); 
       } else {
         alert(`결제가 취소/실패했습니다: ${errorMsg || "사용자 취소"}`);
         window.history.replaceState({}, document.title, window.location.pathname);
