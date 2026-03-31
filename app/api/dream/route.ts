@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const RESPONSE_FORMAT = `
 {
@@ -40,7 +45,22 @@ export async function POST(request: NextRequest) {
     const content = completion.choices[0]?.message?.content;
     if (!content) return NextResponse.json({ error: "AI 응답이 없습니다." }, { status: 500 });
 
-    return NextResponse.json(JSON.parse(content));
+    const parsed = JSON.parse(content) as Record<string, unknown>;
+
+    const title = `${String(dreamText).slice(0, 20)}... 꿈 해몽, 길몽일까 흉몽일까?`;
+
+    const { data: insertedData, error: insertError } = await supabase
+      .from("dreams")
+      .insert({ title })
+      .select("id")
+      .single();
+
+    if (insertError) {
+      console.error("Dream DB insert error:", insertError);
+      return NextResponse.json({ error: `DB 저장 실패: ${insertError.message}` }, { status: 500 });
+    }
+
+    return NextResponse.json({ ...parsed, db_id: insertedData.id });
   } catch (error: any) {
     console.error("Dream API Error:", error);
     return NextResponse.json({ error: `서버 에러 발생: ${error.message}` }, { status: 500 });

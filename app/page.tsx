@@ -1195,6 +1195,20 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                 </button>
               )}
 
+              {/* 🚀 SEO 확산을 위한 공유 링크 생성 버튼 */}
+              {resultData.db_id && (
+                <button 
+                  onClick={() => {
+                    const url = `${window.location.origin}/dream/${resultData.db_id}`;
+                    navigator.clipboard.writeText(url);
+                    alert("✨ 해몽 결과 링크가 복사되었습니다!\n블로그, 카톡, 카페 등에 공유해보세요.");
+                  }} 
+                  className="w-full mb-3 rounded-2xl border border-blue-500/40 bg-blue-500/10 px-4 py-4 text-sm font-bold text-blue-300 hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2"
+                >
+                  🔗 이 해몽 결과 링크 복사하기 (공유용)
+                </button>
+              )}
+
               <button onClick={() => setResultData(null)} className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-medium text-white/80 hover:bg-white/10 transition-colors">
                 다른 꿈 해몽하기
               </button>
