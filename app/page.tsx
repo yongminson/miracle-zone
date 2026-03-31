@@ -1835,6 +1835,37 @@ function getHanjaOptionsByChar(name: string): { char: string; options: string[] 
 
 function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [activeSajuMode, setActiveSajuMode] = useState<"face" | "name">("face");
+  // 🚀 모바일 복귀 시 자물쇠 해제 및 데이터 복구 로직
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const unlockedUntil = Number(localStorage.getItem("saju_unlocked_until") || 0);
+      
+      // 💡 도장이 찍혀있고 30분이 안 지났다면 자물쇠 즉시 해제
+      if (Date.now() < unlockedUntil) {
+        setIsPhysiognomyPremiumUnlocked(true);
+        setIsNamePremiumUnlocked(true);
+      }
+
+      // 작성 중이던 데이터 복구
+      const faceSaved = localStorage.getItem("pendingFaceData");
+      if (faceSaved) {
+        const parsed = JSON.parse(faceSaved);
+        setFaceImage(parsed.faceImage);
+        setFaceResultData(parsed.faceResultData);
+        if (parsed.faceResultData) setShowFaceResult(true);
+        localStorage.removeItem("pendingFaceData");
+      }
+
+      const nameSaved = localStorage.getItem("pendingNameData");
+      if (nameSaved) {
+        const parsed = JSON.parse(nameSaved);
+        setNameInput(parsed.nameInput);
+        setNameResultData(parsed.nameResultData);
+        if (parsed.nameResultData) setShowNameResult(true);
+        localStorage.removeItem("pendingNameData");
+      }
+    }
+  }, [isVisible]);
   const [faceName, setFaceName] = useState("");
   const [faceBirthDate, setFaceBirthDate] = useState("");
   const [faceImage, setFaceImage] = useState<string | null>(null);
@@ -2027,62 +2058,32 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
   // 🚀 관상 심층 리포트 프리미엄 결제 연동 (4,900원)
   const handlePhysiognomyPaymentConfirm = async () => {
-    if (typeof window !== "undefined") {
-      const IMP = (window as any).IMP;
-      if (!IMP) return alert("🚨 결제 시스템 로딩 실패.");
-      IMP.init("imp61375123"); 
+    const IMP = (window as any).IMP;
+    IMP.init("imp61375123"); 
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const amount = 4900;
 
-      const amount = 4900;
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-      const payData: any = {
-        pg: "tosspayments", 
-        pay_method: "card",
-        merchant_uid: `mid_face_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-        name: "심층 관상 분석 리포트",
-        amount: amount,
-        buyer_email: "test@ymstudio.co.kr", 
-        buyer_name: "명운 사용자",
-        app_scheme: "myungun",
-      };
-
-      if (isMobile) {
-        payData.m_redirect_url = window.location.href;
-        localStorage.setItem("pendingPaymentType", "physiognomy");
-        localStorage.setItem("pendingPaymentAmount", String(amount));
-        // 🚀 관상 사진과 분석 결과를 브라우저 창고에 보관
-        try {
-          localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
-        } catch(e) { console.warn("이미지가 너무 커서 저장을 생략합니다."); }
-      }
-
-      IMP.request_pay(payData, async function (rsp: any) {
-        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
-        if (isSuccess) {
-          try {
-            const verifyRes = await fetch("/api/payments/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentType: "saju", imp_uid: rsp.imp_uid, merchant_uid: rsp.merchant_uid, amount: amount }),
-            });
-            const verifyData = await verifyRes.json();
-
-            if (verifyRes.ok && verifyData.success) {
-              setShowPhysiognomyPaymentModal(false);
-              setIsPhysiognomyPremiumUnlocked(true);
-            } else {
-              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
-            }
-          } catch (error) {
-            alert("서버 오류가 발생했습니다.");
-          }
-        } else {
-          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
-          if (isUserCancel && !isMobile) alert(`결제가 취소되었습니다.\n💡 PC 화면 결제창의 [결제 완료] 버튼을 눌러주세요!`);
-          else alert(`결제 실패: ${rsp.error_msg}`);
-        }
-      });
+    if (isMobile) {
+      localStorage.setItem("pendingPaymentType", "physiognomy");
+      localStorage.setItem("pendingPaymentAmount", String(amount));
+      // 🚀 결제 전 데이터 임시 저장
+      localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
     }
+
+    IMP.request_pay({
+      pg: "tosspayments",
+      pay_method: "card",
+      merchant_uid: `face_${Date.now()}`,
+      name: "심층 관상 분석",
+      amount: amount,
+      m_redirect_url: isMobile ? window.location.href : undefined,
+      app_scheme: "myungun"
+    }, (rsp: any) => {
+      if (rsp.success || (rsp.imp_uid && !rsp.error_msg)) {
+        setIsPhysiognomyPremiumUnlocked(true);
+        setShowPhysiognomyPaymentModal(false);
+      }
+    });
   };
 
   const handleFaceShare = async () => {
@@ -3532,7 +3533,7 @@ export default function Home() {
     if (targetTab) setActiveTab(targetTab);
   }, []);
 
-  // 🚀 모바일 결제 후 돌아왔을 때 결과 처리 (다른 탭 깜빡임 방지 및 새로고침 제거)
+  // 🚀 모바일 결제 결과 처리 (30분간 프리미엄 강제 해제 기록 추가)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
@@ -3542,59 +3543,36 @@ export default function Home() {
     const isSuccess = urlParams.get("imp_success") === "true" || urlParams.get("success") === "true" || (impUid && !errorMsg);
 
     if (impUid) {
-      const pendingAltar = localStorage.getItem("pendingPremiumWish");
       const pendingType = localStorage.getItem("pendingPaymentType");
-
-      // 🚀 핵심: 대기 시간 동안 다른 탭(운세)이 보이는 것을 막기 위해 탭 즉시 전환
-      if (pendingAltar) setActiveTab("altar");
-      else if (pendingType === "lotto") setActiveTab("lotto");
-      else if (pendingType === "physiognomy" || pendingType === "name") setActiveTab("saju");
+      const unlockedUntil = Date.now() + 30 * 60 * 1000; // 💡 현재부터 30분간 유효
 
       if (isSuccess) {
-        // 1️⃣ 기적의 제단 결제
-        if (pendingAltar) {
-          const wishData = JSON.parse(pendingAltar);
-          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "altar", imp_uid: impUid, merchant_uid: urlParams.get("merchant_uid"), amount: wishData.amount, wishText: wishData.wishText, period: wishData.period, nameDisplay: wishData.nameDisplay, nameInput: wishData.nameInput }) })
-            .then(res => res.json()).then(data => {
-              if (data.success) alert("✨ (모바일) 제단 결제가 완료되었습니다!");
+        // 1️⃣ 기적의 제단
+        if (localStorage.getItem("pendingPremiumWish")) {
+          const wishData = JSON.parse(localStorage.getItem("pendingPremiumWish")!);
+          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "altar", imp_uid: impUid, amount: wishData.amount, wishText: wishData.wishText, period: wishData.period, nameDisplay: wishData.nameDisplay, nameInput: wishData.nameInput }) })
+            .then(() => {
+              alert("✨ (모바일) 제단 소원 등록 완료!");
               localStorage.removeItem("pendingPremiumWish");
-              window.history.replaceState({}, document.title, window.location.pathname);
-              setActiveTab("altar"); 
+              window.history.replaceState({}, "", window.location.pathname);
+              setActiveTab("altar");
             });
         } 
-        // 2️⃣ 행운의 로또 결제
-        else if (pendingType === "lotto") {
-          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "lotto", imp_uid: impUid, merchant_uid: urlParams.get("merchant_uid"), amount: localStorage.getItem("pendingPaymentAmount") }) })
-            .then(res => res.json()).then(data => {
-              localStorage.removeItem("pendingPaymentType");
-              localStorage.removeItem("pendingPaymentAmount");
-              if (data.success) {
-                alert("✨ (모바일) 결제 성공! 고급 통계 로또 번호를 추출합니다.");
-                localStorage.setItem("triggerLottoDraw", "true");
-              }
-              window.history.replaceState({}, document.title, window.location.pathname);
-              setActiveTab("lotto");
-            });
-        }
-        // 3️⃣ 관상 / 이름 풀이 결제
+        // 2️⃣ 관상 / 이름 풀이 (30분 프리패스 도장 찍기)
         else if (pendingType === "physiognomy" || pendingType === "name") {
-          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "saju", imp_uid: impUid, merchant_uid: urlParams.get("merchant_uid"), amount: localStorage.getItem("pendingPaymentAmount") }) })
-            .then(res => res.json()).then(data => {
+          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "saju", imp_uid: impUid, amount: localStorage.getItem("pendingPaymentAmount") }) })
+            .then(() => {
+              alert("✨ 결제 성공! 30분간 프리미엄 기능이 유지됩니다.");
+              // 💡 30분 유효 도장 찍기
+              localStorage.setItem("saju_unlocked_until", String(unlockedUntil));
               localStorage.removeItem("pendingPaymentType");
-              localStorage.removeItem("pendingPaymentAmount");
-              if (data.success) {
-                alert("✨ (모바일) 결제가 성공적으로 완료되었습니다!\n결과 화면으로 이동합니다.");
-                if (pendingType === "physiognomy") localStorage.setItem("unlockPhysiognomy", "true");
-                if (pendingType === "name") localStorage.setItem("unlockName", "true");
-              }
-              // URL 파라미터만 조용히 지우고 페이지 새로고침은 하지 않음!
-              window.history.replaceState({}, document.title, window.location.pathname);
+              window.history.replaceState({}, "", window.location.pathname);
               setActiveTab("saju");
             });
         }
       } else {
-        alert(`결제가 취소/실패했습니다: ${errorMsg || "사용자 취소"}`);
-        window.history.replaceState({}, document.title, window.location.pathname);
+        alert(`결제 실패: ${errorMsg || "사용자 취소"}`);
+        window.history.replaceState({}, "", window.location.pathname);
       }
     }
   }, []);
