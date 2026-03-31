@@ -1878,9 +1878,9 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [showNamePaymentModal, setShowNamePaymentModal] = useState(false);
   const [isNamePremiumUnlocked, setIsNamePremiumUnlocked] = useState(false);
 
-  // 🚀 [완성본] 모바일 결제 복귀 시 1:1 데이터 매칭 복구 및 무한 결제 방지
+  // 🚀 모바일 결제 복귀 시 1:1 데이터 매칭 복구 및 무한 결제 방지 (버그 수정 완료)
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && isVisible) {
       const lastImpUid = localStorage.getItem("last_authorized_imp_uid");
 
       // 1️⃣ 관상 데이터 복구
@@ -1892,7 +1892,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           if (parsed.faceResultData) {
             setFaceResultData(parsed.faceResultData);
             setShowFaceResult(true);
-            // 💡 결제 도장(lastImpUid)이 있으면 자물쇠 해제!
+            // 💡 결제 도장이 있으면 자물쇠 해제!
             if (lastImpUid) setIsPhysiognomyPremiumUnlocked(true);
           }
         } catch(e) {}
@@ -1914,7 +1914,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           if (parsed.nameResultData) {
             setNameResultData(parsed.nameResultData);
             setShowNameResult(true);
-            // 💡 결제 도장(lastImpUid)이 있으면 자물쇠 해제!
+            // 💡 결제 도장이 있으면 자물쇠 해제!
             if (lastImpUid) setIsNamePremiumUnlocked(true);
           }
         } catch(e) {}
@@ -1922,20 +1922,13 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         setActiveSajuMode("name");
       }
     }
-  }, []);
-
-  // 💡 [핵심 보안] 사용자가 사진이나 이름을 바꾸면 자물쇠를 다시 찰칵! 잠그는 감시자
-  useEffect(() => {
-    setIsPhysiognomyPremiumUnlocked(false);
-  }, [faceImage]);
-
-  useEffect(() => {
-    setIsNamePremiumUnlocked(false);
-  }, [nameInput, nameBirthDate]);
+  }, [isVisible]);
+  // 💡 기존에 혼자서 자물쇠를 잠가버리던 오작동 감시자(useEffect 2개)는 완전히 삭제했습니다!
 
   const handleFaceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file?.type.startsWith("image/")) {
+      setIsPhysiognomyPremiumUnlocked(false); // 💡 사진을 새로 올릴 때만 잠금!
       setFaceImageFile(file);
       setFaceFileName(file.name);
       const reader = new FileReader();
@@ -1948,6 +1941,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file?.type.startsWith("image/")) {
+      setIsPhysiognomyPremiumUnlocked(false); // 💡 사진을 새로 올릴 때만 잠금!
       setFaceImageFile(file);
       setFaceFileName(file.name);
       const reader = new FileReader();
@@ -2736,6 +2730,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                     placeholder="예: 19801013"
                     value={nameBirthDate}
                     onChange={(e) => {
+                      setIsNamePremiumUnlocked(false); // 💡 숫자를 수정할 때만 잠금!
                       let val = e.target.value.replace(/[^0-9]/g, '');
                       if (val.length > 6) val = val.slice(0,4) + '-' + val.slice(4,6) + '-' + val.slice(6,8);
                       else if (val.length > 4) val = val.slice(0,4) + '-' + val.slice(4);
@@ -2765,6 +2760,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                     placeholder="한글 또는 한자 입력"
                     value={nameInput}
                     onChange={(e) => {
+                      setIsNamePremiumUnlocked(false); // 💡 이름을 수정할 때만 잠금!
                       setNameInput(e.target.value);
                       setHanjaSelections([]);
                       setNameHanja("");
