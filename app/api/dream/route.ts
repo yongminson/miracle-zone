@@ -46,13 +46,15 @@ export async function POST(request: NextRequest) {
     if (!content) return NextResponse.json({ error: "AI 응답이 없습니다." }, { status: 500 });
 
     const parsed = JSON.parse(content) as Record<string, unknown>;
-
     const title = `${String(dreamText).slice(0, 20)}... 꿈 해몽, 길몽일까 흉몽일까?`;
 
-    // 🚀 [핵심 수정] 버전 상관없이 무조건 ID를 안전하게 빼오는 무적 로직
-    const { data: insertedData, error: insertError } = await supabase
+    // 🚀 [100% 무적 해결책] Supabase에 ID를 묻지 않고, Next.js 서버에서 직접 고유 ID(UUID)를 생성합니다!
+    const dbId = crypto.randomUUID();
+
+    const { error: insertError } = await supabase
       .from("dreams")
       .insert({
+        id: dbId, // 💡 직접 생성한 ID를 강제로 꽂아넣습니다! 절대 undefined가 나올 수 없습니다.
         user_input: dreamText,
         title: title,
         summary: parsed.summary,
@@ -60,19 +62,14 @@ export async function POST(request: NextRequest) {
         action_guide: parsed.actionGuide,
         dream_type: parsed.type,
         score: parsed.score
-      })
-      .select("id"); 
+      });
 
     if (insertError) {
       console.error("Dream DB insert error:", insertError);
       return NextResponse.json({ error: `DB 저장 실패: ${insertError.message}` }, { status: 500 });
     }
 
-    // 🚀 [TS 에러 완벽 해결] 타입스크립트 검사를 안전하게 우회하여 무조건 id를 뽑아냅니다.
-    const safeData = insertedData as any;
-    const dbId = Array.isArray(safeData) ? safeData[0]?.id : safeData?.id;
-
-    // 추출된 dbId를 프론트엔드로 전송
+    // 우리가 만든 확실한 dbId를 프론트엔드로 넘겨줍니다.
     return NextResponse.json({ ...parsed, db_id: dbId });
   } catch (error: any) {
     console.error("Dream API Error:", error);
