@@ -1877,6 +1877,22 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [showNamePaymentModal, setShowNamePaymentModal] = useState(false);
   const [isNamePremiumUnlocked, setIsNamePremiumUnlocked] = useState(false);
 
+  // 🚀 모바일 결제 복귀 시 리포트 자동 열림 감지기
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (localStorage.getItem("unlockPhysiognomy") === "true") {
+        localStorage.removeItem("unlockPhysiognomy");
+        setIsPhysiognomyPremiumUnlocked(true);
+        setActiveSajuMode("face");
+      }
+      if (localStorage.getItem("unlockName") === "true") {
+        localStorage.removeItem("unlockName");
+        setIsNamePremiumUnlocked(true);
+        setActiveSajuMode("name");
+      }
+    }
+  }, []);
+
   const handleFaceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file?.type.startsWith("image/")) {
@@ -1977,10 +1993,60 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
-  const handlePhysiognomyPaymentConfirm = () => {
-    alert("결제 모듈은 Phase 3에서 연동됩니다. (테스트 렌더링)");
-    setShowPhysiognomyPaymentModal(false);
-    setIsPhysiognomyPremiumUnlocked(true);
+  // 🚀 관상 심층 리포트 프리미엄 결제 연동 (4,900원)
+  const handlePhysiognomyPaymentConfirm = async () => {
+    if (typeof window !== "undefined") {
+      const IMP = (window as any).IMP;
+      if (!IMP) return alert("🚨 결제 시스템 로딩 실패.");
+      IMP.init("imp61375123"); 
+
+      const amount = 4900;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      const payData: any = {
+        pg: "tosspayments", 
+        pay_method: "card",
+        merchant_uid: `mid_face_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        name: "심층 관상 분석 리포트",
+        amount: amount,
+        buyer_email: "test@ymstudio.co.kr", 
+        buyer_name: "명운 사용자",
+        app_scheme: "myungun",
+      };
+
+      if (isMobile) {
+        payData.m_redirect_url = window.location.href;
+        localStorage.setItem("pendingPaymentType", "physiognomy");
+        localStorage.setItem("pendingPaymentAmount", String(amount));
+      }
+
+      IMP.request_pay(payData, async function (rsp: any) {
+        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
+        if (isSuccess) {
+          try {
+            const verifyRes = await fetch("/api/payments/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentType: "saju", imp_uid: rsp.imp_uid, merchant_uid: rsp.merchant_uid, amount: amount }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.success) {
+              setShowPhysiognomyPaymentModal(false);
+              setIsPhysiognomyPremiumUnlocked(true);
+            } else {
+              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+            }
+          } catch (error) {
+            alert("서버 오류가 발생했습니다.");
+          }
+        } else {
+          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
+          if (isUserCancel && !isMobile) alert(`결제가 취소되었습니다.\n💡 PC 화면 결제창의 [결제 완료] 버튼을 눌러주세요!`);
+          else alert(`결제 실패: ${rsp.error_msg}`);
+        }
+      });
+    }
   };
 
   const handleFaceShare = async () => {
@@ -2185,10 +2251,60 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
-  const handleNamePaymentConfirm = () => {
-    alert("결제 모듈은 Phase 3에서 연동됩니다. (테스트 렌더링)");
-    setShowNamePaymentModal(false);
-    setIsNamePremiumUnlocked(true);
+  // 🚀 이름 풀이 프리미엄 결제 연동 (4,900원)
+  const handleNamePaymentConfirm = async () => {
+    if (typeof window !== "undefined") {
+      const IMP = (window as any).IMP;
+      if (!IMP) return alert("🚨 결제 시스템 로딩 실패.");
+      IMP.init("imp61375123"); 
+
+      const amount = 4900;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      const payData: any = {
+        pg: "tosspayments", 
+        pay_method: "card",
+        merchant_uid: `mid_name_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        name: "심층 이름 풀이 리포트",
+        amount: amount,
+        buyer_email: "test@ymstudio.co.kr", 
+        buyer_name: "명운 사용자",
+        app_scheme: "myungun",
+      };
+
+      if (isMobile) {
+        payData.m_redirect_url = window.location.href;
+        localStorage.setItem("pendingPaymentType", "name");
+        localStorage.setItem("pendingPaymentAmount", String(amount));
+      }
+
+      IMP.request_pay(payData, async function (rsp: any) {
+        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
+        if (isSuccess) {
+          try {
+            const verifyRes = await fetch("/api/payments/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ paymentType: "saju", imp_uid: rsp.imp_uid, merchant_uid: rsp.merchant_uid, amount: amount }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.success) {
+              setShowNamePaymentModal(false);
+              setIsNamePremiumUnlocked(true);
+            } else {
+              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+            }
+          } catch (error) {
+            alert("서버 오류가 발생했습니다.");
+          }
+        } else {
+          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
+          if (isUserCancel && !isMobile) alert(`결제가 취소되었습니다.\n💡 PC 화면 결제창의 [결제 완료] 버튼을 눌러주세요!`);
+          else alert(`결제 실패: ${rsp.error_msg}`);
+        }
+      });
+    }
   };
 
   const formatHighlight = (text?: string) => {
@@ -3414,9 +3530,26 @@ export default function Home() {
             localStorage.removeItem("pendingPaymentAmount");
             if (data.success) {
               alert("✨ (모바일) 결제 성공! 고급 통계 로또 번호를 추출합니다.");
-              localStorage.setItem("triggerLottoDraw", "true"); // 로또 애니메이션 방아쇠
+              localStorage.setItem("triggerLottoDraw", "true");
             }
-            window.location.href = window.location.pathname + "?tab=lotto"; // 로또 탭으로 강제 이동
+            window.location.href = window.location.pathname + "?tab=lotto";
+          });
+        }
+        // 3️⃣ 관상 / 이름 풀이 결제인 경우
+        else if (pendingType === "physiognomy" || pendingType === "name") {
+          fetch("/api/payments/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentType: "saju", imp_uid: impUid, merchant_uid: urlParams.get("merchant_uid"), amount: localStorage.getItem("pendingPaymentAmount") }),
+          }).then(res => res.json()).then(data => {
+            localStorage.removeItem("pendingPaymentType");
+            localStorage.removeItem("pendingPaymentAmount");
+            if (data.success) {
+              alert("✨ (모바일) 결제가 성공적으로 완료되었습니다!");
+              if (pendingType === "physiognomy") localStorage.setItem("unlockPhysiognomy", "true");
+              if (pendingType === "name") localStorage.setItem("unlockName", "true");
+            }
+            window.location.href = window.location.pathname + "?tab=saju";
           });
         }
       } else {
