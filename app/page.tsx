@@ -394,6 +394,8 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   const [activeSubTab, setActiveSubTab] = useState(0);
   const [isPremiumLoading, setIsPremiumLoading] = useState(false);
   const [premiumLoadingStep, setPremiumLoadingStep] = useState(0);
+  // 🚀 [추가] 광고 시청 중인지 확인하는 상태
+  const [isAdWatching, setIsAdWatching] = useState(false);
 
   const getCacheKey = () => {
     const today = new Date().toDateString();
@@ -507,11 +509,14 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   const handlePremiumConfirm = async () => {
     setShowPremiumModal(false);
     
-    // 🚀 운영자 프리패스 체크
+    // 🚀 운영자면 광고 생략, 일반 유저면 5초 광고 시청 시뮬레이션
     if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
-      alert("✨ [운영자 프리패스] 광고 없이 즉시 전문가 리포트를 생성합니다!");
+      alert("✨ [운영자 프리패스] 광고 없이 즉시 리포트를 생성합니다!");
     } else {
-      alert("결제 모듈은 연동 예정입니다. (테스트 렌더링)");
+      setIsAdWatching(true);
+      await new Promise(r => setTimeout(r, 5000)); // 5초간 광고 보는 중...
+      setIsAdWatching(false);
+      alert("✅ 광고 시청 완료! 전문가 리포트를 생성합니다.");
     }
   
     setIsLoading(true);
