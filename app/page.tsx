@@ -1877,18 +1877,50 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [showNamePaymentModal, setShowNamePaymentModal] = useState(false);
   const [isNamePremiumUnlocked, setIsNamePremiumUnlocked] = useState(false);
 
-  // 🚀 모바일 결제 복귀 시 리포트 자동 열림 감지기
+  // 🚀 모바일 결제 복귀 시 데이터 자동 복원 및 즉시 결과 렌더링
   useEffect(() => {
     if (typeof window !== "undefined") {
+      // 1️⃣ 관상 데이터 복구
       if (localStorage.getItem("unlockPhysiognomy") === "true") {
         localStorage.removeItem("unlockPhysiognomy");
         setIsPhysiognomyPremiumUnlocked(true);
         setActiveSajuMode("face");
+        try {
+          const saved = localStorage.getItem("pendingFaceData");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.faceImage) setFaceImage(parsed.faceImage);
+            if (parsed.faceResultData) {
+              setFaceResultData(parsed.faceResultData);
+              setShowFaceResult(true); // 💡 즉시 결과 화면 띄우기!
+            }
+            localStorage.removeItem("pendingFaceData");
+          }
+        } catch(e) {}
       }
+
+      // 2️⃣ 이름 풀이 데이터 복구
       if (localStorage.getItem("unlockName") === "true") {
         localStorage.removeItem("unlockName");
         setIsNamePremiumUnlocked(true);
         setActiveSajuMode("name");
+        try {
+          const saved = localStorage.getItem("pendingNameData");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.nameInput) setNameInput(parsed.nameInput);
+            if (parsed.nameHanja) setNameHanja(parsed.nameHanja);
+            if (parsed.nameBirthDate) setNameBirthDate(parsed.nameBirthDate);
+            if (parsed.nameBirthTime) setNameBirthTime(parsed.nameBirthTime);
+            if (parsed.nameGender) setNameGender(parsed.nameGender);
+            if (parsed.hanjaSelections) setHanjaSelections(parsed.hanjaSelections);
+            if (parsed.nameResultData) {
+              setNameResultData(parsed.nameResultData);
+              setShowNameResult(true); // 💡 즉시 결과 화면 띄우기!
+            }
+            localStorage.removeItem("pendingNameData");
+          }
+        } catch(e) {}
       }
     }
   }, []);
@@ -2018,6 +2050,10 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         payData.m_redirect_url = window.location.href;
         localStorage.setItem("pendingPaymentType", "physiognomy");
         localStorage.setItem("pendingPaymentAmount", String(amount));
+        // 🚀 관상 사진과 분석 결과를 브라우저 창고에 보관
+        try {
+          localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
+        } catch(e) { console.warn("이미지가 너무 커서 저장을 생략합니다."); }
       }
 
       IMP.request_pay(payData, async function (rsp: any) {
@@ -2276,6 +2312,10 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         payData.m_redirect_url = window.location.href;
         localStorage.setItem("pendingPaymentType", "name");
         localStorage.setItem("pendingPaymentAmount", String(amount));
+        // 🚀 이름 입력값과 분석 결과를 브라우저 창고에 보관
+        localStorage.setItem("pendingNameData", JSON.stringify({
+          nameInput, nameHanja, nameBirthDate, nameBirthTime, nameGender, hanjaSelections, nameResultData
+        }));
       }
 
       IMP.request_pay(payData, async function (rsp: any) {
@@ -3492,7 +3532,7 @@ export default function Home() {
     if (targetTab) setActiveTab(targetTab);
   }, []);
 
-  // 🚀 모바일 결제 후 돌아왔을 때 결과 처리 (제단 & 로또 멀티 지원)
+  // 🚀 모바일 결제 후 돌아왔을 때 결과 처리 (다른 탭 깜빡임 방지 및 새로고침 제거)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
@@ -3502,55 +3542,55 @@ export default function Home() {
     const isSuccess = urlParams.get("imp_success") === "true" || urlParams.get("success") === "true" || (impUid && !errorMsg);
 
     if (impUid) {
-      if (isSuccess) {
-        const pendingAltar = localStorage.getItem("pendingPremiumWish");
-        const pendingType = localStorage.getItem("pendingPaymentType");
+      const pendingAltar = localStorage.getItem("pendingPremiumWish");
+      const pendingType = localStorage.getItem("pendingPaymentType");
 
-        // 1️⃣ 기적의 제단 결제인 경우
+      // 🚀 핵심: 대기 시간 동안 다른 탭(운세)이 보이는 것을 막기 위해 탭 즉시 전환
+      if (pendingAltar) setActiveTab("altar");
+      else if (pendingType === "lotto") setActiveTab("lotto");
+      else if (pendingType === "physiognomy" || pendingType === "name") setActiveTab("saju");
+
+      if (isSuccess) {
+        // 1️⃣ 기적의 제단 결제
         if (pendingAltar) {
           const wishData = JSON.parse(pendingAltar);
-          fetch("/api/payments/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paymentType: "altar", imp_uid: impUid, merchant_uid: urlParams.get("merchant_uid"), amount: wishData.amount, wishText: wishData.wishText, period: wishData.period, nameDisplay: wishData.nameDisplay, nameInput: wishData.nameInput }),
-          }).then(res => res.json()).then(data => {
-            if (data.success) alert("✨ (모바일) 제단 결제가 완료되었습니다!");
-            localStorage.removeItem("pendingPremiumWish");
-            window.location.href = window.location.pathname + "?tab=altar"; 
-          });
+          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "altar", imp_uid: impUid, merchant_uid: urlParams.get("merchant_uid"), amount: wishData.amount, wishText: wishData.wishText, period: wishData.period, nameDisplay: wishData.nameDisplay, nameInput: wishData.nameInput }) })
+            .then(res => res.json()).then(data => {
+              if (data.success) alert("✨ (모바일) 제단 결제가 완료되었습니다!");
+              localStorage.removeItem("pendingPremiumWish");
+              window.history.replaceState({}, document.title, window.location.pathname);
+              setActiveTab("altar"); 
+            });
         } 
-        // 2️⃣ 행운의 로또 결제인 경우
+        // 2️⃣ 행운의 로또 결제
         else if (pendingType === "lotto") {
-          fetch("/api/payments/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paymentType: "lotto", imp_uid: impUid, merchant_uid: urlParams.get("merchant_uid"), amount: localStorage.getItem("pendingPaymentAmount") }),
-          }).then(res => res.json()).then(data => {
-            localStorage.removeItem("pendingPaymentType");
-            localStorage.removeItem("pendingPaymentAmount");
-            if (data.success) {
-              alert("✨ (모바일) 결제 성공! 고급 통계 로또 번호를 추출합니다.");
-              localStorage.setItem("triggerLottoDraw", "true");
-            }
-            window.location.href = window.location.pathname + "?tab=lotto";
-          });
+          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "lotto", imp_uid: impUid, merchant_uid: urlParams.get("merchant_uid"), amount: localStorage.getItem("pendingPaymentAmount") }) })
+            .then(res => res.json()).then(data => {
+              localStorage.removeItem("pendingPaymentType");
+              localStorage.removeItem("pendingPaymentAmount");
+              if (data.success) {
+                alert("✨ (모바일) 결제 성공! 고급 통계 로또 번호를 추출합니다.");
+                localStorage.setItem("triggerLottoDraw", "true");
+              }
+              window.history.replaceState({}, document.title, window.location.pathname);
+              setActiveTab("lotto");
+            });
         }
-        // 3️⃣ 관상 / 이름 풀이 결제인 경우
+        // 3️⃣ 관상 / 이름 풀이 결제
         else if (pendingType === "physiognomy" || pendingType === "name") {
-          fetch("/api/payments/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paymentType: "saju", imp_uid: impUid, merchant_uid: urlParams.get("merchant_uid"), amount: localStorage.getItem("pendingPaymentAmount") }),
-          }).then(res => res.json()).then(data => {
-            localStorage.removeItem("pendingPaymentType");
-            localStorage.removeItem("pendingPaymentAmount");
-            if (data.success) {
-              alert("✨ (모바일) 결제가 성공적으로 완료되었습니다!");
-              if (pendingType === "physiognomy") localStorage.setItem("unlockPhysiognomy", "true");
-              if (pendingType === "name") localStorage.setItem("unlockName", "true");
-            }
-            window.location.href = window.location.pathname + "?tab=saju";
-          });
+          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "saju", imp_uid: impUid, merchant_uid: urlParams.get("merchant_uid"), amount: localStorage.getItem("pendingPaymentAmount") }) })
+            .then(res => res.json()).then(data => {
+              localStorage.removeItem("pendingPaymentType");
+              localStorage.removeItem("pendingPaymentAmount");
+              if (data.success) {
+                alert("✨ (모바일) 결제가 성공적으로 완료되었습니다!\n결과 화면으로 이동합니다.");
+                if (pendingType === "physiognomy") localStorage.setItem("unlockPhysiognomy", "true");
+                if (pendingType === "name") localStorage.setItem("unlockName", "true");
+              }
+              // URL 파라미터만 조용히 지우고 페이지 새로고침은 하지 않음!
+              window.history.replaceState({}, document.title, window.location.pathname);
+              setActiveTab("saju");
+            });
         }
       } else {
         alert(`결제가 취소/실패했습니다: ${errorMsg || "사용자 취소"}`);
