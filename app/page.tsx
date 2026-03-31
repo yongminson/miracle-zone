@@ -1518,6 +1518,15 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
 
       if (isMobile) {
         payData.m_redirect_url = window.location.href;
+        
+        // 🚀 모바일을 위해 결제하러 가기 전, 작성한 소원을 브라우저 창고에 임시 저장!
+        localStorage.setItem("pendingPremiumWish", JSON.stringify({
+          wishText: premiumWishText,
+          period: premiumPeriod,
+          nameDisplay: premiumNameDisplay,
+          nameInput: premiumNameInput,
+          amount: amount
+        }));
       }
 
       IMP.request_pay(payData, async function (rsp: any) {
@@ -3298,27 +3307,65 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // 🚀 모바일 결제 후 돌아왔을 때 결과 처리 (성공 판단 로직 완벽 강화)
+  // 🚀 모바일 결제 후 돌아왔을 때 결과 처리 (임시 저장소에서 꺼내서 서버 검증 후 DB 저장)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
     
     const impUid = urlParams.get("imp_uid");
     const errorMsg = urlParams.get("error_msg") || urlParams.get("message");
-
-    // 💡 핵심: success 깃발이 없더라도 imp_uid가 발급되었고 에러 메시지가 없다면 '성공'으로 간주!
     const isSuccess = urlParams.get("imp_success") === "true" || 
                       urlParams.get("success") === "true" || 
                       (impUid && !errorMsg);
 
     if (impUid) {
       if (isSuccess) {
-        alert("✨ (모바일) 결제가 성공적으로 완료되었습니다!");
+        // 🚀 브라우저 창고에서 아까 적어둔 소원 데이터 꺼내기
+        const pending = localStorage.getItem("pendingPremiumWish");
+        
+        if (pending) {
+          const wishData = JSON.parse(pending);
+          
+          // API를 찔러서 DB에 소원 저장
+          fetch("/api/payments/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              imp_uid: impUid,
+              merchant_uid: urlParams.get("merchant_uid") || `mid_mobile_${Date.now()}`,
+              amount: wishData.amount,
+              wishText: wishData.wishText,
+              period: wishData.period,
+              nameDisplay: wishData.nameDisplay,
+              nameInput: wishData.nameInput,
+            }),
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              alert("✨ (모바일) 결제가 성공적으로 완료되었으며 제단에 소원이 올라갔습니다!");
+            } else {
+              alert(`🚨 결제 검증 실패: ${data.message}`);
+            }
+            // 창고 비우고, URL 파라미터 깔끔하게 치우면서 새로고침 (데이터 화면 반영)
+            localStorage.removeItem("pendingPremiumWish");
+            window.location.href = window.location.pathname; 
+          })
+          .catch(() => {
+            alert("서버 통신 오류로 소원 등록에 실패했습니다.");
+            localStorage.removeItem("pendingPremiumWish");
+            window.history.replaceState({}, document.title, window.location.pathname);
+          });
+        } else {
+          // 이미 처리되었거나 창고가 빈 경우
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        
         setActiveTab("altar"); 
       } else {
         alert(`결제가 취소/실패했습니다: ${errorMsg || "사용자 취소"}`);
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
-      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
