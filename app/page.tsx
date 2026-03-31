@@ -27,6 +27,54 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// 🚀 [추가] 관리자 전용 통계 대시보드 컴포넌트
+function AdminDashboard() {
+  const [stats, setStats] = useState({ daily: 0, total: 0 });
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      setIsAdmin(true);
+      const fetchStats = async () => {
+        const { data } = await supabase.from("visitors").select("visit_date, visit_count");
+        if (data) {
+          const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+          let total = 0; let daily = 0;
+          data.forEach(row => {
+            total += row.visit_count;
+            if (row.visit_date === todayStr) daily = row.visit_count;
+          });
+          setStats({ daily, total });
+        }
+      };
+      fetchStats();
+    }
+  }, []);
+
+  if (!isAdmin) return null;
+
+  return (
+    <div className="fixed bottom-6 left-6 z-[100] bg-slate-900/90 border border-yellow-500/50 p-5 rounded-2xl backdrop-blur-md shadow-[0_0_30px_rgba(234,179,8,0.2)]">
+      <h3 className="text-yellow-400 font-bold text-sm mb-3 flex items-center gap-2">
+        <span>👑</span> 명운(命運) 운영 현황
+      </h3>
+      <div className="space-y-2">
+        <p className="text-white/80 text-xs flex justify-between gap-6">
+          <span>오늘 방문자:</span> <span className="text-yellow-300 font-bold">{stats.daily.toLocaleString()}명</span>
+        </p>
+        <p className="text-white/80 text-xs flex justify-between gap-6">
+          <span>누적 방문자:</span> <span className="text-yellow-300 font-bold">{stats.total.toLocaleString()}명</span>
+        </p>
+      </div>
+      <div className="mt-4 pt-3 border-t border-white/10 text-center">
+        <button onClick={() => { localStorage.removeItem("MASTER_ADMIN"); window.location.reload(); }} className="text-[10px] text-white/40 hover:text-white transition-colors">
+          관리자 모드 종료
+        </button>
+      </div>
+    </div>
+  );
+}
+
 type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju";
 
 async function captureAndShareElement(
@@ -3462,7 +3510,19 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // 🚀 모바일 새로고침 시 특정 탭으로 이동하기 위한 로직 추가
+  // 🚀 [추가] 하루에 한 번 방문자 수 측정 로직
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const trackVisitor = async () => {
+      const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+      if (localStorage.getItem("visited_today") !== today) {
+        await supabase.rpc("increment_visitor").catch(() => {});
+        localStorage.setItem("visited_today", today);
+      }
+    };
+    trackVisitor();
+  }, []);
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const targetTab = urlParams.get("tab") as TabId;
@@ -3554,6 +3614,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col">
+      {/* 🚀 [추가] 관리자 모드일 때만 나타나는 통계 대시보드 */}
+      <AdminDashboard />
+
       {/* 🚀 [추가됨] 최상단 헤더 (앱 로고 & 카카오 로그인 버튼) */}
       <header className="sticky top-0 z-[60] w-full border-b border-white/10 bg-slate-950/80 backdrop-blur-md px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">

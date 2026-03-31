@@ -14,8 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "명운",
-  description: "당신의 명운을 확인하세요",
+  title: "명운 - 당신의 운명을 밝히다",
+  description: "정통 명리학 기반 오늘의 운세, 사주, 타로, 꿈 해몽 서비스",
+  // 🚀 브라우저 탭에 로고 띄우기 (public/logo.jpg 파일 사용)
+  icons: {
+    icon: "/logo.jpg", 
+  },
 };
 
 export default function RootLayout({
