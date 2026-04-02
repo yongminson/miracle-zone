@@ -1402,12 +1402,21 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     audio.volume = isMuted ? 0 : 0.25;
     const playPromise = audio.play();
     if (playPromise !== undefined) {
-      playPromise.catch(() => {});
+      playPromise.catch(() => {
+        // 🚀 스마트폰이 자동재생을 막았다면? 화면 터치 시 즉시 재생되도록 우회!
+        const playOnInteract = () => {
+          audio.play().catch(()=>{});
+          document.removeEventListener("click", playOnInteract);
+          document.removeEventListener("touchstart", playOnInteract);
+        };
+        document.addEventListener("click", playOnInteract);
+        document.addEventListener("touchstart", playOnInteract);
+      });
     }
     return () => {
       audio.pause();
     };
-  }, [isVisible]);
+  }, [isVisible, isMuted]);
   
   const ONE_HOUR_MS = 60 * 60 * 1000;
   const filterFreeWishes = (list: WishRow[]) => {
@@ -1517,24 +1526,23 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     fetchWishes();
   }, [fetchWishes]);
 
-  // 🚀 모바일 결제 후 돌아왔을 때 황금빛 프리미엄 이펙트 팡! 터뜨리기
+  // 🚀 모바일 프리미엄 결제 성공 시 (신호를 받으면) 즉시 애니메이션 팡! & 리스트 새로고침
   useEffect(() => {
-    if (typeof window !== "undefined" && isVisible) {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("playPremiumAnim") === "true") {
-        fetchWishes(); // 🚀 결제한 소원 즉시 새로고침
-        setIsCandleOn(true);
-        setIsPremiumGlow(true);
-        // 모바일은 자동재생이 막히므로 에러 방어코드 씌움
-        try {
-          if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play(); }
-          if (fireAudioRef.current) fireAudioRef.current.play();
-        } catch(e) {}
-        setTimeout(() => { setIsCandleOn(false); setIsPremiumGlow(false); if(fireAudioRef.current) fireAudioRef.current.pause(); }, 6000);
-        window.history.replaceState({}, "", window.location.pathname); // 🚀 주소창 찌꺼기 완벽 청소 (새로고침 버그 완전 해결!)
-      }
-    }
-  }, [isVisible, fetchWishes]);
+    const handlePremiumSuccess = () => {
+      fetchWishes(); // 🚀 DB에서 소원 즉시 다시 불러오기!
+      setIsCandleOn(true);
+      setIsPremiumGlow(true);
+      try {
+        if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(()=>{}); }
+        if (fireAudioRef.current) fireAudioRef.current.play().catch(()=>{});
+      } catch(e) {}
+      setTimeout(() => { setIsCandleOn(false); setIsPremiumGlow(false); if(fireAudioRef.current) fireAudioRef.current.pause(); }, 6000);
+    };
+
+    // Home 컴포넌트가 쏘는 신호를 대기합니다
+    window.addEventListener("premiumAltarSuccess", handlePremiumSuccess);
+    return () => window.removeEventListener("premiumAltarSuccess", handlePremiumSuccess);
+  }, [fetchWishes]);
   
   useEffect(() => {
     const freeFiltered = filterFreeWishes(wishes);
@@ -4330,9 +4338,11 @@ export default function Home() {
             .then(() => {
               alert("✨ 특별 공양 등록 완료!");
               localStorage.removeItem("pendingPremiumWish");
-              // 🚀 애니메이션 재생 파라미터 쏴주기
-              window.history.replaceState({}, "", window.location.pathname + "?tab=altar&playPremiumAnim=true");
+              // 🚀 주소창 찌꺼기 완전 삭제! (새로고침 시 무조건 메인으로 가게 됨)
+              window.history.replaceState({}, "", window.location.pathname);
               setActiveTab("altar");
+              // 🚀 AltarTab 에게 "소원 갱신하고 애니메이션 켜!" 라고 즉시 신호 발송
+              setTimeout(() => window.dispatchEvent(new Event("premiumAltarSuccess")), 500);
             });
         } 
         // 2️⃣ 행운의 로또 10회권
