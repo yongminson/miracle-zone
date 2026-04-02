@@ -47,7 +47,7 @@ function AdminDashboard() {
             total += row.visit_count;
             if (row.visit_date === todayStr) daily = row.visit_count;
           });
-          setStats({ daily, total, tabs: tData });
+          setStats({ daily, total, tabs: tData as any });
         }
       };
       fetchStats();
@@ -73,6 +73,12 @@ function AdminDashboard() {
             <span className="text-teal-400 font-mono">{t.click_count}회</span>
           </p>
         ))}
+      </div>
+      {/* 🚀 잃어버렸던 종료 버튼 완벽 복구! */}
+      <div className="mt-4 pt-3 border-t border-white/10 text-center">
+        <button onClick={() => { localStorage.removeItem("MASTER_ADMIN"); window.location.reload(); }} className="text-[10px] font-bold text-red-400/80 hover:text-red-400 transition-colors">
+          ❌ 관리자 모드 종료
+        </button>
       </div>
     </div>
   );
@@ -4329,21 +4335,7 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // 🚀 [자동 로그인 마법] 공유 링크로 들어온 미로그인 유저 강제 카톡 로그인
-  useEffect(() => {
-    if (isAuthChecking) return; // 인증 확인 중이면 대기
-    
-    const urlParams = new URLSearchParams(window.location.search);
-    const isSharedLink = window.location.pathname.includes('/dream/') || window.location.pathname.includes('/mbti/');
-
-    if (!user && isSharedLink) {
-      // 💡 유저가 없는데 공유 페이지로 들어왔다면? 번거롭게 하지 말고 바로 카톡 로그인 발사!
-      console.log("공유 링크 유입 감지: 자동 로그인 시도");
-      handleKakaoLogin();
-    }
-  }, [user, isAuthChecking]);
-  
-  // 🚀 [버그수정] 탭이 바뀔 때마다 메뉴가 부드럽게 자동 중앙 정렬되도록 마법 추가
+    // 🚀 [버그수정] 탭이 바뀔 때마다 메뉴가 부드럽게 자동 중앙 정렬되도록 마법 추가
   useEffect(() => {
     const container = navRef.current;
     if (!container) return;
