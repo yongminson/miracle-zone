@@ -30,57 +30,49 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // 🚀 [추가] 관리자 전용 통계 대시보드 컴포넌트
 function AdminDashboard() {
-  const [stats, setStats] = useState({ daily: 0, total: 0 });
+  const [stats, setStats] = useState({ daily: 0, total: 0, tabs: [] });
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
       setIsAdmin(true);
       const fetchStats = async () => {
-        // 🚀 visitors 테이블에서 전체 데이터를 가져옴
-        const { data, error } = await supabase.from("visitors").select("visit_date, visit_count");
+        const { data: vData } = await supabase.from("visitors").select("*");
+        const { data: tData } = await supabase.from("tab_stats").select("*").order('click_count', { ascending: false });
         
-        if (error) {
-          console.error("데이터 로딩 실패:", error.message);
-          return;
-        }
-
-        if (data) {
+        if (vData && tData) {
           const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
-          let total = 0; 
-          let daily = 0;
-          
-          data.forEach(row => {
-            total += (row.visit_count || 0);
-            if (row.visit_date === todayStr) daily = (row.visit_count || 0);
+          let total = 0; let daily = 0;
+          vData.forEach(row => {
+            total += row.visit_count;
+            if (row.visit_date === todayStr) daily = row.visit_count;
           });
-          
-          setStats({ daily, total });
+          setStats({ daily, total, tabs: tData });
         }
       };
       fetchStats();
+      const id = setInterval(fetchStats, 5000); // 5초마다 자동 갱신
+      return () => clearInterval(id);
     }
   }, []);
 
   if (!isAdmin) return null;
 
   return (
-    <div className="fixed bottom-6 left-6 z-[100] bg-slate-900/90 border border-yellow-500/50 p-5 rounded-2xl backdrop-blur-md shadow-[0_0_30px_rgba(234,179,8,0.2)]">
-      <h3 className="text-yellow-400 font-bold text-sm mb-3 flex items-center gap-2">
-        <span>👑</span> 명운(命運) 운영 현황
-      </h3>
-      <div className="space-y-2">
-        <p className="text-white/80 text-xs flex justify-between gap-6">
-          <span>오늘 방문자:</span> <span className="text-yellow-300 font-bold">{stats.daily.toLocaleString()}명</span>
-        </p>
-        <p className="text-white/80 text-xs flex justify-between gap-6">
-          <span>누적 방문자:</span> <span className="text-yellow-300 font-bold">{stats.total.toLocaleString()}명</span>
-        </p>
+    <div className="fixed bottom-6 left-6 z-[100] bg-slate-900/95 border-2 border-yellow-500 p-5 rounded-2xl backdrop-blur-xl shadow-2xl max-w-[240px]">
+      <h3 className="text-yellow-400 font-bold text-sm mb-3 flex items-center gap-2 border-b border-white/10 pb-2">👑 실시간 운영 현황</h3>
+      <div className="space-y-1 mb-4 text-[11px]">
+        <p className="flex justify-between"><span>오늘 방문:</span> <span className="text-yellow-300 font-bold">{stats.daily}명</span></p>
+        <p className="flex justify-between"><span>누적 방문:</span> <span className="text-white/60">{stats.total}명</span></p>
       </div>
-      <div className="mt-4 pt-3 border-t border-white/10 text-center">
-        <button onClick={() => { localStorage.removeItem("MASTER_ADMIN"); window.location.reload(); }} className="text-[10px] text-white/40 hover:text-white transition-colors">
-          관리자 모드 종료
-        </button>
+      <div className="space-y-1 text-[10px]">
+        <p className="text-white/40 mb-2 mt-3 font-bold border-t border-white/5 pt-2">📊 탭별 인기 순위</p>
+        {stats.tabs.map((t: any) => (
+          <p key={t.tab_id} className="flex justify-between">
+            <span className="text-white/70">{t.tab_id === 'fortune' ? '운세' : t.tab_id === 'saju' ? '관상' : t.tab_id === 'match' ? '궁합' : t.tab_id}</span>
+            <span className="text-teal-400 font-mono">{t.click_count}회</span>
+          </p>
+        ))}
       </div>
     </div>
   );
@@ -4018,7 +4010,11 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
               <div className="flex flex-col gap-3">
                 <div className="grid grid-cols-2 gap-3">
                 <button onClick={() => {
-                    const shareData = { title: "MBTI 심층 분석", text: "나의 소름돋는 성격 분석 결과 확인하기!", url: window.location.href };
+                    const shareData = { 
+                      title: "MBTI 심층 분석", 
+                      text: `나의 MBTI 결과는 ${resultType}! 확인해보세요.`, 
+                      url: `${window.location.origin}/mbti/${resultType.toLowerCase()}` 
+                    };
                     if (navigator.share) { navigator.share(shareData).catch(() => {}); } 
                     else { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다."); }
                   }} className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 flex flex-col items-center justify-center gap-1">
@@ -4333,6 +4329,20 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
+  // 🚀 [자동 로그인 마법] 공유 링크로 들어온 미로그인 유저 강제 카톡 로그인
+  useEffect(() => {
+    if (isAuthChecking) return; // 인증 확인 중이면 대기
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const isSharedLink = window.location.pathname.includes('/dream/') || window.location.pathname.includes('/mbti/');
+
+    if (!user && isSharedLink) {
+      // 💡 유저가 없는데 공유 페이지로 들어왔다면? 번거롭게 하지 말고 바로 카톡 로그인 발사!
+      console.log("공유 링크 유입 감지: 자동 로그인 시도");
+      handleKakaoLogin();
+    }
+  }, [user, isAuthChecking]);
+  
   // 🚀 [버그수정] 탭이 바뀔 때마다 메뉴가 부드럽게 자동 중앙 정렬되도록 마법 추가
   useEffect(() => {
     const container = navRef.current;
@@ -4573,6 +4583,7 @@ export default function Home() {
                 onClick={(e) => {
                   if (!tab.isReady) return;
                   setActiveTab(tab.id);
+supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
                   
                   // 🚀 클릭 시 해당 버튼을 스크롤 박스의 중앙으로 이동시키는 매직 로직
                   const target = e.currentTarget;
