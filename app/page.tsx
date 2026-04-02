@@ -20,6 +20,7 @@ import {
   Activity,
   Camera,
   FileText,
+  Bell, // 🚀 종 아이콘 추가
   type LucideIcon,
 } from "lucide-react";
 
@@ -85,7 +86,8 @@ function AdminDashboard() {
   );
 }
 
-type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju";
+// 🚀 mbti와 match(궁합) 탭 추가
+type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match";
 
 async function captureAndShareElement(
   target: HTMLElement | null,
@@ -203,12 +205,15 @@ const pushSecret = (char: string, callback?: () => void) => {
   }
 };
 
+// 🚀 사람들을 홀리는 마법의 네이밍 & 완벽한 탭 순서 배치
 const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, isReady: true },
-  { id: "dream", label: "꿈 풀이", icon: BookOpen, isReady: true },
+  { id: "saju", label: "관상/이름 풀이", icon: FileText, isReady: true },
+  { id: "match", label: "소름돋는 궁합", icon: Heart, isReady: true }, 
+  { id: "mbti", label: "MBTI - 심층 성격 검사", icon: Activity, isReady: true },
+  { id: "dream", label: "꿈 해몽", icon: BookOpen, isReady: true },
   { id: "lotto", label: "행운의 로또", icon: Trophy, isReady: true },
   { id: "altar", label: "기적의 제단", icon: Flame, isReady: true },
-  { id: "saju", label: "관상/이름 풀이", icon: BookOpen, isReady: true },
 ];
 
 const BIRTH_TIME_OPTIONS = [
@@ -306,7 +311,7 @@ function FooterPolicy({ tabId }: { tabId: TabId }) {
   };
 
   return (
-    <div className="mt-12 mb-8 mx-auto w-full max-w-md border border-white/10 bg-black/40 backdrop-blur-md rounded-2xl pt-6 pb-8 text-center space-y-3 px-4 relative z-50 shadow-xl">
+    <div className={`mx-auto w-full max-w-md border border-white/10 bg-black/40 backdrop-blur-md rounded-2xl pt-6 pb-8 text-center space-y-3 px-4 relative z-50 shadow-xl ${tabId === "altar" ? "mt-3 mb-4" : "mt-12 mb-8"}`}>
       {tabId === "lotto" ? (
         <>
           <p className="text-[10px] text-white/40 break-keep leading-relaxed">
@@ -1293,6 +1298,39 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
 }
 
 function AltarTab({ isVisible }: { isVisible: boolean }) {
+  // 🚀 [추가] 촛불 애니메이션 및 사운드 상태 (기존 432Hz BGM과 충돌하지 않음)
+  const [isCandleOn, setIsCandleOn] = useState(false);
+  const bellAudioRef = useRef<HTMLAudioElement | null>(null);
+  const fireAudioRef = useRef<HTMLAudioElement | null>(null);
+  const talismanRef = useRef<HTMLDivElement | null>(null); // 🚀 부적 카드 캡처용
+  const [isPremiumGlow, setIsPremiumGlow] = useState(false); // 🚀 프리미엄 황금빛 공양 효과
+
+  // 🚀 부적 카드 공유 기능
+  const handleAltarShare = async () => {
+    if (!wishText.trim() && wishes.length === 0) return alert("먼저 간절한 소원을 작성해주세요!");
+    await captureAndShareElement(talismanRef.current, {
+      fileName: "miracle-talisman.png",
+      title: "기적의 제단 소원 부적",
+      text: `간절한 소원이 담긴 부적입니다.\n${window.location.origin}`
+    });
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      bellAudioRef.current = new Audio("/bell.mp3");
+      fireAudioRef.current = new Audio("/fire.mp3");
+      if (fireAudioRef.current) {
+        fireAudioRef.current.loop = true;
+        fireAudioRef.current.volume = 0.5;
+      }
+    }
+    return () => {
+      if (fireAudioRef.current) {
+        fireAudioRef.current.pause();
+        fireAudioRef.current.currentTime = 0;
+      }
+    };
+  }, []);
   const [wishText, setWishText] = useState("");
   const [wishes, setWishes] = useState<WishRow[]>([]);
   const [premiumWishes, setPremiumWishes] = useState<PremiumWish[]>([]);
@@ -1509,12 +1547,14 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
   const activePremiumCount = filterPremiumWishes(premiumWishes).length;
   
   const handleMuteToggle = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const nextMuted = !isMuted;
-    audio.volume = nextMuted ? 0 : 0.25;
-    setIsMuted(nextMuted);
-  };
+        const audio = audioRef.current;
+        if (!audio) return;
+        const nextMuted = !isMuted;
+        audio.volume = nextMuted ? 0 : 0.25;
+        if (bellAudioRef.current) bellAudioRef.current.muted = nextMuted;
+        if (fireAudioRef.current) fireAudioRef.current.muted = nextMuted;
+        setIsMuted(nextMuted);
+      };
 
   const lastOptimisticRef = useRef<{ text: string; at: number } | null>(null);
   
@@ -1545,9 +1585,18 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
   
       setIsCooldown(true);
       setTimeout(() => setIsCooldown(false), 5000);
-  
+
+      // 🚀 [수정완료] 무료 소원 시각/청각 효과 트리거
+      setIsCandleOn(true);
+      if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(e => console.log(e)); }
+      if (fireAudioRef.current) { fireAudioRef.current.play().catch(e => console.log(e)); }
+      setTimeout(() => { 
+      setIsCandleOn(false); 
+      if (fireAudioRef.current) fireAudioRef.current.pause(); // 🔥 모닥불 끄기
+      }, 5000);
+
       alert("소원이 기적의 제단에 올려졌습니다. (1시간 유지)");
-    } finally {
+      } finally {
       setIsSubmittingFreeWish(false);
     }
   };
@@ -1593,10 +1642,21 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           display_name: premiumNameInput
         }).then(({ error }) => {
           if (error) {
-            alert("🚨 제단 등록 실패: " + error.message);
-          } else {
-            alert("✨ 제단에 소원이 성공적으로 올라갔습니다!");
-            setShowPremiumModal(false);
+             alert("🚨 제단 등록 실패: " + error.message);
+             } else {
+               // 🚀 [수정완료] 프리미엄 전용 시각/청각 효과 트리거
+              setIsCandleOn(true);
+              setIsPremiumGlow(true);
+              if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(e => console.log(e)); }
+              if (fireAudioRef.current) { fireAudioRef.current.play().catch(e => console.log(e)); }
+              setTimeout(() => { 
+                setIsCandleOn(false); 
+                setIsPremiumGlow(false); 
+                if (fireAudioRef.current) fireAudioRef.current.pause(); // 🔥 모닥불 끄기
+              }, 5000);
+            
+             alert("✨ 제단에 소원이 성공적으로 올라갔습니다!");
+             setShowPremiumModal(false);
             setPremiumWishText("");
             setPremiumNameInput("");
             if (typeof fetchWishes === 'function') fetchWishes(); 
@@ -1658,8 +1718,19 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
 
             const verifyData = await verifyRes.json();
             if (verifyRes.ok && verifyData.success) {
-              alert("✨ 결제가 성공적으로 완료되었으며 제단에 소원이 올라갔습니다!");
-              setShowPremiumModal(false);
+                            // 🚀 [수정완료] 프리미엄 전용 시각/청각 효과 트리거
+                            setIsCandleOn(true);
+                            setIsPremiumGlow(true);
+                            if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(e => console.log(e)); }
+                            if (fireAudioRef.current) { fireAudioRef.current.play().catch(e => console.log(e)); }
+                            setTimeout(() => { 
+                              setIsCandleOn(false); 
+                              setIsPremiumGlow(false); 
+                              if (fireAudioRef.current) fireAudioRef.current.pause(); // 🔥 모닥불 끄기
+                            }, 5000);
+
+ alert("✨ 결제가 성공적으로 완료되었으며 제단에 소원이 올라갔습니다!");
+ setShowPremiumModal(false);
               setPremiumWishText("");
               setPremiumNameInput("");
               if (typeof fetchWishes === 'function') fetchWishes(); 
@@ -1696,9 +1767,11 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       `}
     >
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <video src="/초.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-black/50" />
-      </div>
+        <video src="/초.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover" />
+        {/* 🚀 촛불이 켜졌을 때 배경이 밝아지는 시각 효과 */}
+        <div className="absolute inset-0 transition-colors duration-1000" style={{ backgroundColor: isCandleOn ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)' }} />
+        <div className={`absolute inset-0 bg-gradient-to-t from-amber-500/30 to-transparent transition-opacity duration-1000 ${isCandleOn ? "opacity-100" : "opacity-0"}`} />
+      </div>
 
       <div className="relative z-10 w-full h-full flex flex-col">
         <audio ref={audioRef} src="/432Hz_Candle_BGM.wav" loop />
@@ -1788,43 +1861,38 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           })()}
         </div>
 
-        {/* 🚀 입력창을 화면 맨 아래 빈 공간으로 밀착시킴 (pb-8 -> pb-2) */}
-        <div className="relative z-10 flex flex-1 flex-col items-center justify-end px-4 pb-2 mt-auto">
-          <div className="w-full max-w-md rounded-2xl border border-white/20 bg-black/60 p-4 backdrop-blur-md shadow-2xl">
+        {/* 🚀 초소형 압축 입력창 영역 (화면 하단 밀착 & 가로 배치 강제) */}
+        <div className="relative z-10 flex w-full max-w-md flex-col items-center justify-end px-4 pb-2 mt-auto shrink-0">
+          <div className="w-full rounded-xl border border-white/20 bg-black/60 p-3 backdrop-blur-md shadow-xl">
             <textarea
               value={wishText}
               onChange={(e) => setWishText(e.target.value)}
               placeholder="소원을 적어주세요..."
-              rows={2}
-              className="w-full resize-none rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm text-amber-50 placeholder-amber-200/60 focus:border-yellow-500/60 focus:outline-none focus:ring-2 focus:ring-yellow-500/40"
+              rows={1}
+              className="w-full resize-none rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-amber-50 placeholder-amber-200/60 focus:border-yellow-500/60 focus:outline-none focus:ring-1 focus:ring-yellow-500/40"
             />
-
-            <div className="mt-2 flex items-center justify-between text-[11px]">
+            <div className="mt-1 flex items-center justify-between text-[10px] px-1">
               <span className="text-amber-100/70">전체 소원 {activeWishCount}개</span>
               <span className="text-yellow-300/80">프리미엄 {activePremiumCount}개</span>
             </div>
-
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={handleSubmitFree}
-                disabled={isCooldown || isSubmittingFreeWish}
-                className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-3 py-2.5 text-xs font-bold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none disabled:opacity-50"
-              >
-                {isSubmittingFreeWish ? "유지시간 1시간" : isCooldown ? "5초 후 작성 가능" : "소원 띄우기 (무료)"}
+            
+            {/* 🚀 무조건 가로 2칸으로 고정하는 grid 적용 */}
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button type="button" onClick={handleSubmitFree} disabled={isCooldown || isSubmittingFreeWish} className="w-full rounded-lg bg-gradient-to-r from-yellow-500 to-amber-600 px-1 py-2 text-xs font-bold text-slate-900 shadow-md shadow-yellow-500/25 transition-all hover:active:scale-95 disabled:opacity-50 break-keep">
+                {isSubmittingFreeWish ? "진행중.." : isCooldown ? "5초 대기" : "일반 소원 띄우기"}
               </button>
-              <button
-                type="button"
-                onClick={handleOpenPremiumModal}
-                className="flex-1 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 px-3 py-2.5 text-xs font-bold text-slate-900 shadow-lg shadow-amber-500/25 transition-all hover:from-amber-400 hover:to-yellow-500 focus:outline-none"
-              >
-                ✨ 프리미엄 기원
+              <button type="button" onClick={handleOpenPremiumModal} className="w-full rounded-lg bg-gradient-to-r from-amber-500 to-rose-600 px-1 py-2 text-xs font-bold text-white shadow-md shadow-rose-500/25 transition-all hover:active:scale-95 break-keep">
+                ✨ 프리미엄 소원 띄우기
               </button>
             </div>
+            
+            <button type="button" onClick={handleAltarShare} className="mt-2 w-full rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition-all active:scale-95 shadow-inner flex items-center justify-center gap-1.5">
+              🔗 내 소원 부적 카드로 공유하기
+            </button>
           </div>
         </div>
 
-        <button
+        <button
           type="button"
           onClick={handleMuteToggle}
           className="fixed bottom-24 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500/20 text-yellow-400 transition-colors hover:bg-yellow-500/30 focus:outline-none"
@@ -1869,8 +1937,43 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
         <FooterPolicy tabId="altar" />
+
+{/* 🚀 공유용 숨겨진 소원성취 부적 UI (화면엔 안 보이고 이미지로만 구워짐) */}
+<div className="absolute left-[-9999px] top-[-9999px]">
+  <div ref={talismanRef} className="relative w-[360px] h-[600px] flex flex-col items-center justify-center bg-[#1a0f00] border-8 border-yellow-600 p-8 text-center" style={{ backgroundImage: "url('/bg_face_name.png')", backgroundSize: "cover", backgroundBlendMode: "overlay" }}>
+    <div className="absolute inset-0 bg-black/50" />
+    <div className="relative z-10 w-full h-full border-2 border-yellow-500/50 p-6 flex flex-col items-center justify-center">
+      <h2 className="text-3xl font-bold text-yellow-500 mb-6 font-serif">소원성취부</h2>
+      <div className="w-16 h-16 mb-6 opacity-80">
+        <span className="text-5xl text-red-500 font-serif">龘</span>
+      </div>
+      <p className="text-xl font-semibold text-yellow-100 leading-relaxed break-keep whitespace-pre-wrap font-serif">
+        {wishText || "간절한 소원이 이루어집니다."}
+      </p>
+      <div className="mt-12 pt-6 border-t border-yellow-500/30 w-full text-yellow-500/70 font-medium tracking-widest">
+        명운(命運) 기적의 제단
       </div>
     </div>
+  </div>
+</div>
+
+</div>
+
+{/* 🚀 프리미엄 전용 압도적 황금빛 기적 효과 (최상위 레이어) */}
+<div className={`fixed inset-0 z-40 flex items-center justify-center pointer-events-none transition-opacity duration-1000 ${isPremiumGlow ? "opacity-100" : "opacity-0"}`}>
+  <div className="absolute inset-0 bg-yellow-500/40 mix-blend-color-dodge animate-pulse" />
+  <div className="absolute w-[150vw] h-[150vw] sm:w-[800px] sm:h-[800px] bg-[radial-gradient(circle,rgba(253,224,71,0.8)_0%,transparent_60%)] animate-[spin_10s_linear_infinite]" />
+  <div className="relative z-50 text-center animate-[fortune-twinkle_1.5s_ease-in-out_infinite]">
+    <p className="text-2xl sm:text-4xl font-extrabold text-white drop-shadow-[0_0_20px_rgba(250,204,21,1)] tracking-widest mb-2">
+      ✨ 기적의 문이 열립니다 ✨
+    </p>
+    <p className="text-yellow-200 text-sm sm:text-base font-bold drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]">
+      우주의 가장 강력한 기운이 소원과 함께합니다
+    </p>
+  </div>
+</div>
+
+</div>
   );
 }
 
@@ -3546,8 +3649,573 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
   );
 }
 
+// 🚀 [정통 객관식 MBTI 테스트 32문항 & 결과 데이터]
+const MBTI_QUESTIONS = [
+  { id: 1, text: "새로운 사람들을 만나는 자리에 가는 것이 즐겁습니다.", axis: "EI", reverse: false },
+  { id: 2, text: "주말에는 밖으로 나가기보다 집에서 쉬는 것이 좋습니다.", axis: "EI", reverse: true },
+  { id: 3, text: "대화를 할 때 주로 듣는 것보다 말하는 것을 선호합니다.", axis: "EI", reverse: false },
+  { id: 4, text: "주목받는 일은 가능하면 피하고 싶습니다.", axis: "EI", reverse: true },
+  { id: 5, text: "주변 사람들에게 에너지가 넘친다는 말을 자주 듣습니다.", axis: "EI", reverse: false },
+  { id: 6, text: "여러 사람과 함께 시간을 보내면 쉽게 피로해집니다.", axis: "EI", reverse: true },
+  { id: 7, text: "처음 보는 사람에게 먼저 다가가 대화를 시작하는 편입니다.", axis: "EI", reverse: false },
+  { id: 8, text: "전화 통화보다 메시지를 주고받는 것이 훨씬 편합니다.", axis: "EI", reverse: true },
+  
+  { id: 9, text: "종종 비현실적이고 엉뚱하지만 흥미로운 상상을 하곤 합니다.", axis: "SN", reverse: true },
+  { id: 10, text: "사실과 경험에 기반하여 현실적으로 판단하는 것을 선호합니다.", axis: "SN", reverse: false },
+  { id: 11, text: "사물의 숨겨진 의미나 비유를 찾는 것을 좋아합니다.", axis: "SN", reverse: true },
+  { id: 12, text: "구체적이고 명확한 지시사항이 주어지는 것이 편합니다.", axis: "SN", reverse: false },
+  { id: 13, text: "앞으로 다가올 미래보다 현재 일어나고 있는 일이 더 중요합니다.", axis: "SN", reverse: false },
+  { id: 14, text: "가끔 머릿속에서 여러 가지 생각이 꼬리를 물고 이어집니다.", axis: "SN", reverse: true },
+  { id: 15, text: "추상적인 이론보다는 당장 써먹을 수 있는 실용적인 정보가 좋습니다.", axis: "SN", reverse: false },
+  { id: 16, text: "일을 할 때 기존의 방식보다 새롭고 독창적인 방식을 시도해 봅니다.", axis: "SN", reverse: true },
+
+  { id: 17, text: "논쟁에서 이기는 것보다 상대방의 기분을 상하지 않게 하는 것이 더 중요합니다.", axis: "TF", reverse: true },
+  { id: 18, text: "결정을 내릴 때 감정보다는 객관적인 사실과 논리를 우선합니다.", axis: "TF", reverse: false },
+  { id: 19, text: "누군가 위로를 원할 때, 해결책을 제시하기보다 공감해 주는 편입니다.", axis: "TF", reverse: true },
+  { id: 20, text: "종종 사람들의 감정보다 효율성을 더 중시하곤 합니다.", axis: "TF", reverse: false },
+  { id: 21, text: "슬픈 영화나 사연을 보면 쉽게 눈물이 나거나 감정 이입이 됩니다.", axis: "TF", reverse: true },
+  { id: 22, text: "나에게 비판적인 피드백을 주더라도 그것이 사실이라면 기꺼이 수용합니다.", axis: "TF", reverse: false },
+  { id: 23, text: "친구가 '나 우울해서 화분 샀어'라고 하면 화분의 종류보다 우울한 이유를 먼저 묻습니다.", axis: "TF", reverse: true },
+  { id: 24, text: "규칙이나 원칙은 상황에 따라 유연하게 바꾸기보다 엄격하게 지켜져야 합니다.", axis: "TF", reverse: false },
+
+  { id: 25, text: "여행을 갈 때 세부적인 일정을 미리 철저하게 세우는 편입니다.", axis: "JP", reverse: false },
+  { id: 26, text: "일정을 꽉 채우기보다 그때그때 기분에 따라 즉흥적으로 행동하는 것이 좋습니다.", axis: "JP", reverse: true },
+  { id: 27, text: "할 일이 있으면 미루지 않고 즉시 시작하는 편입니다.", axis: "JP", reverse: false },
+  { id: 28, text: "마감 기한이 임박해야 비로소 에너지가 솟고 능률이 오릅니다.", axis: "JP", reverse: true },
+  { id: 29, text: "물건들이 항상 정해진 자리에 깔끔하게 정리되어 있는 것을 좋아합니다.", axis: "JP", reverse: false },
+  { id: 30, text: "계획이 갑자기 변경되어도 유연하게 잘 대처하는 편입니다.", axis: "JP", reverse: true },
+  { id: 31, text: "일을 시작하기 전에 필요한 모든 단계와 결과를 미리 구상합니다.", axis: "JP", reverse: false },
+  { id: 32, text: "정리정돈보다는 현재 하고 있는 일에 더 집중하는 편입니다.", axis: "JP", reverse: true },
+];
+
+const MBTI_RESULTS: Record<string, any> = {
+  "ENFJ": { title: "언변능숙형", emoji: "🌟", desc: "따뜻하고 적극적이며 책임감이 강하고 사교성이 풍부하고 동정심이 많습니다.", traits: ["마음이 약하고 남의 의견에 동화를 잘함", "말로 표현을 잘하고 생각이 깊음", "적극적이고 추진력이 강함"], bad: ["현실적인 일과 세부 사항에 약함", "인간관계에 얽매여 큰 일을 놓칠 수 있음"] },
+  "ENFP": { title: "스파크형", emoji: "✨", desc: "정열적이고 활기가 넘치며 상상력이 풍부하고 온정적입니다.", traits: ["감정 기복이 심함", "새로운 시도를 좋아함", "사람을 기쁘게 하는 타고난 능력"], bad: ["반복적인 일상을 견디기 힘들어함", "마무리가 약함"] },
+  "ENTJ": { title: "지도자형", emoji: "🚀", desc: "열성이 많고 솔직하고 단호하며 통솔력이 있습니다.", traits: ["타고난 리더십", "효율성을 극도로 중시함", "감정 표현에 서툴 수 있음"], bad: ["타인의 감정을 무시할 때가 있음", "지나친 완벽주의"] },
+  "ENTP": { title: "발명가형", emoji: "💡", desc: "민첩하고 독창적이며 안목이 넓고 다방면에 관심과 재능이 많습니다.", traits: ["두뇌 회전이 빠름", "논쟁을 즐김", "반복되는 일을 싫어함"], bad: ["일상적이고 세부적인 일을 소홀히 함", "말만 앞설 수 있음"] },
+  "ESFJ": { title: "친선도모형", emoji: "🤝", desc: "동정심이 많고 다른 사람에게 관심을 쏟으며 인화를 중시합니다.", traits: ["타고난 조력자", "규칙과 질서를 잘 지킴", "남의 인정을 받는 것을 중요시함"], bad: ["거절을 잘 못함", "변화에 적응하기 힘들어함"] },
+  "ESFP": { title: "사교적인 유형", emoji: "🎉", desc: "사교적이고 활동적이며 수용력이 강하고 친절하며 낙천적입니다.", traits: ["분위기 메이커", "현실적이고 실제적임", "사람들과 어울리는 것을 좋아함"], bad: ["장기적인 계획 세우기를 어려워함", "진지한 상황을 피하려 함"] },
+  "ESTJ": { title: "사업가형", emoji: "💼", desc: "구체적이고 현실적이고 사실적이며 활동을 조직화하고 주도해 나가는 지도력이 있습니다.", traits: ["강한 책임감", "현실감각이 뛰어남", "타고난 관리자"], bad: ["타인의 감정을 고려하지 못할 때가 있음", "너무 융통성이 없음"] },
+  "ESTP": { title: "수완좋은 활동가형", emoji: "🏎️", desc: "현실적인 문제 해결에 능하며 적응력이 강하고 관용적입니다.", traits: ["스릴을 즐김", "관찰력이 뛰어남", "실용성을 중시함"], bad: ["충동적일 수 있음", "이론적인 논의를 지루해함"] },
+  "INFJ": { title: "예언자형", emoji: "🔮", desc: "인내심이 많고 통찰력과 직관력이 뛰어나며 양심이 바르고 화합을 추구합니다.", traits: ["깊은 통찰력", "완벽주의 성향", "타인의 감정을 잘 읽음"], bad: ["현실 감각이 부족할 수 있음", "혼자만의 시간이 매우 필요함"] },
+  "INFP": { title: "잔다르크형", emoji: "🕊️", desc: "정열적이고 충실하며 목가적이고, 낭만적이며 내적 신념이 깊습니다.", traits: ["이상주의자", "공감 능력이 뛰어남", "개인적인 가치를 중시함"], bad: ["지나치게 감정적일 수 있음", "행동보다 생각이 많음"] },
+  "INTJ": { title: "과학자형", emoji: "♟️", desc: "사고가 독창적이고 창의력이 뛰어나며, 비판적인 분석력이 탁월합니다.", traits: ["독립적인 성향", "전략적 사고", "지식에 대한 갈망"], bad: ["타인에게 차갑게 보일 수 있음", "오만해 보일 수 있음"] },
+  "INTP": { title: "아이디어 뱅크형", emoji: "🔬", desc: "조용하고 과묵하며 논리와 분석으로 문제를 해결하기 좋아합니다.", traits: ["객관적인 분석력", "지적 호기심이 강함", "관습에 얽매이지 않음"], bad: ["실행력이 부족함", "타인의 감정에 둔감할 수 있음"] },
+  "ISFJ": { title: "임금 뒷면의 권력형", emoji: "🛡️", desc: "조용하고 차분하며 친근하고 책임감이 있으며 헌신적입니다.", traits: ["세심한 배려", "책임감이 강함", "전통을 중시함"], bad: ["변화를 싫어함", "자신의 의견을 강하게 주장하지 못함"] },
+  "ISFP": { title: "성인군자형", emoji: "🎨", desc: "말없이 다정하고 온화하며 친절하고 연기력이 뛰어나며 겸손합니다.", traits: ["예술적 감각", "현재를 즐김", "갈등을 피하려 함"], bad: ["계획성이 부족함", "비판에 매우 민감함"] },
+  "ISTJ": { title: "세상의 소금형", emoji: "📋", desc: "실제 사실에 대하여 정확하고 체계적으로 기억하며 일 처리에 있어서도 신중하고 책임감이 있습니다.", traits: ["철저한 계획", "신뢰할 수 있음", "원리원칙주의"], bad: ["융통성이 부족함", "새로운 아이디어를 수용하기 어려워함"] },
+  "ISTP": { title: "백과사전형", emoji: "🛠️", desc: "조용하고 과묵하고 절제된 호기심으로 인생을 관찰하며 상황을 파악하는 민감성과 도구를 다루는 뛰어난 능력이 있습니다.", traits: ["뛰어난 위기 대처 능력", "효율성을 중시함", "독립적임"], bad: ["무뚝뚝해 보일 수 있음", "장기적인 약속을 꺼림"] },
+};
+
+function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (id: TabId) => void }) {
+  const [step, setStep] = useState(0); 
+  const [scores, setScores] = useState({ E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 });
+  const [history, setHistory] = useState<any[]>([]); // 🚀 이전 버튼을 위한 기록 저장소
+  const [resultType, setResultType] = useState("");
+
+  const handleAnswer = (score: number, axis: string, reverse: boolean) => {
+    const adjustedScore = reverse ? -score : score;
+    const newScores = { ...scores };
+    
+    if (axis === "EI") { adjustedScore > 0 ? newScores.E += adjustedScore : newScores.I += Math.abs(adjustedScore); }
+    if (axis === "SN") { adjustedScore > 0 ? newScores.S += adjustedScore : newScores.N += Math.abs(adjustedScore); }
+    if (axis === "TF") { adjustedScore > 0 ? newScores.T += adjustedScore : newScores.F += Math.abs(adjustedScore); }
+    if (axis === "JP") { adjustedScore > 0 ? newScores.J += adjustedScore : newScores.P += Math.abs(adjustedScore); }
+    
+    setScores(newScores);
+    // 🚀 이전 버튼을 위해 현재 상태를 기록에 추가
+    setHistory([...history, { newScores }]);
+    
+    if (step < MBTI_QUESTIONS.length) {
+      setStep(step + 1);
+    } else {
+      calculateResult(newScores);
+    }
+  };
+
+  // 🚀 이전 문항으로 돌아가기 로직
+  const handlePrevious = () => {
+    if (step > 1 && history.length > 0) {
+      const newHistory = [...history];
+      newHistory.pop(); // 방금 한 답변 기록 제거
+      const prevScores = newHistory.length > 0 ? newHistory[newHistory.length - 1].newScores : { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 };
+      
+      setScores(prevScores);
+      setHistory(newHistory);
+      setStep(step - 1);
+    } else if (step === 1) {
+      resetTest();
+    }
+  };
+
+  const calculateResult = (finalScores: any) => {
+    setStep(99); 
+    setTimeout(() => {
+      const type = 
+        (finalScores.E >= finalScores.I ? "E" : "I") +
+        (finalScores.S >= finalScores.N ? "S" : "N") +
+        (finalScores.T >= finalScores.F ? "T" : "F") +
+        (finalScores.J >= finalScores.P ? "J" : "P");
+      setResultType(type);
+      setStep(100); 
+    }, 2500);
+  };
+
+  const resetTest = () => {
+    setScores({ E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 });
+    setHistory([]);
+    setResultType("");
+    setStep(0);
+  };
+
+  // 🚀 결과창 퍼센트 그래프 렌더링 함수
+  const renderSpectrum = (leftLabel: string, leftScore: number, rightLabel: string, rightScore: number, colorClass: string) => {
+    const total = leftScore + rightScore || 1; // 0 나누기 방지
+    const leftPct = Math.round((leftScore / total) * 100);
+    const rightPct = 100 - leftPct;
+
+    return (
+      <div className="mb-5">
+        <div className="flex justify-between text-xs font-bold text-white/90 mb-1.5 px-1">
+          <span>{leftLabel} ({leftPct}%)</span>
+          <span>{rightLabel} ({rightPct}%)</span>
+        </div>
+        <div className="h-3 w-full bg-slate-800/80 rounded-full overflow-hidden flex shadow-inner">
+          <div className={`h-full ${colorClass} transition-all duration-1000 ease-out`} style={{ width: `${leftPct}%` }}></div>
+          <div className="h-full bg-slate-600/50 transition-all duration-1000 ease-out" style={{ width: `${rightPct}%` }}></div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div role="tabpanel" aria-hidden={!isVisible} className={`absolute inset-0 flex flex-col overflow-y-auto transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
+      <div className="fixed inset-0 z-0 bg-slate-950">
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-slate-900 to-teal-900/40 opacity-80" />
+      </div>
+
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-8">
+        
+        {/* 1. 시작 화면 */}
+        {step === 0 && (
+          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8 text-center backdrop-blur-xl shadow-2xl">
+            <span className="text-teal-400 text-xs font-bold tracking-widest bg-teal-500/10 px-3 py-1 rounded-full mb-4 inline-block border border-teal-500/20">MBTI TEST</span>
+            <h2 className="text-3xl font-extrabold text-white mb-4">심층 성격 검사</h2>
+            <p className="text-sm text-white/70 leading-relaxed mb-8">
+              나는 어떤 사람일까?<br/>핵심만 뽑아낸 32개의 문항을 통해<br/>숨겨진 진짜 내 성격을 알아보세요.
+            </p>
+            <button onClick={() => setStep(1)} className="w-full rounded-2xl bg-gradient-to-r from-teal-500 to-indigo-500 px-6 py-4 text-base font-bold text-white shadow-lg hover:scale-[1.02] transition-transform">
+              검사 시작하기 (약 3분 소요)
+            </button>
+          </div>
+        )}
+
+        {/* 2. 질문 화면 */}
+        {step > 0 && step <= MBTI_QUESTIONS.length && (
+          <div className="w-full max-w-md animate-fade-in-up">
+            <div className="mb-6 flex items-center justify-between px-2 text-xs font-bold text-teal-400">
+              <span>진행률</span>
+              <span>{step} / {MBTI_QUESTIONS.length}</span>
+            </div>
+            <div className="mb-8 h-2 w-full rounded-full bg-slate-800">
+              <div className="h-full rounded-full bg-teal-500 transition-all duration-300" style={{ width: `${(step / MBTI_QUESTIONS.length) * 100}%` }} />
+            </div>
+            
+            <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-6 md:p-8 backdrop-blur-xl shadow-2xl text-center">
+              <h3 className="text-lg md:text-xl font-bold text-white mb-8 break-keep leading-relaxed min-h-[60px] flex items-center justify-center">
+                {MBTI_QUESTIONS[step - 1].text}
+              </h3>
+              
+              <div className="flex flex-col gap-3">
+                {[
+                  { label: "매우 그렇다", score: 2, color: "bg-teal-500 hover:bg-teal-400 border-teal-400" },
+                  { label: "그렇다", score: 1, color: "bg-teal-500/60 hover:bg-teal-400/80 border-teal-500/50" },
+                  { label: "보통이다", score: 0, color: "bg-slate-700 hover:bg-slate-600 border-slate-600" },
+                  { label: "아니다", score: -1, color: "bg-indigo-500/60 hover:bg-indigo-400/80 border-indigo-500/50" },
+                  { label: "매우 아니다", score: -2, color: "bg-indigo-500 hover:bg-indigo-400 border-indigo-400" },
+                ].map((btn, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => handleAnswer(btn.score, MBTI_QUESTIONS[step - 1].axis, MBTI_QUESTIONS[step - 1].reverse)}
+                    className={`w-full py-4 rounded-xl text-sm font-bold text-white transition-all shadow-md border ${btn.color} active:scale-95`}
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* 🚀 이전으로 돌아가기 버튼 추가 */}
+              <button 
+                onClick={handlePrevious} 
+                className="mt-6 text-xs text-white/40 hover:text-white/80 underline underline-offset-4 transition-colors"
+              >
+                ← 이전 질문으로 돌아가기
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 3. 로딩 화면 */}
+        {step === 99 && (
+          <div className="flex flex-col items-center justify-center gap-6">
+            <div className="h-16 w-16 animate-spin rounded-full border-[4px] border-teal-500/30 border-t-teal-400" />
+            <p className="text-teal-300 font-bold tracking-wide animate-pulse">심리 패턴을 분석 중입니다...</p>
+          </div>
+        )}
+
+        {/* 4. 결과 화면 */}
+        {step === 100 && resultType && MBTI_RESULTS[resultType] && (
+          <div className="w-full max-w-2xl animate-fade-in-up pb-8">
+            <div className="rounded-3xl border border-teal-500/30 bg-slate-900/95 p-6 md:p-10 backdrop-blur-xl shadow-[0_0_40px_rgba(20,184,166,0.15)]">
+              
+              {/* 🚀 썸네일 이모지 및 타이틀 */}
+              <div className="text-center mb-8 pb-8">
+                <div className="text-7xl mb-4 animate-bounce">
+                  {MBTI_RESULTS[resultType].emoji}
+                </div>
+                <p className="text-sm font-bold text-teal-400 mb-2">당신의 심리 분석 결과는?</p>
+                <h2 className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-indigo-400 mb-4 drop-shadow-lg">
+                  {resultType}
+                </h2>
+                <h3 className="text-xl md:text-2xl font-bold text-white mb-4">
+                  {MBTI_RESULTS[resultType].title}
+                </h3>
+                <p className="text-sm text-white/80 leading-relaxed max-w-md mx-auto">
+                  {MBTI_RESULTS[resultType].desc}
+                </p>
+              </div>
+
+              {/* 🚀 아래로 스크롤 유도 애니메이션 (이탈률 방어) */}
+              <div className="flex flex-col items-center justify-center mb-8 animate-bounce text-teal-400/80">
+                <span className="text-xs font-bold mb-1">👇 아래로 내려서 내용 더 확인하기 👇</span>
+                <span className="text-xl leading-none">⌄</span>
+              </div>
+
+              {/* 🚀 퍼센트(%) 성향 그래프 추가 */}
+              <div className="mb-10 p-6 rounded-2xl bg-black/40 border border-white/5 shadow-inner">
+                <h4 className="text-center text-sm font-bold text-teal-300 mb-6">📊 나의 성향 분석 스펙트럼</h4>
+                {renderSpectrum("외향(E)", scores.E, "내향(I)", scores.I, "bg-teal-500")}
+                {renderSpectrum("감각(S)", scores.S, "직관(N)", scores.N, "bg-blue-500")}
+                {renderSpectrum("사고(T)", scores.T, "감정(F)", scores.F, "bg-amber-500")}
+                {renderSpectrum("판단(J)", scores.J, "인식(P)", scores.P, "bg-purple-500")}
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6 mb-8">
+                <div className="rounded-2xl bg-teal-900/20 border border-teal-500/20 p-5">
+                  <h4 className="text-sm font-bold text-teal-300 mb-3 flex items-center gap-2"><span>✨</span> 강점 및 특징</h4>
+                  <ul className="space-y-2 text-sm text-white/80">
+                    {MBTI_RESULTS[resultType].traits.map((t: string, i: number) => (
+                      <li key={i} className="flex gap-2"><span className="text-teal-500">•</span> {t}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="rounded-2xl bg-rose-900/20 border border-rose-500/20 p-5">
+                  <h4 className="text-sm font-bold text-rose-300 mb-3 flex items-center gap-2"><span>⚠️</span> 개발해야 할 점</h4>
+                  <ul className="space-y-2 text-sm text-white/80">
+                    {MBTI_RESULTS[resultType].bad.map((t: string, i: number) => (
+                      <li key={i} className="flex gap-2"><span className="text-rose-500">•</span> {t}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button onClick={() => alert("공유 기능은 링크 연동 후 지원됩니다.")} className="w-full rounded-2xl border border-teal-500/40 bg-teal-500/10 px-4 py-4 text-sm font-bold text-teal-300 transition-all hover:bg-teal-500/20">
+                  🔗 이 결과 링크로 공유하기
+                </button>
+                <button onClick={resetTest} className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-medium text-white/80 hover:bg-white/10 transition-colors">
+                  ↺ 다시 검사하기
+                </button>
+              </div>
+
+              {/* 🚀 깔때기(Funnel) 전략: 운세 및 사주 탭으로 유도하는 황금 버튼 */}
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <p className="text-center text-xs text-white/50 mb-3">내 성향에 딱 맞는 맞춤 운세가 궁금하다면?</p>
+                <button onClick={() => { window.scrollTo(0,0); onNavigate('fortune'); }} className="w-full mb-3 rounded-2xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-4 text-base font-bold text-slate-900 shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:scale-[1.02] transition-transform animate-pulse">
+                  ✨ 소름돋는 오늘의 맞춤 운세 보기
+                </button>
+                <button onClick={() => { window.scrollTo(0,0); onNavigate('saju'); }} className="w-full rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 px-4 py-4 text-sm font-bold text-white shadow-lg hover:scale-[1.02] transition-transform">
+                  🔍 내 타고난 관상 / 이름 풀이 보기
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+        <FooterPolicy tabId="mbti" as any />
+      </div>
+    </div>
+  );
+}
+
+// 🚀 [소름돋는 궁합 컴포넌트 - 음/양력 추가 및 이름 기반 캐싱]
+function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (id: TabId) => void }) {
+  // 🚀 상태에 calendar(음양력) 추가
+  const [myInfo, setMyInfo] = useState({ name: "", gender: "male", calendar: "solar", birthDate: "", birthTime: "unknown" });
+  const [partnerInfo, setPartnerInfo] = useState({ name: "", gender: "female", calendar: "solar", birthDate: "", birthTime: "unknown" });
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [resultData, setResultData] = useState<any>(null);
+  
+  const [isAdWatching, setIsAdWatching] = useState(false);
+  const [adProgress, setAdProgress] = useState(0);
+
+  const handleDateInput = (val: string, setter: any) => {
+    let clean = val.replace(/[^0-9]/g, '');
+    if (clean.length > 6) clean = clean.slice(0,4) + '-' + clean.slice(4,6) + '-' + clean.slice(6,8);
+    else if (clean.length > 4) clean = clean.slice(0,4) + '-' + clean.slice(4);
+    setter(clean);
+  };
+
+  const handleMatchAnalyze = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!myInfo.name || !partnerInfo.name || !myInfo.birthDate || !partnerInfo.birthDate) {
+      return alert("이름과 생년월일을 모두 입력해 주세요.");
+    }
+
+    setIsLoading(true);
+    setResultData(null);
+
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      // 운영자 패스
+    } else {
+      setIsAdWatching(true);
+      setAdProgress(0);
+      for (let i = 0; i <= 100; i += 2) {
+        setAdProgress(i);
+        await new Promise(r => setTimeout(r, 100)); 
+      }
+      setIsAdWatching(false);
+    }
+
+    // 🚀 A와 B의 위치를 바꿔서 입력해도 항상 똑같은 결과가 나오도록 정렬(Sort) 마법 적용
+    const myKey = `${myInfo.name}_${myInfo.gender}_${myInfo.calendar}_${myInfo.birthDate}_${myInfo.birthTime}`;
+    const partnerKey = `${partnerInfo.name}_${partnerInfo.gender}_${partnerInfo.calendar}_${partnerInfo.birthDate}_${partnerInfo.birthTime}`;
+    
+    const sortedKeys = [myKey, partnerKey].sort(); // 알파벳 순으로 정렬해버림 (위치 무관)
+    const cacheKey = `match_${sortedKeys[0]}_${sortedKeys[1]}`;
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        setResultData(JSON.parse(cached));
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    try {
+      const res = await fetch("/api/match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ myInfo, partnerInfo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      if (typeof window !== "undefined") localStorage.setItem(cacheKey, JSON.stringify(data));
+      setResultData(data);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "궁합 분석 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatTimeLabel = (label: string) => {
+    if (!label || label === "모름") return "모름";
+    if (label.includes("(")) {
+      const parts = label.split("(");
+      if (parts.length > 1) {
+        const timePart = parts[1].replace(")", "").trim();
+        const namePart = parts[0].trim();
+        return `${timePart} (${namePart})`;
+      }
+    }
+    return label;
+  };
+
+  return (
+    <div role="tabpanel" aria-hidden={!isVisible} className={`absolute inset-0 flex flex-col overflow-y-auto transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
+      <div className="fixed inset-0 z-0 bg-slate-950">
+        <div className="absolute inset-0 bg-gradient-to-br from-rose-900/40 via-slate-900 to-orange-900/40 opacity-80" />
+      </div>
+
+      <div className="relative z-10 flex flex-1 flex-col items-center px-4 py-8">
+        
+        {!isLoading && !resultData && (
+          <form onSubmit={handleMatchAnalyze} className="w-full max-w-md animate-fade-in-up">
+            <div className="text-center mb-8">
+              <span className="inline-block px-3 py-1 mb-3 rounded-full bg-rose-500/20 border border-rose-400/30 text-rose-300 text-xs font-bold tracking-widest">CHEMISTRY TEST</span>
+              <h2 className="text-3xl font-extrabold text-white mb-2 drop-shadow-lg">소름돋는 궁합</h2>
+              <p className="text-sm text-white/70">나와 그 사람의 타고난 기운은 얼마나 잘 맞을까?</p>
+            </div>
+
+            <div className="space-y-6">
+              {/* 👤 나의 정보 */}
+              <div className="rounded-3xl border border-rose-500/30 bg-slate-900/80 p-6 backdrop-blur-md shadow-lg">
+                <h3 className="text-rose-400 font-bold mb-4 flex items-center gap-2"><span>👤</span> 나의 정보</h3>
+                <div className="space-y-4">
+                  <div className="flex gap-3">
+                    <input type="text" placeholder="내 이름" value={myInfo.name} onChange={e=>setMyInfo({...myInfo, name: e.target.value})} className="flex-1 rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-white focus:border-rose-400 focus:outline-none" />
+                    <select value={myInfo.gender} onChange={e=>setMyInfo({...myInfo, gender: e.target.value})} className="w-24 rounded-xl bg-black/40 border border-white/10 px-2 py-3 text-white focus:border-rose-400 focus:outline-none">
+                      <option value="male">남자</option><option value="female">여자</option>
+                    </select>
+                  </div>
+                  
+                  {/* 🚀 음/양력 및 생년월일 */}
+                  <div className="flex gap-3">
+                    <select value={myInfo.calendar} onChange={e=>setMyInfo({...myInfo, calendar: e.target.value})} className="w-24 rounded-xl bg-black/40 border border-white/10 px-2 py-3 text-white focus:border-rose-400 focus:outline-none text-sm">
+                      <option value="solar">양력</option><option value="lunar">음력</option>
+                    </select>
+                    <input type="tel" maxLength={10} placeholder="생년월일 (예: 19900101)" value={myInfo.birthDate} onChange={e=>handleDateInput(e.target.value, (val:string)=>setMyInfo({...myInfo, birthDate: val}))} className="flex-1 rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-white focus:border-rose-400 focus:outline-none" />
+                  </div>
+
+                  <select value={myInfo.birthTime} onChange={e=>setMyInfo({...myInfo, birthTime: e.target.value})} className="w-full rounded-xl bg-black/40 border border-white/10 px-3 py-3 text-white focus:border-rose-400 focus:outline-none text-sm">
+                    {BIRTH_TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{formatTimeLabel(o.label)}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* ❤️ 상대방 정보 */}
+              <div className="rounded-3xl border border-orange-500/30 bg-slate-900/80 p-6 backdrop-blur-md shadow-lg">
+                <h3 className="text-orange-400 font-bold mb-4 flex items-center gap-2"><span>❤️</span> 상대방 정보</h3>
+                <div className="space-y-4">
+                  <div className="flex gap-3">
+                    <input type="text" placeholder="상대방 이름" value={partnerInfo.name} onChange={e=>setPartnerInfo({...partnerInfo, name: e.target.value})} className="flex-1 rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-white focus:border-orange-400 focus:outline-none" />
+                    <select value={partnerInfo.gender} onChange={e=>setPartnerInfo({...partnerInfo, gender: e.target.value})} className="w-24 rounded-xl bg-black/40 border border-white/10 px-2 py-3 text-white focus:border-orange-400 focus:outline-none">
+                      <option value="female">여자</option><option value="male">남자</option>
+                    </select>
+                  </div>
+
+                  {/* 🚀 음/양력 및 생년월일 */}
+                  <div className="flex gap-3">
+                    <select value={partnerInfo.calendar} onChange={e=>setPartnerInfo({...partnerInfo, calendar: e.target.value})} className="w-24 rounded-xl bg-black/40 border border-white/10 px-2 py-3 text-white focus:border-orange-400 focus:outline-none text-sm">
+                      <option value="solar">양력</option><option value="lunar">음력</option>
+                    </select>
+                    <input type="tel" maxLength={10} placeholder="생년월일 (예: 19920505)" value={partnerInfo.birthDate} onChange={e=>handleDateInput(e.target.value, (val:string)=>setPartnerInfo({...partnerInfo, birthDate: val}))} className="flex-1 rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-white focus:border-orange-400 focus:outline-none" />
+                  </div>
+
+                  <select value={partnerInfo.birthTime} onChange={e=>setPartnerInfo({...partnerInfo, birthTime: e.target.value})} className="w-full rounded-xl bg-black/40 border border-white/10 px-3 py-3 text-white focus:border-orange-400 focus:outline-none text-sm">
+                    {BIRTH_TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{formatTimeLabel(o.label)}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <button type="submit" className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-orange-500 px-6 py-4 text-base font-bold text-white shadow-[0_0_20px_rgba(244,63,94,0.3)] hover:scale-[1.02] transition-transform">
+                ✨ 광고 보고 상세 궁합 보기
+              </button>
+            </div>
+          </form>
+        )}
+
+        {isLoading && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-6 mt-10 w-full max-w-md">
+            {isAdWatching ? (
+              <div className="w-full bg-slate-900/80 p-8 rounded-3xl border border-white/10 text-center animate-fade-in-up shadow-2xl">
+                <p className="text-sm font-bold text-orange-400 mb-2">스폰서 메시지</p>
+                <h3 className="text-xl font-extrabold text-white mb-6">광고 시청 후 결과가 공개됩니다</h3>
+                <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden mb-3">
+                  <div className="h-full bg-gradient-to-r from-rose-500 to-orange-500 transition-all duration-100 ease-linear" style={{ width: `${adProgress}%` }} />
+                </div>
+                <p className="text-xs text-white/50">{adProgress}% 완료</p>
+              </div>
+            ) : (
+              <>
+                <div className="relative flex items-center justify-center">
+                  <div className="absolute w-24 h-24 bg-rose-500/20 rounded-full animate-ping" />
+                  <Heart className="w-12 h-12 text-rose-500 animate-pulse drop-shadow-[0_0_15px_rgba(244,63,94,0.8)]" fill="currentColor" />
+                </div>
+                <div className="text-center">
+                  <p className="text-rose-300 font-bold tracking-wide">사주와 이름의 기운을 교차 분석 중입니다...</p>
+                  <p className="text-xs text-white/50 mt-2">사주 명식 대조 및 성명학 오행 보완성 계산</p>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {resultData && !isLoading && (
+          <div className="w-full max-w-md animate-fade-in-up pb-6">
+            <div className="rounded-3xl border border-rose-500/30 bg-slate-900/90 p-6 md:p-8 backdrop-blur-xl shadow-2xl">
+              
+              <div className="text-center border-b border-white/10 pb-6 mb-6">
+                <div className="flex justify-center items-center gap-4 mb-4">
+                  <span className="text-lg font-bold text-rose-300">{myInfo.name}</span>
+                  <Heart className="w-5 h-5 text-rose-500 animate-pulse" fill="currentColor" />
+                  <span className="text-lg font-bold text-orange-300">{partnerInfo.name}</span>
+                </div>
+                
+                <div className="relative inline-flex items-center justify-center mb-2">
+                  <svg className="w-28 h-28 transform -rotate-90">
+                    <circle cx="56" cy="56" r="50" stroke="rgba(255,255,255,0.1)" strokeWidth="8" fill="none" />
+                    <circle cx="56" cy="56" r="50" stroke="url(#score-gradient)" strokeWidth="8" fill="none" strokeDasharray="314" strokeDashoffset={314 - (314 * resultData.score) / 100} className="transition-all duration-1500 ease-out" />
+                    <defs>
+                      <linearGradient id="score-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#f43f5e" />
+                        <stop offset="100%" stopColor="#f97316" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <span className="absolute text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-orange-400">{resultData.score}점</span>
+                </div>
+                
+                <h3 className="text-xl font-bold text-white mt-4">{resultData.title}</h3>
+                <p className="text-sm text-white/70 mt-2">{resultData.summary}</p>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                <div className="bg-black/40 rounded-2xl p-4 border border-white/5">
+                  <h4 className="text-sm font-bold text-rose-400 mb-2">🔍 상세 궁합 풀이</h4>
+                  <p className="text-sm text-white/85 leading-relaxed">{resultData.details}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-emerald-900/20 rounded-xl p-3 border border-emerald-500/20">
+                    <p className="text-[10px] font-bold text-emerald-400 mb-1">😍 가장 잘 맞는 점</p>
+                    <p className="text-xs text-white/90 leading-snug">{resultData.goodPoint}</p>
+                  </div>
+                  <div className="bg-red-900/20 rounded-xl p-3 border border-red-500/20">
+                    <p className="text-[10px] font-bold text-red-400 mb-1">⚠️ 주의해야 할 점</p>
+                    <p className="text-xs text-white/90 leading-snug">{resultData.badPoint}</p>
+                  </div>
+                </div>
+
+                <div className="bg-orange-900/20 rounded-xl p-4 border border-orange-500/20">
+                  <p className="text-[11px] font-bold text-orange-400 mb-1">💡 관계 발전을 위한 조언</p>
+                  <p className="text-sm text-white/90">{resultData.actionGuide}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <button onClick={() => alert("공유 기능은 링크 연동 후 지원됩니다.")} className="w-full rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-4 text-sm font-bold text-rose-300 transition-all hover:bg-rose-500/20">
+                  🔗 이 궁합 결과 공유하기
+                </button>
+                <button onClick={() => setResultData(null)} className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-medium text-white/80 hover:bg-white/10 transition-colors">
+                  ↺ 다른 사람과 궁합 보기
+                </button>
+              </div>
+
+              {/* 🚀 유도 깔때기: 기적의 제단으로 자연스럽게 연결 */}
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <p className="text-center text-xs text-white/50 mb-3">우리 관계의 긍정적인 에너지를 모으고 싶다면?</p>
+                <button onClick={() => { window.scrollTo(0,0); onNavigate('altar'); }} className="w-full rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 px-4 py-4 text-sm font-bold text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] hover:scale-[1.02] transition-transform">
+                  🙏 기적의 제단에 소원 빌러 가기
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )}
+        <FooterPolicy tabId="match" as any />
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabId>("fortune");
+  // 🚀 메뉴 스크롤 제어를 위한 Ref 추가
+  const navRef = useRef<HTMLDivElement>(null);
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
@@ -3667,58 +4335,123 @@ export default function Home() {
       {/* 🚀 [추가] 관리자 모드일 때만 나타나는 통계 대시보드 */}
       <AdminDashboard />
 
-      {/* 🚀 [추가됨] 최상단 헤더 (앱 로고 & 카카오 로그인 버튼) */}
+      {/* 🚀 최상단 헤더 (앱 로고 & 카카오 로그인 버튼 & 알림 버튼) */}
       <header className="sticky top-0 z-[60] w-full border-b border-white/10 bg-slate-950/80 backdrop-blur-md px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-500 to-amber-600 flex items-center justify-center text-xs font-bold text-black">
-            명
-          </div>
+          <img src="/logo.png" alt="명운 로고" className="w-9 h-9 object-contain" />
           <span className="text-yellow-400 font-bold tracking-widest text-sm">명운(命運)</span>
         </div>
         
-        <div>
-          {!isAuthChecking && (
-            user ? (
-              <div className="flex items-center gap-3 animate-fade-in">
-                <div className="flex items-center gap-2 bg-white/5 pr-3 pl-1 py-1 rounded-full border border-white/10">
-                  <img 
-                    src={user.user_metadata?.avatar_url || "https://www.gravatar.com/avatar/0000?d=mp&f=y"} 
-                    alt="프로필" 
-                    className="w-6 h-6 rounded-full border border-yellow-500/50 object-cover" 
-                  />
-                  <span className="text-xs font-medium text-white/90 truncate max-w-[80px]">
-                    {user.user_metadata?.name || "사용자"}님
-                  </span>
+        <div className="flex items-center gap-3">
+          {/* 🚀 푸시 알림 구독 버튼 */}
+          <button
+            onClick={async () => {
+              if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                return alert("이 브라우저는 알림을 지원하지 않습니다.");
+              }
+              try {
+                const registration = await navigator.serviceWorker.register('/sw.js');
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') return alert("알림 권한이 거부되었습니다.");
+
+                const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
+                const base64ToUint8Array = (base64: string) => {
+                  const padding = '='.repeat((4 - base64.length % 4) % 4);
+                  const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+                  const rawData = window.atob(b64);
+                  const outputArray = new Uint8Array(rawData.length);
+                  for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+                  return outputArray;
+                };
+
+                const subscription = await registration.pushManager.subscribe({
+                  userVisibleOnly: true,
+                  applicationServerKey: base64ToUint8Array(VAPID_PUBLIC_KEY)
+                });
+
+                await fetch('/api/push/subscribe', {
+                  method: 'POST',
+                  body: JSON.stringify(subscription),
+                  headers: { 'Content-Type': 'application/json' }
+                });
+                alert("✨ 매일 맞춤 운세 알림이 설정되었습니다!");
+              } catch (e) {
+                console.error(e);
+                alert("알림 설정 중 오류가 발생했습니다.");
+              }
+            }}
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-yellow-400 hover:bg-slate-700 transition-colors shadow-lg border border-yellow-500/20"
+            title="매일 운세 알림 받기"
+          >
+            <Bell className="w-4 h-4 animate-bounce" />
+          </button>
+
+          {/* 🚀 카카오 로그인 상태 */}
+          <div>
+            {!isAuthChecking && (
+              user ? (
+                <div className="flex items-center gap-3 animate-fade-in">
+                  <div className="flex items-center gap-2 bg-white/5 pr-3 pl-1 py-1 rounded-full border border-white/10">
+                    <img 
+                      src={user.user_metadata?.avatar_url || "https://www.gravatar.com/avatar/0000?d=mp&f=y"} 
+                      alt="프로필" 
+                      className="w-6 h-6 rounded-full border border-yellow-500/50 object-cover" 
+                    />
+                    <span className="text-xs font-medium text-white/90 truncate max-w-[80px]">
+                      {user.user_metadata?.name || "사용자"}님
+                    </span>
+                  </div>
+                  <button onClick={handleLogout} className="text-[10px] text-white/40 hover:text-white/80 transition-colors">
+                    로그아웃
+                  </button>
                 </div>
-                <button onClick={handleLogout} className="text-[10px] text-white/40 hover:text-white/80 transition-colors">
-                  로그아웃
+              ) : (
+                <button
+                  onClick={handleKakaoLogin}
+                  className="flex items-center gap-2 bg-[#FEE500] hover:bg-[#FEE500]/90 text-[#000000] px-3 py-2 rounded-xl text-xs font-bold transition-transform active:scale-95 shadow-lg shadow-[#FEE500]/20 animate-fade-in"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16 4.64C8.953 4.64 3.2 9.426 3.2 15.33c0 3.824 2.454 7.17 6.166 8.922l-1.33 4.88c-.122.45.39.81.77.56l5.65-3.77c.5.06 1.015.094 1.544.094 7.047 0 12.8-4.787 12.8-10.686S23.047 4.64 16 4.64z" fill="#000000"/>
+                  </svg>
+                  카카오 로그인
                 </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleKakaoLogin}
-                className="flex items-center gap-2 bg-[#FEE500] hover:bg-[#FEE500]/90 text-[#000000] px-3 py-2 rounded-xl text-xs font-bold transition-transform active:scale-95 shadow-lg shadow-[#FEE500]/20 animate-fade-in"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M16 4.64C8.953 4.64 3.2 9.426 3.2 15.33c0 3.824 2.454 7.17 6.166 8.922l-1.33 4.88c-.122.45.39.81.77.56l5.65-3.77c.5.06 1.015.094 1.544.094 7.047 0 12.8-4.787 12.8-10.686S23.047 4.64 16 4.64z" fill="#000000"/>
-                </svg>
-                카카오 1초 로그인
-              </button>
-            )
-          )}
+              )
+            )}
+          </div>
         </div>
       </header>
 
-      {/* 기존 네비게이션 탭 (top-0 에서 top-[52px]로 수정하여 헤더 밑에 붙임) */}
-      <nav className="sticky top-[52px] z-50 w-full border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-sm shadow-md">
-        <div className="mx-auto flex max-w-screen-md items-center justify-between px-2 py-2 overflow-x-auto no-scrollbar sm:px-6">
+      {/* 🚀 메뉴 클릭 시 자동 중앙 정렬 기능이 탑재된 네비게이션 */}
+      <nav className="sticky top-[52px] z-50 w-full border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-sm shadow-md relative">
+        <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-slate-900 via-slate-900/80 to-transparent z-10 pointer-events-none sm:hidden" />
+        
+        <div 
+          ref={navRef}
+          className="mx-auto flex max-w-screen-md items-center justify-start gap-6 px-4 py-2 overflow-x-auto no-scrollbar sm:px-6 sm:justify-between sm:gap-0 relative z-0"
+        >
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => tab.isReady && setActiveTab(tab.id)}
+                onClick={(e) => {
+                  if (!tab.isReady) return;
+                  setActiveTab(tab.id);
+                  
+                  // 🚀 클릭 시 해당 버튼을 스크롤 박스의 중앙으로 이동시키는 매직 로직
+                  const target = e.currentTarget;
+                  const container = navRef.current;
+                  if (container && target) {
+                    const containerWidth = container.offsetWidth;
+                    const targetOffsetLeft = target.offsetLeft;
+                    const targetWidth = target.offsetWidth;
+                    container.scrollTo({
+                      left: targetOffsetLeft - (containerWidth / 2) + (targetWidth / 2),
+                      behavior: 'smooth'
+                    });
+                  }
+                }}
                 className={`
                   relative flex flex-col items-center gap-1.5 p-2 min-w-[64px] sm:min-w-[80px]
                   transition-all duration-300 ease-out focus:outline-none
@@ -3752,6 +4485,8 @@ export default function Home() {
           if (tab.id === "saju") return <SajuTab key={tab.id} isVisible={isVisible} />;
           if (tab.id === "altar") return <AltarTab key={tab.id} isVisible={isVisible} />;
           if (tab.id === "lotto") return <LottoTab key={tab.id} isVisible={isVisible} />;
+          if (tab.id === "mbti") return <MbtiTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
+          if (tab.id === "match") return <MatchTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
 
           return (
             <div
