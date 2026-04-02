@@ -2006,24 +2006,21 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         )}
         <FooterPolicy tabId="altar" />
 
-{/* 🚀 찐 동양풍 프리미엄 소원성취 부적 UI */}
+{/* 🚀 대표님 오더: 깔끔하고 파워풀한 소원 집중형 부적 UI */}
 <div className="absolute left-[-9999px] top-[-9999px]">
-  <div ref={talismanRef} className="relative w-[400px] h-[700px] flex flex-col items-center bg-[#ffdf99] border-[12px] border-[#d92c2c] p-6 text-center shadow-2xl" style={{ backgroundImage: "url('/talisman-bg.png')", backgroundSize: "cover", backgroundPosition: "center" }}>
-    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#d92c2c]/5 to-[#d92c2c]/10" />
-    <div className="relative z-10 w-full h-full border-4 border-[#d92c2c] p-8 flex flex-col items-center">
-      <h2 className="text-4xl font-black text-[#d92c2c] mb-8 font-serif tracking-widest" style={{ writingMode: "vertical-rl" }}>所願成就符</h2>
-      <div className="w-24 h-24 mb-10 flex items-center justify-center border-2 border-[#d92c2c] rounded-full">
-        <span className="text-6xl text-[#d92c2c] font-serif font-black">龘</span>
-      </div>
-      <div className="bg-[#d92c2c]/5 border-y-2 border-[#d92c2c]/30 py-6 px-4 w-full flex-1 flex items-center justify-center">
-        <p className="text-2xl font-bold text-[#a11b1b] leading-loose break-keep whitespace-pre-wrap font-serif">
-          {lastWish || wishText || "간절한 소원이\n반드시 이루어집니다"}
-        </p>
-      </div>
-      <div className="mt-8 pt-4 w-full text-[#d92c2c] font-black tracking-widest flex justify-between items-center px-4">
-        <span className="text-sm">명운(命運)</span>
-        <span className="text-sm">기적의 제단</span>
-      </div>
+  <div ref={talismanRef} className="relative w-[400px] h-[700px] flex flex-col items-center justify-center bg-black p-10 text-center shadow-2xl" style={{ backgroundImage: "url('/talisman-bg.png')", backgroundSize: "cover", backgroundPosition: "center" }}>
+    
+    {/* 중앙 소원 글귀 영역 (테두리와 기존 한자 싹 빼고 텍스트만 강렬하게) */}
+    <div className="relative z-10 flex-grow flex items-center justify-center w-full">
+      <p className="text-[36px] font-black text-[#5e1919] leading-loose break-keep whitespace-pre-wrap font-serif" style={{ textShadow: "1px 1px 4px rgba(255,255,255,0.8)" }}>
+        {lastWish || wishText || "간절한 소원이\n반드시 이루어집니다"}
+      </p>
+    </div>
+
+    {/* 하단 명운 로고 영역 (그대로 유지하되 톤 앤 매너 조절) */}
+    <div className="relative z-10 mb-4 w-full text-[#5e1919] font-black tracking-widest flex justify-between items-center px-2 opacity-90">
+      <span className="text-sm">명운(命運)</span>
+      <span className="text-sm">기적의 제단</span>
     </div>
   </div>
 </div>
