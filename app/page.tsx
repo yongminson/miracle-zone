@@ -1517,20 +1517,24 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     fetchWishes();
   }, [fetchWishes]);
 
-  // 🚀 모바일 결제 후 돌아왔을 때 황금빛 프리미엄 효과 팡! 터뜨리기
+  // 🚀 모바일 결제 후 돌아왔을 때 황금빛 프리미엄 이펙트 팡! 터뜨리기
   useEffect(() => {
     if (typeof window !== "undefined" && isVisible) {
       const params = new URLSearchParams(window.location.search);
       if (params.get("playPremiumAnim") === "true") {
+        fetchWishes(); // 🚀 결제한 소원 즉시 새로고침
         setIsCandleOn(true);
         setIsPremiumGlow(true);
-        if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(e => console.log(e)); }
-        if (fireAudioRef.current) { fireAudioRef.current.play().catch(e => console.log(e)); }
-        setTimeout(() => { setIsCandleOn(false); setIsPremiumGlow(false); if(fireAudioRef.current) fireAudioRef.current.pause(); }, 5000);
-        window.history.replaceState({}, "", window.location.pathname + "?tab=altar"); // 파라미터 청소
+        // 모바일은 자동재생이 막히므로 에러 방어코드 씌움
+        try {
+          if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play(); }
+          if (fireAudioRef.current) fireAudioRef.current.play();
+        } catch(e) {}
+        setTimeout(() => { setIsCandleOn(false); setIsPremiumGlow(false); if(fireAudioRef.current) fireAudioRef.current.pause(); }, 6000);
+        window.history.replaceState({}, "", window.location.pathname + "?tab=altar"); // 주소창 청소
       }
     }
-  }, [isVisible]);
+  }, [isVisible, fetchWishes]);
   
   useEffect(() => {
     const freeFiltered = filterFreeWishes(wishes);
@@ -1709,8 +1713,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       };
 
       if (isMobile) {
-        payData.m_redirect_url = window.location.href;
-        localStorage.removeItem("pendingPaymentType"); // 🚀 엉뚱한 결제(로또/사주) 플래그 찌꺼기 제거
+        payData.m_redirect_url = window.location.origin + "?tab=altar"; // 🚀 메인 안 거치고 바로 제단 복귀
         localStorage.setItem("pendingPremiumWish", JSON.stringify({
           wishText: premiumWishText,
           period: premiumPeriod,
@@ -2221,7 +2224,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
       if (data.error) {
         setIsFaceScanning(false);
-        alert(data.error);
+        alert("분석 중 오류가 발생했습니다. 얼굴이 잘 보이게 사진을 다시 찍어주세요.");
         setFaceImage(null);
         setFaceImageFile(null);
         setFaceFileName("");
@@ -3891,7 +3894,7 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
 
         {/* 4. 결과 화면 */}
         {step === 100 && resultType && MBTI_RESULTS[resultType] && (
-          <div className="w-full max-w-2xl animate-fade-in-up pb-8">
+          <div id="mbti-capture-area" className="w-full max-w-2xl animate-fade-in-up pb-8">
             <div className="rounded-3xl border border-teal-500/30 bg-slate-900/95 p-6 md:p-10 backdrop-blur-xl shadow-[0_0_40px_rgba(20,184,166,0.15)]">
               
               {/* 🚀 썸네일 이모지 및 타이틀 */}
@@ -3946,13 +3949,14 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
               </div>
 
               <div className="flex flex-col gap-3">
-              <button onClick={() => {
-  const shareData = { title: "MBTI 심층 분석", text: "나의 소름돋는 성격 분석 결과 확인하기!", url: window.location.href };
-  if (navigator.share) { navigator.share(shareData).catch(() => {}); } 
-  else { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다."); }
-}} className="w-full rounded-2xl border border-teal-500/40 bg-teal-500/10 px-4 py-4 text-sm font-bold text-teal-300 transition-all hover:bg-teal-500/20">
-  🔗 이 결과 링크로 공유하기 (카톡/메시지)
-</button>
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다!"); }} className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 flex flex-col items-center justify-center gap-1">
+                    <span className="text-xl leading-none">🔗</span> 링크 공유
+                  </button>
+                  <button onClick={async () => { const target = document.getElementById("mbti-capture-area"); await captureAndShareElement(target, { fileName: "mbti-result.png" }); }} className="w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-4 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 flex flex-col items-center justify-center gap-1">
+                    <span className="text-xl leading-none">🖼️</span> 이미지 공유
+                  </button>
+                </div>
                 <button onClick={resetTest} className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-medium text-white/80 hover:bg-white/10 transition-colors">
                   ↺ 다시 검사하기
                 </button>
@@ -4165,7 +4169,7 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
         )}
 
         {resultData && !isLoading && (
-          <div className="w-full max-w-md animate-fade-in-up pb-6">
+          <div id="match-capture-area" className="w-full max-w-md animate-fade-in-up pb-6">
             <div className="rounded-3xl border border-rose-500/30 bg-slate-900/90 p-6 md:p-8 backdrop-blur-xl shadow-2xl">
               
               <div className="text-center border-b border-white/10 pb-6 mb-6">
@@ -4217,13 +4221,14 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
               </div>
 
               <div className="space-y-3">
-              <button onClick={() => {
-  const shareData = { title: "소름돋는 궁합 분석", text: "우리의 궁합 점수는 몇 점일까? 확인해보세요!", url: window.location.href };
-  if (navigator.share) { navigator.share(shareData).catch(() => {}); } 
-  else { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다."); }
-}} className="w-full rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-4 text-sm font-bold text-rose-300 transition-all hover:bg-rose-500/20">
-  🔗 이 궁합 결과 공유하기 (카톡/메시지)
-</button>
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다!"); }} className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 flex flex-col items-center justify-center gap-1">
+                    <span className="text-xl leading-none">🔗</span> 링크 공유
+                  </button>
+                  <button onClick={async () => { const target = document.getElementById("match-capture-area"); await captureAndShareElement(target, { fileName: "match-result.png" }); }} className="w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-4 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 flex flex-col items-center justify-center gap-1">
+                    <span className="text-xl leading-none">🖼️</span> 이미지 공유
+                  </button>
+                </div>
                 <button onClick={() => setResultData(null)} className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-medium text-white/80 hover:bg-white/10 transition-colors">
                   ↺ 다른 사람과 궁합 보기
                 </button>
@@ -4298,13 +4303,13 @@ export default function Home() {
         if (localStorage.getItem("pendingPremiumWish")) {
           const wishData = JSON.parse(localStorage.getItem("pendingPremiumWish")!);
           fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "altar", imp_uid: impUid, amount: wishData.amount, wishText: wishData.wishText, period: wishData.period, nameDisplay: wishData.nameDisplay, nameInput: wishData.nameInput }) })
-          .then(() => {
-            alert("✨ 소원 등록 완료!");
-            localStorage.removeItem("pendingPremiumWish");
-            // 🚀 탭 강제 이동 및 황금빛 애니메이션 폭발 파라미터 전달
-            window.history.replaceState({}, "", window.location.pathname + "?tab=altar&playPremiumAnim=true");
-            setActiveTab("altar");
-          });
+            .then(() => {
+              alert("✨ 특별 공양 등록 완료!");
+              localStorage.removeItem("pendingPremiumWish");
+              // 🚀 애니메이션 재생 파라미터 쏴주기
+              window.history.replaceState({}, "", window.location.pathname + "?tab=altar&playPremiumAnim=true");
+              setActiveTab("altar");
+            });
         } 
         // 2️⃣ 행운의 로또 10회권
         else if (pendingType === "lotto") {
@@ -4389,7 +4394,8 @@ export default function Home() {
                 const permission = await Notification.requestPermission();
                 if (permission !== 'granted') return alert("알림 권한이 거부되었습니다.");
 
-                const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
+                const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                if (!VAPID_PUBLIC_KEY) return alert("알림 기능이 준비 중입니다. (베르첼 환경변수 VAPID 키 누락)");
                 const base64ToUint8Array = (base64: string) => {
                   const padding = '='.repeat((4 - base64.length % 4) % 4);
                   const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
