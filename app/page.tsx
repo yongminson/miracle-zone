@@ -1296,7 +1296,7 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                   }} 
                   className="w-full mb-3 rounded-2xl border border-blue-500/40 bg-blue-500/10 px-4 py-4 text-sm font-bold text-blue-300 hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2"
                 >
-                  🔗 이 해몽 결과 공유하기 (카톡/메시지)
+                  🔗 이 해몽 결과 공유하기
                 </button>
               )}
 
