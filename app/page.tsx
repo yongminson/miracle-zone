@@ -3955,7 +3955,7 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
                     if (navigator.share) { navigator.share(shareData).catch(() => {}); } 
                     else { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다."); }
                   }} className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 flex flex-col items-center justify-center gap-1">
-                    <span className="text-xl leading-none">🔗</span> 링크 공유 (카톡/메시지)
+                    <span className="text-xl leading-none">🔗</span> 링크 공유
                   </button>
                   <button onClick={async () => { const target = document.getElementById("mbti-capture-area"); await captureAndShareElement(target, { fileName: "mbti-result.png" }); }} className="w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-4 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 flex flex-col items-center justify-center gap-1">
                     <span className="text-xl leading-none">🖼️</span> 이미지 공유
@@ -4231,7 +4231,7 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                     if (navigator.share) { navigator.share(shareData).catch(() => {}); } 
                     else { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다."); }
                   }} className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 flex flex-col items-center justify-center gap-1">
-                    <span className="text-xl leading-none">🔗</span> 링크 공유 (카톡/메시지)
+                    <span className="text-xl leading-none">🔗</span> 링크 공유
                   </button>
                   <button onClick={async () => { const target = document.getElementById("match-capture-area"); await captureAndShareElement(target, { fileName: "match-result.png" }); }} className="w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-4 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 flex flex-col items-center justify-center gap-1">
                     <span className="text-xl leading-none">🖼️</span> 이미지 공유
