@@ -1310,6 +1310,8 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
   const fireAudioRef = useRef<HTMLAudioElement | null>(null);
   const talismanRef = useRef<HTMLDivElement | null>(null); // 🚀 부적 카드 캡처용
   const [isPremiumGlow, setIsPremiumGlow] = useState(false); // 🚀 프리미엄 황금빛 공양 효과
+  const [lastWish, setLastWish] = useState(""); // 🚀 방금 등록한 소원 기억하기 (부적용)
+  const [needsInteraction, setNeedsInteraction] = useState(false); // 🚀 모바일 오디오 강제 재생용 터치 대기 상태
 
   // 🚀 부적 카드 공유 기능
   const handleAltarShare = async () => {
@@ -1526,22 +1528,43 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     fetchWishes();
   }, [fetchWishes]);
 
-  // 🚀 모바일 프리미엄 결제 성공 시 (신호를 받으면) 즉시 애니메이션 팡! & 리스트 새로고침
+  // 🚀 모바일 프리미엄 결제 성공 시 즉시 애니메이션 팡! & 리스트 강제 새로고침
   useEffect(() => {
-    const handlePremiumSuccess = () => {
-      fetchWishes(); // 🚀 DB에서 소원 즉시 다시 불러오기!
+    const handlePremiumSuccess = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const wishData = customEvent.detail;
+      
+      if (wishData) {
+        setLastWish(wishData.wishText);
+        // 🚀 DB 기다리지 않고 화면에 즉시 띄움 (버그 완벽 해결)
+        const newPremiumWish: PremiumWish = {
+          id: `prem-opt-${Date.now()}`,
+          content: wishData.wishText,
+          badge: `[✨ ${wishData.nameDisplay === "anonymous" ? "익명" : wishData.nameInput || "익명"} 님의 ${wishData.period === "24h" ? "24시간" : "특별기원"}]`,
+          period: wishData.period,
+          createdAt: Date.now()
+        };
+        setPremiumWishes(prev => [newPremiumWish, ...prev]);
+      }
+      
+      fetchWishes(); // DB 동기화
       setIsCandleOn(true);
       setIsPremiumGlow(true);
+      
+      // 🚀 모바일 오디오 강제 재생 돌파 (실패 시 터치 유도 화면 띄움)
       try {
-        if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(()=>{}); }
-        if (fireAudioRef.current) fireAudioRef.current.play().catch(()=>{});
-      } catch(e) {}
+        const p1 = bellAudioRef.current?.play();
+        const p2 = fireAudioRef.current?.play();
+        const p3 = audioRef.current?.play();
+        Promise.all([p1, p2, p3]).catch(() => setNeedsInteraction(true));
+      } catch (err) {
+        setNeedsInteraction(true);
+      }
       setTimeout(() => { setIsCandleOn(false); setIsPremiumGlow(false); if(fireAudioRef.current) fireAudioRef.current.pause(); }, 6000);
     };
 
-    // Home 컴포넌트가 쏘는 신호를 대기합니다
-    window.addEventListener("premiumAltarSuccess", handlePremiumSuccess);
-    return () => window.removeEventListener("premiumAltarSuccess", handlePremiumSuccess);
+    window.addEventListener("premiumAltarSuccess", handlePremiumSuccess as EventListener);
+    return () => window.removeEventListener("premiumAltarSuccess", handlePremiumSuccess as EventListener);
   }, [fetchWishes]);
   
   useEffect(() => {
@@ -1605,6 +1628,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       setWishes((prev) =>
         filterFreeWishes([{ id: optId, content: text, created_at: nowIso }, ...prev])
       );
+      setLastWish(text); // 🚀 부적 카드를 위해 방금 적은 소원 기억
       setWishText("");
       lastOptimisticRef.current = { text, at: Date.now() };
   
@@ -1667,6 +1691,16 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       if (localStorage.getItem("MASTER_ADMIN") === "true") {
         alert("✨ [운영자 프리패스] 결제 없이 즉시 프리미엄 소원을 제단에 올립니다!");
         
+        setLastWish(premiumWishText); // 🚀 부적 카드를 위해 기억
+        const newPremiumWish: PremiumWish = {
+          id: `prem-opt-${Date.now()}`,
+          content: premiumWishText,
+          badge: `[✨ ${premiumNameDisplay === "anonymous" ? "익명" : premiumNameInput || "익명"} 님의 ${premiumPeriod === "24h" ? "24시간" : "특별기원"}]`,
+          period: premiumPeriod,
+          createdAt: Date.now()
+        };
+        setPremiumWishes(prev => [newPremiumWish, ...prev]);
+
         // 💡 백엔드 결제 검증 API를 건너뛰고 프론트에서 즉시 DB 저장
         supabase.from("wishes").insert({
           content: premiumWishText,
@@ -1852,13 +1886,14 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                 ))}
                 
                 {/* 🚀 프리미엄 소원 렌더링 */}
-                {premiumFiltered.slice(-6).map((pw, i) => {
+                {premiumFiltered.slice(0, 6).map((pw, i) => {
                   const idLength = String(pw.id).length;
                   const isTenDays = pw.period === "10d";
                   
                   const leftPct = 15 + ((i * 25 + idLength * 7) % 70); // 양끝 짤림 방지
                   const duration = isTenDays ? 22 + (i % 5) : 18 + (i % 5);
-                  const delay = `${(i * 3.5) % 10}s`;
+                  // 🚀 새로 올라온 소원(i===0)은 대기 없이 바로 화면 아래에서 튀어 올라옴!
+                  const delay = i === 0 ? "0s" : `-${(i * 3.5) % 10}s`; 
                   const remaining = getPremiumRemainingMs(pw);
 
                   return (
@@ -1982,7 +2017,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       </div>
       <div className="bg-[#d92c2c]/5 border-y-2 border-[#d92c2c]/30 py-6 px-4 w-full flex-1 flex items-center justify-center">
         <p className="text-2xl font-bold text-[#a11b1b] leading-loose break-keep whitespace-pre-wrap font-serif">
-          {wishText || "간절한 소원이\n반드시 이루어집니다"}
+          {lastWish || wishText || "간절한 소원이\n반드시 이루어집니다"}
         </p>
       </div>
       <div className="mt-8 pt-4 w-full text-[#d92c2c] font-black tracking-widest flex justify-between items-center px-4">
@@ -1994,6 +2029,24 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
 </div>
 
 </div>
+
+{/* 🚀 모바일 오디오 재생 우회용 터치 오버레이 (결제 직후 스마트폰이 소리를 막았을 때 등장) */}
+{needsInteraction && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer" onClick={() => {
+    setNeedsInteraction(false);
+    bellAudioRef.current?.play().catch(()=>{});
+    fireAudioRef.current?.play().catch(()=>{});
+    audioRef.current?.play().catch(()=>{});
+  }}>
+    <div className="text-center animate-bounce px-6">
+      <div className="text-7xl mb-4">✨</div>
+      <p className="text-2xl font-extrabold text-yellow-400">결제가 완료되었습니다!</p>
+      <p className="text-sm font-medium text-white/80 mt-4 bg-white/10 py-3 px-5 rounded-full border border-white/20 shadow-lg inline-block">
+        화면을 가볍게 터치하여 기적의 제단에 입장하세요 👇
+      </p>
+    </div>
+  </div>
+)}
 
 {/* 🚀 프리미엄 전용 압도적 황금빛 기적 효과 (최상위 레이어) */}
 <div className={`fixed inset-0 z-40 flex items-center justify-center pointer-events-none transition-opacity duration-1000 ${isPremiumGlow ? "opacity-100" : "opacity-0"}`}>
@@ -4341,8 +4394,8 @@ export default function Home() {
               // 🚀 주소창 찌꺼기 완전 삭제! (새로고침 시 무조건 메인으로 가게 됨)
               window.history.replaceState({}, "", window.location.pathname);
               setActiveTab("altar");
-              // 🚀 AltarTab 에게 "소원 갱신하고 애니메이션 켜!" 라고 즉시 신호 발송
-              setTimeout(() => window.dispatchEvent(new Event("premiumAltarSuccess")), 500);
+              // 🚀 데이터와 함께 확실하게 신호 발송 (시간 넉넉히 800ms)
+              setTimeout(() => window.dispatchEvent(new CustomEvent("premiumAltarSuccess", { detail: wishData })), 800);
             });
         } 
         // 2️⃣ 행운의 로또 10회권
