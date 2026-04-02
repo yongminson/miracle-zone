@@ -3950,8 +3950,12 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
 
               <div className="flex flex-col gap-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다!"); }} className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 flex flex-col items-center justify-center gap-1">
-                    <span className="text-xl leading-none">🔗</span> 링크 공유
+                <button onClick={() => {
+                    const shareData = { title: "MBTI 심층 분석", text: "나의 소름돋는 성격 분석 결과 확인하기!", url: window.location.href };
+                    if (navigator.share) { navigator.share(shareData).catch(() => {}); } 
+                    else { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다."); }
+                  }} className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 flex flex-col items-center justify-center gap-1">
+                    <span className="text-xl leading-none">🔗</span> 링크 공유 (카톡/메시지)
                   </button>
                   <button onClick={async () => { const target = document.getElementById("mbti-capture-area"); await captureAndShareElement(target, { fileName: "mbti-result.png" }); }} className="w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-4 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 flex flex-col items-center justify-center gap-1">
                     <span className="text-xl leading-none">🖼️</span> 이미지 공유
@@ -4222,8 +4226,12 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
 
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다!"); }} className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 flex flex-col items-center justify-center gap-1">
-                    <span className="text-xl leading-none">🔗</span> 링크 공유
+                <button onClick={() => {
+                    const shareData = { title: "소름돋는 궁합 분석", text: "우리의 궁합 점수는 몇 점일까? 확인해보세요!", url: window.location.href };
+                    if (navigator.share) { navigator.share(shareData).catch(() => {}); } 
+                    else { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다."); }
+                  }} className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 flex flex-col items-center justify-center gap-1">
+                    <span className="text-xl leading-none">🔗</span> 링크 공유 (카톡/메시지)
                   </button>
                   <button onClick={async () => { const target = document.getElementById("match-capture-area"); await captureAndShareElement(target, { fileName: "match-result.png" }); }} className="w-full rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-4 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 flex flex-col items-center justify-center gap-1">
                     <span className="text-xl leading-none">🖼️</span> 이미지 공유
@@ -4394,7 +4402,7 @@ export default function Home() {
                 const permission = await Notification.requestPermission();
                 if (permission !== 'granted') return alert("알림 권한이 거부되었습니다.");
 
-                const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
                 if (!VAPID_PUBLIC_KEY) return alert("알림 기능이 준비 중입니다. (베르첼 환경변수 VAPID 키 누락)");
                 const base64ToUint8Array = (base64: string) => {
                   const padding = '='.repeat((4 - base64.length % 4) % 4);
@@ -4418,7 +4426,7 @@ export default function Home() {
                 alert("✨ 매일 맞춤 운세 알림이 설정되었습니다!");
               } catch (e: any) {
                 console.error(e);
-                alert("알림 권한 오류: " + e.message + "\n(PC/스마트폰 자체 알림 차단을 해제해주세요!)");
+                alert("알림 설정 중 오류가 발생했습니다.\n브라우저나 기기 자체의 알림 차단을 해제한 뒤 다시 시도해주세요.");
               }
             }}
             className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-yellow-400 hover:bg-slate-700 transition-colors shadow-lg border border-yellow-500/20"
