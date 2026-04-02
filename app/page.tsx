@@ -1531,7 +1531,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           if (fireAudioRef.current) fireAudioRef.current.play();
         } catch(e) {}
         setTimeout(() => { setIsCandleOn(false); setIsPremiumGlow(false); if(fireAudioRef.current) fireAudioRef.current.pause(); }, 6000);
-        window.history.replaceState({}, "", window.location.pathname + "?tab=altar"); // 주소창 청소
+        window.history.replaceState({}, "", window.location.pathname); // 🚀 주소창 찌꺼기 완벽 청소 (새로고침 버그 완전 해결!)
       }
     }
   }, [isVisible, fetchWishes]);
@@ -4266,6 +4266,22 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
+  // 🚀 [버그수정] 탭이 바뀔 때마다 메뉴가 부드럽게 자동 중앙 정렬되도록 마법 추가
+  useEffect(() => {
+    const container = navRef.current;
+    if (!container) return;
+    const target = container.querySelector(`button[data-tab-id="${activeTab}"]`) as HTMLElement;
+    if (target) {
+      const containerWidth = container.offsetWidth;
+      const targetOffsetLeft = target.offsetLeft;
+      const targetWidth = target.offsetWidth;
+      container.scrollTo({
+        left: targetOffsetLeft - (containerWidth / 2) + (targetWidth / 2),
+        behavior: "smooth",
+      });
+    }
+  }, [activeTab]);
+
   // 🚀 방문자 수 측정 로직 (중복 방지는 로컬 스토리지만 사용)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -4483,6 +4499,7 @@ export default function Home() {
             return (
               <button
                 key={tab.id}
+                data-tab-id={tab.id} // 🚀 자동 스크롤을 위한 이름표 부착
                 type="button"
                 onClick={(e) => {
                   if (!tab.isReady) return;
