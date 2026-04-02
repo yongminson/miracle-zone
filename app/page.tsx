@@ -1157,8 +1157,14 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dreamText: dreamInput }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error("해몽 서버 접속에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } 
+      catch (e) { throw new Error("꿈 해몽 AI 서버가 혼잡합니다. 1분 뒤 다시 시도해주세요!"); }
+      
+      if (data.error) throw new Error(data.error);
       setResultData(data);
     } catch (err) {
       alert(err instanceof Error ? err.message : "해몽 중 오류가 발생했습니다.");
@@ -1510,6 +1516,21 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
   useEffect(() => {
     fetchWishes();
   }, [fetchWishes]);
+
+  // 🚀 모바일 결제 후 돌아왔을 때 황금빛 프리미엄 효과 팡! 터뜨리기
+  useEffect(() => {
+    if (typeof window !== "undefined" && isVisible) {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("playPremiumAnim") === "true") {
+        setIsCandleOn(true);
+        setIsPremiumGlow(true);
+        if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(e => console.log(e)); }
+        if (fireAudioRef.current) { fireAudioRef.current.play().catch(e => console.log(e)); }
+        setTimeout(() => { setIsCandleOn(false); setIsPremiumGlow(false); if(fireAudioRef.current) fireAudioRef.current.pause(); }, 5000);
+        window.history.replaceState({}, "", window.location.pathname + "?tab=altar"); // 파라미터 청소
+      }
+    }
+  }, [isVisible]);
   
   useEffect(() => {
     const freeFiltered = filterFreeWishes(wishes);
@@ -1689,6 +1710,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
 
       if (isMobile) {
         payData.m_redirect_url = window.location.href;
+        localStorage.removeItem("pendingPaymentType"); // 🚀 엉뚱한 결제(로또/사주) 플래그 찌꺼기 제거
         localStorage.setItem("pendingPremiumWish", JSON.stringify({
           wishText: premiumWishText,
           period: premiumPeriod,
@@ -1938,20 +1960,23 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         )}
         <FooterPolicy tabId="altar" />
 
-{/* 🚀 공유용 숨겨진 소원성취 부적 UI (화면엔 안 보이고 이미지로만 구워짐) */}
+{/* 🚀 찐 동양풍 프리미엄 소원성취 부적 UI */}
 <div className="absolute left-[-9999px] top-[-9999px]">
-  <div ref={talismanRef} className="relative w-[360px] h-[600px] flex flex-col items-center justify-center bg-[#1a0f00] border-8 border-yellow-600 p-8 text-center" style={{ backgroundImage: "url('/bg_face_name.png')", backgroundSize: "cover", backgroundBlendMode: "overlay" }}>
-    <div className="absolute inset-0 bg-black/50" />
-    <div className="relative z-10 w-full h-full border-2 border-yellow-500/50 p-6 flex flex-col items-center justify-center">
-      <h2 className="text-3xl font-bold text-yellow-500 mb-6 font-serif">소원성취부</h2>
-      <div className="w-16 h-16 mb-6 opacity-80">
-        <span className="text-5xl text-red-500 font-serif">龘</span>
+  <div ref={talismanRef} className="relative w-[400px] h-[700px] flex flex-col items-center bg-[#ffdf99] border-[12px] border-[#d92c2c] p-6 text-center shadow-2xl" style={{ backgroundImage: "radial-gradient(#ffd57a 1px, transparent 1px)", backgroundSize: "10px 10px" }}>
+    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#d92c2c]/5 to-[#d92c2c]/10" />
+    <div className="relative z-10 w-full h-full border-4 border-[#d92c2c] p-8 flex flex-col items-center">
+      <h2 className="text-4xl font-black text-[#d92c2c] mb-8 font-serif tracking-widest" style={{ writingMode: "vertical-rl" }}>所願成就符</h2>
+      <div className="w-24 h-24 mb-10 flex items-center justify-center border-2 border-[#d92c2c] rounded-full">
+        <span className="text-6xl text-[#d92c2c] font-serif font-black">龘</span>
       </div>
-      <p className="text-xl font-semibold text-yellow-100 leading-relaxed break-keep whitespace-pre-wrap font-serif">
-        {wishText || "간절한 소원이 이루어집니다."}
-      </p>
-      <div className="mt-12 pt-6 border-t border-yellow-500/30 w-full text-yellow-500/70 font-medium tracking-widest">
-        명운(命運) 기적의 제단
+      <div className="bg-[#d92c2c]/5 border-y-2 border-[#d92c2c]/30 py-6 px-4 w-full flex-1 flex items-center justify-center">
+        <p className="text-2xl font-bold text-[#a11b1b] leading-loose break-keep whitespace-pre-wrap font-serif">
+          {wishText || "간절한 소원이\n반드시 이루어집니다"}
+        </p>
+      </div>
+      <div className="mt-8 pt-4 w-full text-[#d92c2c] font-black tracking-widest flex justify-between items-center px-4">
+        <span className="text-sm">명운(命運)</span>
+        <span className="text-sm">기적의 제단</span>
       </div>
     </div>
   </div>
@@ -2214,7 +2239,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       setShowFaceResult(true);
     } catch (error) {
       console.error(error);
-      alert("분석 중 오류가 발생했습니다. 사진을 재 업로드 해주세요.");
+      alert("분석 중 오류가 발생했습니다. 얼굴이 잘 보이게 사진을 다시 찍어주세요.");
     } finally {
       setIsFaceScanning(false);
     }
@@ -3406,6 +3431,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
 
       if (isMobile) {
         payData.m_redirect_url = window.location.href;
+        localStorage.removeItem("pendingPremiumWish"); // 🚀 엉뚱한 결제(제단) 플래그 찌꺼기 제거
         localStorage.setItem("pendingPaymentType", "lotto");
         localStorage.setItem("pendingPaymentAmount", String(amount));
         localStorage.setItem("pendingPaymentUserId", user.id); // 서버 DB 기록을 위해 유저ID 저장
@@ -3920,9 +3946,13 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
               </div>
 
               <div className="flex flex-col gap-3">
-                <button onClick={() => alert("공유 기능은 링크 연동 후 지원됩니다.")} className="w-full rounded-2xl border border-teal-500/40 bg-teal-500/10 px-4 py-4 text-sm font-bold text-teal-300 transition-all hover:bg-teal-500/20">
-                  🔗 이 결과 링크로 공유하기
-                </button>
+              <button onClick={() => {
+  const shareData = { title: "MBTI 심층 분석", text: "나의 소름돋는 성격 분석 결과 확인하기!", url: window.location.href };
+  if (navigator.share) { navigator.share(shareData).catch(() => {}); } 
+  else { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다."); }
+}} className="w-full rounded-2xl border border-teal-500/40 bg-teal-500/10 px-4 py-4 text-sm font-bold text-teal-300 transition-all hover:bg-teal-500/20">
+  🔗 이 결과 링크로 공유하기 (카톡/메시지)
+</button>
                 <button onClick={resetTest} className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-medium text-white/80 hover:bg-white/10 transition-colors">
                   ↺ 다시 검사하기
                 </button>
@@ -4187,9 +4217,13 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
               </div>
 
               <div className="space-y-3">
-                <button onClick={() => alert("공유 기능은 링크 연동 후 지원됩니다.")} className="w-full rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-4 text-sm font-bold text-rose-300 transition-all hover:bg-rose-500/20">
-                  🔗 이 궁합 결과 공유하기
-                </button>
+              <button onClick={() => {
+  const shareData = { title: "소름돋는 궁합 분석", text: "우리의 궁합 점수는 몇 점일까? 확인해보세요!", url: window.location.href };
+  if (navigator.share) { navigator.share(shareData).catch(() => {}); } 
+  else { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다."); }
+}} className="w-full rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-4 text-sm font-bold text-rose-300 transition-all hover:bg-rose-500/20">
+  🔗 이 궁합 결과 공유하기 (카톡/메시지)
+</button>
                 <button onClick={() => setResultData(null)} className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-medium text-white/80 hover:bg-white/10 transition-colors">
                   ↺ 다른 사람과 궁합 보기
                 </button>
@@ -4264,12 +4298,13 @@ export default function Home() {
         if (localStorage.getItem("pendingPremiumWish")) {
           const wishData = JSON.parse(localStorage.getItem("pendingPremiumWish")!);
           fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "altar", imp_uid: impUid, amount: wishData.amount, wishText: wishData.wishText, period: wishData.period, nameDisplay: wishData.nameDisplay, nameInput: wishData.nameInput }) })
-            .then(() => {
-              alert("✨ 소원 등록 완료!");
-              localStorage.removeItem("pendingPremiumWish");
-              window.history.replaceState({}, "", window.location.pathname);
-              setActiveTab("altar");
-            });
+          .then(() => {
+            alert("✨ 소원 등록 완료!");
+            localStorage.removeItem("pendingPremiumWish");
+            // 🚀 탭 강제 이동 및 황금빛 애니메이션 폭발 파라미터 전달
+            window.history.replaceState({}, "", window.location.pathname + "?tab=altar&playPremiumAnim=true");
+            setActiveTab("altar");
+          });
         } 
         // 2️⃣ 행운의 로또 10회권
         else if (pendingType === "lotto") {
@@ -4375,9 +4410,9 @@ export default function Home() {
                   headers: { 'Content-Type': 'application/json' }
                 });
                 alert("✨ 매일 맞춤 운세 알림이 설정되었습니다!");
-              } catch (e) {
+              } catch (e: any) {
                 console.error(e);
-                alert("알림 설정 중 오류가 발생했습니다.");
+                alert("알림 권한 오류: " + e.message + "\n(PC/스마트폰 자체 알림 차단을 해제해주세요!)");
               }
             }}
             className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-800 text-yellow-400 hover:bg-slate-700 transition-colors shadow-lg border border-yellow-500/20"
