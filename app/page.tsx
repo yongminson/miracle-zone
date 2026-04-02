@@ -3884,8 +3884,9 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
 
   return (
     <div role="tabpanel" aria-hidden={!isVisible} className={`absolute inset-0 flex flex-col overflow-y-auto transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
-      <div className="fixed inset-0 z-0 bg-slate-950">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-slate-900 to-teal-900/40 opacity-80" />
+      {/* 🚀 MBTI 탭 전용 배경 (Neon teal, indigo, deep purple) */}
+            <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900 overflow-hidden">
+        <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{ backgroundImage: "url('/bg_mbti.png')" }} />
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-8">
@@ -4143,8 +4144,9 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
 
   return (
     <div role="tabpanel" aria-hidden={!isVisible} className={`absolute inset-0 flex flex-col overflow-y-auto transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
-      <div className="fixed inset-0 z-0 bg-slate-950">
-        <div className="absolute inset-0 bg-gradient-to-br from-rose-900/40 via-slate-900 to-orange-900/40 opacity-80" />
+      {/* 🚀 궁합 탭 전용 배경 (Intertwining crimson and orange) */}
+            <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900 overflow-hidden">
+        <div className="absolute inset-0 bg-cover bg-center opacity-40" style={{ backgroundImage: "url('/bg_match.png')" }} />
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col items-center px-4 py-8">
