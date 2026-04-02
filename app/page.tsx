@@ -1885,15 +1885,15 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 ))}
                 
-                {/* 🚀 프리미엄 소원 렌더링 */}
-                {premiumFiltered.slice(0, 6).map((pw, i) => {
+                {/* 🚀 프리미엄 소원 렌더링 (제한 영구 해제: 결제한 모든 소원 노출) */}
+                {premiumFiltered.map((pw, i) => {
                   const idLength = String(pw.id).length;
                   const isTenDays = pw.period === "10d";
                   
                   const leftPct = 15 + ((i * 25 + idLength * 7) % 70); // 양끝 짤림 방지
-                  const duration = isTenDays ? 22 + (i % 5) : 18 + (i % 5);
-                  // 🚀 새로 올라온 소원(i===0)은 대기 없이 바로 화면 아래에서 튀어 올라옴!
-                  const delay = i === 0 ? "0s" : `-${(i * 3.5) % 10}s`; 
+                  const duration = isTenDays ? 25 + (i % 10) : 20 + (i % 8); // 속도 다양화
+                  // 🚀 새로 올라온 소원은 즉시 등장, 나머지는 겹치지 않게 화면 전체에 넓게 퍼뜨림
+                  const delay = i === 0 ? "0s" : `-${(i * 7.3) % 30}s`; 
                   const remaining = getPremiumRemainingMs(pw);
 
                   return (
@@ -2008,7 +2008,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
 
 {/* 🚀 찐 동양풍 프리미엄 소원성취 부적 UI */}
 <div className="absolute left-[-9999px] top-[-9999px]">
-  <div ref={talismanRef} className="relative w-[400px] h-[700px] flex flex-col items-center bg-[#ffdf99] border-[12px] border-[#d92c2c] p-6 text-center shadow-2xl" style={{ backgroundImage: "radial-gradient(#ffd57a 1px, transparent 1px)", backgroundSize: "10px 10px" }}>
+  <div ref={talismanRef} className="relative w-[400px] h-[700px] flex flex-col items-center bg-[#ffdf99] border-[12px] border-[#d92c2c] p-6 text-center shadow-2xl" style={{ backgroundImage: "url('/talisman-bg.png')", backgroundSize: "cover", backgroundPosition: "center" }}>
     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#d92c2c]/5 to-[#d92c2c]/10" />
     <div className="relative z-10 w-full h-full border-4 border-[#d92c2c] p-8 flex flex-col items-center">
       <h2 className="text-4xl font-black text-[#d92c2c] mb-8 font-serif tracking-widest" style={{ writingMode: "vertical-rl" }}>所願成就符</h2>
