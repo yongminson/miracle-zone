@@ -1275,19 +1275,28 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                 </button>
               )}
 
-              {/* 🚀 SEO 확산을 위한 공유 링크 생성 버튼 */}
-              {/* 🚀 SEO 확산을 위한 공유 링크 생성 버튼 (하나로 통합 완료) */}
+              {/* 🚀 스마트폰 자체 공유창 띄우기 (카카오톡 다이렉트 전송) */}
               {resultData.db_id && (
                 <button 
                   type="button"
                   onClick={() => {
                     const url = `${window.location.origin}/dream/${resultData.db_id}`;
-                    navigator.clipboard.writeText(url);
-                    alert("✨ 해몽 결과 링크가 복사되었습니다!\n블로그, 카톡, 카페 등에 공유해보세요.");
+                    const shareData = { 
+                      title: "소름돋는 꿈 해몽 결과", 
+                      text: "나의 무의식이 보내는 메시지를 확인해보세요!", 
+                      url: url 
+                    };
+                    // 스마트폰이면 공유창 띄우고, PC면 링크 복사
+                    if (navigator.share) { 
+                      navigator.share(shareData).catch(() => {}); 
+                    } else { 
+                      navigator.clipboard.writeText(url); 
+                      alert("✨ 링크가 복사되었습니다!\n블로그, 카톡, 카페 등에 공유해보세요."); 
+                    }
                   }} 
                   className="w-full mb-3 rounded-2xl border border-blue-500/40 bg-blue-500/10 px-4 py-4 text-sm font-bold text-blue-300 hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2"
                 >
-                  🔗 이 해몽 결과 링크 복사하기 (공유용)
+                  🔗 이 해몽 결과 공유하기 (카톡/메시지)
                 </button>
               )}
 
