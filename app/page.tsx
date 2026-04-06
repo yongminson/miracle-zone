@@ -412,7 +412,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        supabase.rpc('increment_tab_click', { target_tab_id: 'fortune' }); // 🚀 운세 이용 카운팅
+        supabase.rpc('increment_tab_click', { target_tab_id: 'fortune' }).then(({ error }) => { if(error) console.error('운세 에러:', error) });
         setIsLoading(true);
     setIsPremiumLoading(false);
     setPremiumLoadingStep(0);
@@ -1147,7 +1147,7 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
         e.preventDefault();
         if (!dreamInput.trim()) return alert("꿈 내용을 입력해 주세요.");
     
-        supabase.rpc('increment_tab_click', { target_tab_id: 'dream' }); // 🚀 꿈 해몽 이용 카운팅
+        supabase.rpc('increment_tab_click', { target_tab_id: 'dream' }).then(({ error }) => { if(error) console.error('꿈 에러:', error) });
         setIsLoading(true);
     setResultData(null);
 
@@ -1627,7 +1627,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     const text = wishText.trim();
     if (!text || isCooldown || isSubmittingFreeWish) return;
   
-    supabase.rpc('increment_tab_click', { target_tab_id: 'altar' }); // 🚀 기적의 제단 이용 카운팅
+    supabase.rpc('increment_tab_click', { target_tab_id: 'altar' }).then(({ error }) => { if(error) console.error('제단 에러:', error) });
     setIsSubmittingFreeWish(true);
   
     try {
@@ -2254,7 +2254,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       return;
     }
 
-    supabase.rpc('increment_tab_click', { target_tab_id: 'saju' }); // 🚀 관상 분석 이용 카운팅
+    supabase.rpc('increment_tab_click', { target_tab_id: 'saju' }).then(({ error }) => { if(error) console.error('사주 에러:', error) });
     setIsFaceScanning(true);
     setShowFaceResult(false);
     setFaceResultData(null);
@@ -2498,7 +2498,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       return;
     }
 
-    supabase.rpc('increment_tab_click', { target_tab_id: 'saju' }); // 🚀 이름 풀이 이용 카운팅
+    supabase.rpc('increment_tab_click', { target_tab_id: 'saju' }).then(({ error }) => { if(error) console.error('사주 에러:', error) });
     setIsNameLoading(true);
     setShowNameResult(false);
     setNameResultData(null);
@@ -3470,7 +3470,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
   const handleFreeDraw = () => {
     if (freeCount <= 0) return alert("무료 횟수가 모두 소진되었습니다.");
     if (isDrawing) return;
-    supabase.rpc('increment_tab_click', { target_tab_id: 'lotto' }); // 🚀 무료 로또 이용 카운팅
+    supabase.rpc('increment_tab_click', { target_tab_id: 'lotto' }).then(({ error }) => { if(error) console.error('로또 에러:', error) });
     setIsDrawing(true);
     setVisibleCount(0);
     const numbers = generateLottoNumbers();
@@ -3849,7 +3849,7 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
   };
 
   const calculateResult = (finalScores: any) => {
-    supabase.rpc('increment_tab_click', { target_tab_id: 'mbti' }); // 🚀 MBTI 결과 산출 카운팅
+    supabase.rpc('increment_tab_click', { target_tab_id: 'mbti' }).then(({ error }) => { if(error) console.error('MBTI 에러:', error) });
     setStep(99); 
     setTimeout(() => {
       const type = 
@@ -4088,7 +4088,7 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
       return alert("이름과 생년월일을 모두 입력해 주세요.");
     }
 
-    supabase.rpc('increment_tab_click', { target_tab_id: 'match' }); // 🚀 궁합 분석 이용 카운팅
+    supabase.rpc('increment_tab_click', { target_tab_id: 'match' }).then(({ error }) => { if(error) console.error('궁합 에러:', error) });
     setIsLoading(true);
     setResultData(null);
 
