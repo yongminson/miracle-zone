@@ -696,7 +696,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
       `}
     >
       <div className="fixed inset-0 z-0 pointer-events-none bg-slate-950">
-        <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: "url('/bg_fortune.jpg')" }} />
+        <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: "url('/bg_fortune.png')" }} />
         {isVisible && (
           <div className="absolute inset-0 overflow-hidden">
             <style>{`
