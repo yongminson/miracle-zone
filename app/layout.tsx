@@ -1,26 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
+import Script from "next/script"; // 🚀 1. 구글 스크립트용 컴포넌트 불러오기
 import "./globals.css";
-import Script from "next/script"; // 🚀 포트원 스크립트 불러오기 추가!
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "명운(命運) - 당신의 운명을 밝히다",
-  description: "AI 기반 소름 돋는 사주, 궁합, 타로, 꿈 해몽 서비스",
-  icons: {
-    icon: "/logo.png", // 브라우저 탭 창에 뜨는 아이콘 (파비콘)
-    shortcut: "/logo.png", 
-    apple: "/logo.png", // 🍎 아이폰/안드로이드 바탕화면에 추가할 때 뜨는 앱 아이콘
-  },
+  title: "명운(命運) - 기적을 부르는 운세",
+  description: "사주, 관상, 꿈 해몽, 궁합, 타로, 로또까지 당신의 운명을 밝혀주는 프리미엄 플랫폼",
 };
 
 export default function RootLayout({
@@ -31,10 +18,15 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <head>
-        {/* 🚀 포트원(아임포트) 결제 라이브러리 추가! */}
-        <Script src="https://cdn.iamport.kr/v1/iamport.js" strategy="beforeInteractive" />
+        {/* 🚀 2. 대표님의 구글 애드센스 코드 (스크린샷 ID 적용 완료) */}
+        <Script 
+          async 
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5451727566627568" 
+          crossOrigin="anonymous" 
+          strategy="afterInteractive"
+        />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={inter.className}>
         {children}
       </body>
     </html>
