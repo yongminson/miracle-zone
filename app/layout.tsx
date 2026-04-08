@@ -16,6 +16,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "명운(命運) - 당신의 운명을 밝히다",
   description: "AI 기반 소름 돋는 사주, 궁합, 타로, 꿈 해몽 서비스",
+
+
+  verification: {
+    google: "mTatlpiTN0G1CZ1XKfH_gHsYoV183kAtBlZVBxKp4fg",
+  },
+
   icons: {
     icon: "/logo.png", // 브라우저 탭 창에 뜨는 아이콘 (파비콘)
     shortcut: "/logo.png", 
