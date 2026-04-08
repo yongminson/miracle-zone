@@ -1,6 +1,6 @@
 // app/blog/page.tsx
 import Link from "next/link";
-import { supabase } from "@/lib/supabase"; // 👈 방금 만든 파이프(연결 통로)를 불러옵니다!
+import { supabase } from "@/app/lib/supabase"; // 👈 방금 만든 파이프(연결 통로)를 불러옵니다!
 
 // 🚀 Next.js 최신 규격 (서버에서 페이지를 만들 때마다 매번 최신 데이터를 가져옵니다)
 export const dynamic = 'force-dynamic';
@@ -34,7 +34,7 @@ export default async function BlogPage() {
           </div>
         ) : (
           /* DB에서 가져온 글(blogPosts)을 하나씩 꺼내서 카드로 만듭니다 */
-          blogPosts.map((post) => (
+          blogPosts.map((post: any) => (
             <Link href={`/blog/${post.slug}`} key={post.id}>
               <div className="bg-[#111111]/80 p-6 rounded-2xl border-2 border-gray-800 hover:border-yellow-500/80 hover:shadow-[0_0_30px_rgba(234,179,8,0.2)] transition-all duration-300 group cursor-pointer backdrop-blur-sm">
                 <div className="flex items-center justify-between mb-3">
