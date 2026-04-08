@@ -17,9 +17,11 @@ export const metadata: Metadata = {
   title: "명운(命運) - 당신의 운명을 밝히다",
   description: "AI 기반 소름 돋는 사주, 궁합, 타로, 꿈 해몽 서비스",
 
-
   verification: {
-    google: "mTatlpiTN0G1CZ1XKfH_gHsYoV183kAtBlZVBxKp4fg",
+    google: "mTatlpiTN0G1CZ1XKfH_gHsYoV183kAtBlZVBxKp4fg", // 구글 코드 (그대로 유지)
+    other: {
+      "naver-site-verification": "6c6aa7651e110462af3e09226fe9a9e8ead3d282", // 🟢 네이버 코드 추가!
+    },
   },
 
   icons: {
