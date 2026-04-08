@@ -3369,6 +3369,11 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
   const [user, setUser] = useState<any>(null);
   const [premiumCount, setPremiumCount] = useState(0);
 
+  // 💡 [이스터에그 상태 관리] 추가!
+  const [couponClickCount, setCouponClickCount] = useState(0);
+  const [showCouponModal, setShowCouponModal] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+
   // 세션 감지 및 DB에서 남은 횟수 불러오기
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -3392,7 +3397,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     return () => subscription.unsubscribe();
   }, [isVisible]);
 
-  // 무료 횟수 로컬 스토리지 관리 (기존 동일)
+  // 무료 횟수 로컬 스토리지 관리
   useEffect(() => {
     if (typeof window === "undefined") return;
     const today = new Date().toDateString();
@@ -3429,7 +3434,53 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     "고급 통계 조합 계산 중...",
   ];
 
-  // 매트릭스 애니메이션 효과 (기존 동일)
+  // 💡 [5번 클릭 감지 로직]
+  const handleCouponSecretClick = () => {
+    setCouponClickCount((prev) => {
+      const nextCount = prev + 1;
+      if (nextCount === 5) {
+        setShowCouponModal(true); // 5번 채우면 모달창 오픈!
+        return 0;
+      }
+      return nextCount;
+    });
+  };
+
+  // 💡 [클릭 2초 후 카운트 초기화]
+  useEffect(() => {
+    if (couponClickCount > 0) {
+      const timer = setTimeout(() => setCouponClickCount(0), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [couponClickCount]);
+
+  // 💡 [쿠폰 확인 로직]
+  const handleCouponSubmit = async () => {
+    if (couponInput === "로또1등기원") {
+      if (!user) {
+        alert("로그인이 필요합니다. 먼저 카카오 로그인을 해주세요!");
+        setShowCouponModal(false);
+        return;
+      }
+      alert("🎉 시크릿 쿠폰 확인! 로또 10회 이용권이 충전되었습니다.");
+      
+      // 프론트엔드 숫자 즉시 증가
+      setPremiumCount((prev) => prev + 10);
+
+      // DB에도 횟수 반영 업데이트
+      await supabase
+        .from('profiles')
+        .update({ premium_lotto_count: premiumCount + 10 })
+        .eq('id', user.id);
+
+      setShowCouponModal(false);
+      setCouponInput("");
+    } else {
+      alert("❌ 유효하지 않은 쿠폰 번호입니다.");
+    }
+  };
+
+  // 매트릭스 애니메이션 효과
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !isVisible) return;
@@ -3480,7 +3531,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     setTimeout(() => setIsDrawing(false), numbers.length * 450 + 100);
   };
 
-  // 🚀 10회권 묶음 결제 진행 함수
+  // 10회권 묶음 결제 진행 함수
   const handleLottoPaymentConfirm = async () => {
     if (!user) return alert("로그인 정보가 없습니다.");
     
@@ -3505,10 +3556,10 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
 
       if (isMobile) {
         payData.m_redirect_url = window.location.href;
-        localStorage.removeItem("pendingPremiumWish"); // 🚀 엉뚱한 결제(제단) 플래그 찌꺼기 제거
+        localStorage.removeItem("pendingPremiumWish");
         localStorage.setItem("pendingPaymentType", "lotto");
         localStorage.setItem("pendingPaymentAmount", String(amount));
-        localStorage.setItem("pendingPaymentUserId", user.id); // 서버 DB 기록을 위해 유저ID 저장
+        localStorage.setItem("pendingPaymentUserId", user.id); 
       }
 
       IMP.request_pay(payData, async function (rsp: any) {
@@ -3523,7 +3574,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
                 imp_uid: rsp.imp_uid,
                 merchant_uid: rsp.merchant_uid,
                 amount: amount,
-                userId: user.id // 서버로 유저ID 전송
+                userId: user.id
               }),
             });
             const verifyData = await verifyRes.json();
@@ -3531,7 +3582,6 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
             if (verifyRes.ok && verifyData.success) {
               setShowLottoPaymentModal(false);
               alert("✨ 결제 성공! 로또 10회 이용권이 충전되었습니다.");
-              // 충전 후 DB 다시 읽기
               const { data } = await supabase.from('profiles').select('premium_lotto_count').eq('id', user.id).single();
               if (data) setPremiumCount(data.premium_lotto_count);
             } else {
@@ -3550,36 +3600,31 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
-  // 🚀 버튼 클릭 컨트롤러 (잔여 횟수가 있으면 바로 생성, 없으면 결제창)
+  // 버튼 클릭 컨트롤러
   const handlePremiumClick = () => {
     if (isDrawing) return;
 
-    // 1️⃣ 운영자 절대 프리패스 (로그인 무시, 결제 무시하고 즉시 추출!)
     if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
       alert("✨ [운영자 프리패스] 결제 없이 즉시 고급 통계 번호를 추출합니다!");
-      executeLottoDraw(false); // 💡 결제 함수 대신 즉시 실행 함수 호출
+      executeLottoDraw(false);
       return;
     }
 
-    // 2️⃣ 일반 유저 로직
     if (!user) {
       alert("이용권 충전 및 저장을 위해 우측 상단의 카카오 로그인을 먼저 진행해주세요!");
       return;
     }
     
     if (premiumCount > 0) {
-      // 횟수가 남았으니 1회 차감하고 생성!
       executeLottoDraw(true);
     } else {
-      // 횟수가 없으면 결제 모달 띄우기
       setShowLottoPaymentModal(true);
     }
   };
 
-  // 🚀 실제 고급 통계 로또 번호 추출
+  // 실제 고급 통계 로또 번호 추출
   const executeLottoDraw = async (usePremium: boolean = false) => {
     if (usePremium && user) {
-      // DB에서 1회 차감 
       const { data, error } = await supabase.rpc('use_premium_lotto', { user_id: user.id });
       if (error || !data) {
         alert("잔여 횟수 차감 중 오류가 발생했습니다.");
@@ -3666,10 +3711,51 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
         </div>
       )}
 
+      {/* 🎁 시크릿 쿠폰 모달창 */}
+      {showCouponModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-yellow-500/30 bg-[#111] p-6 shadow-2xl md:p-8">
+            <h3 className="mb-2 text-center text-2xl font-bold text-white">🤫 시크릿 쿠폰</h3>
+            <p className="mb-6 text-center text-sm text-gray-400">숨겨진 쿠폰 코드를 입력하세요.</p>
+            
+            <input
+              type="text"
+              value={couponInput}
+              onChange={(e) => setCouponInput(e.target.value)}
+              placeholder="예: 로또1등기원"
+              className="mb-4 w-full rounded-lg border border-gray-700 bg-black px-4 py-3 text-center text-white focus:border-yellow-500 focus:outline-none"
+            />
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCouponModal(false)}
+                className="flex-1 rounded-lg bg-gray-800 py-3 text-gray-300 transition hover:bg-gray-700"
+              >
+                닫기
+              </button>
+              <button
+                onClick={handleCouponSubmit}
+                className="flex-1 rounded-lg bg-gradient-to-r from-yellow-600 to-yellow-400 py-3 font-bold text-black transition hover:scale-105"
+              >
+                충전하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 py-8">
         <div className="flex flex-wrap items-center justify-center gap-2">
           <span className="rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm">이번 주 추천 조합</span>
-          <span className="rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm">무료 3회 제공</span>
+          
+          {/* 👇 이스터에그가 적용된 무료 3회 제공 버튼 */}
+          <span 
+            onClick={handleCouponSecretClick}
+            className="cursor-pointer select-none rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm transition-transform active:scale-95"
+          >
+            무료 3회 제공
+          </span>
+
           {user && premiumCount > 0 && <span className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-[11px] text-emerald-300 font-bold backdrop-blur-sm">이용권 {premiumCount}회 보유</span>}
         </div>
 
@@ -3699,7 +3785,6 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
               일반 번호 생성 (남은 횟수: {freeCount}/3)
             </button>
 
-            {/* 🚀 잔여 횟수에 따라 다르게 보이는 스마트 버튼 */}
             <button
               type="button"
               onClick={handlePremiumClick}
