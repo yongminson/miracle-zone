@@ -3454,16 +3454,36 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     }
   }, [couponClickCount]);
 
-  // 💡 [쿠폰 확인 로직]
+  // 💡 [쿠폰 확인 로직: 1회 제한 + 대표님 전용 초기화 기능]
   const handleCouponSubmit = async () => {
+    // 👑 대표님 전용 시크릿 초기화 키 (영상 촬영용)
+    if (couponInput === "쿠폰초기화") {
+      if (user) localStorage.removeItem(`coupon_used_${user.id}`);
+      alert("✨ [관리자] 쿠폰 사용 기록이 초기화되었습니다. 이제 다시 쓸 수 있습니다!");
+      setCouponInput("");
+      return;
+    }
+
     if (couponInput === "로또1등기원") {
       if (!user) {
         alert("로그인이 필요합니다. 먼저 카카오 로그인을 해주세요!");
         setShowCouponModal(false);
         return;
       }
+
+      // 🚫 일반 유저 1회 한정 차단 로직
+      if (localStorage.getItem(`coupon_used_${user.id}`)) {
+        alert("❌ 이미 사용 완료된 쿠폰입니다. (1인 1회 한정)");
+        setShowCouponModal(false);
+        setCouponInput("");
+        return;
+      }
+
       alert("🎉 시크릿 쿠폰 확인! 로또 10회 이용권이 충전되었습니다.");
       
+      // 🔒 쿠폰 사용 완료 도장 찍기
+      localStorage.setItem(`coupon_used_${user.id}`, "true");
+
       // 프론트엔드 숫자 즉시 증가
       setPremiumCount((prev) => prev + 10);
 
@@ -3748,10 +3768,10 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
         <div className="flex flex-wrap items-center justify-center gap-2">
           <span className="rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm">이번 주 추천 조합</span>
           
-          {/* 👇 아무도 모르게 완벽히 위장한 이스터에그 버튼 (손가락/눌림 효과 제거) */}
+          {/* 👇 cursor-text 적용으로 일반 글씨와 똑같이 I빔 커서가 뜨도록 완벽 위장 */}
           <span 
             onClick={handleCouponSecretClick}
-            className="select-none rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm"
+            className="cursor-text select-none rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm"
           >
             무료 3회 제공
           </span>
