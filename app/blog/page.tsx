@@ -1,7 +1,7 @@
+// 📝 app/blog/page.tsx (기존 코드를 지우고 이 코드로 덮어쓰세요)
 import Link from "next/link";
 import { Metadata } from "next";
 
-// 🚀 검색엔진(SEO)이 긁어갈 핵심 키워드 세팅
 export const metadata: Metadata = {
   title: "명운(命運) 매거진 - 사주, 꿈해몽, 운세의 모든 것",
   description: "사주팔자, 띠별 운세, 길몽과 흉몽 구별법, 로또 명당 등 기적을 부르는 운명 정보를 제공합니다.",
@@ -34,52 +34,44 @@ const blogPosts = [
 
 export default function BlogPage() {
   return (
-    // 🎨 신비로운 고문서 배경 이미지 적용!
-    <div 
-      className="min-h-screen text-white pt-24 pb-16 px-4"
-      style={{
-        backgroundImage: "url('/blog-bg.png')", // 다운로드 받은 파일명과 일치해야 합니다
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed', // 스크롤 시 배경은 고정
-      }}
-    >
-      <div className="max-w-4xl mx-auto">
-        
-        {/* 헤더 섹션 - 배경 위에 더 선명하게 보이도록 수정 */}
-        <div className="text-center mb-12 bg-black/40 p-8 rounded-2xl border border-gray-800 backdrop-blur-sm">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-yellow-100 text-transparent bg-clip-text">
-            명운(命運) 매거진
-          </h1>
-          <p className="text-gray-300">
-            당신의 운명을 밝혀줄 소름 돋는 정보와 비법들을 확인하세요.
-          </p>
-        </div>
-
-        {/* 블로그 리스트 섹션 */}
-        <div className="grid gap-6">
-          {blogPosts.map((post) => (
-            <Link href={`/blog/${post.id}`} key={post.id}>
-              {/* 블로그 카드 디자인 강화 - 더 두꺼운 테두리와 선명한 그림자 */}
-              <div className="bg-[#111111] p-6 rounded-2xl border-2 border-gray-800 hover:border-yellow-500/80 hover:shadow-[0_0_30px_rgba(234,179,8,0.2)] transition-all duration-300 group cursor-pointer backdrop-blur-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-semibold px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full border border-yellow-500/30">
-                    {post.category}
-                  </span>
-                  <span className="text-sm text-gray-500">{post.date}</span>
-                </div>
-                <h2 className="text-xl font-bold mb-2 text-white group-hover:text-yellow-400 transition-colors">
-                  {post.title}
-                </h2>
-                <p className="text-gray-400 text-sm line-clamp-2">
-                  {post.summary}
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
-
+    // 🎨 최상위 레이아웃에서 배경을 처리하므로 여기는 배경 코드를 삭제합니다.
+    <div className="max-w-4xl mx-auto">
+      
+      {/* 헤더 섹션 - 박스를 제거하고 중앙 정렬 */}
+      <div className="text-center mb-12">
+        <h1 className="text-3xl md:text-4xl font-bold mb-4 bg-gradient-to-r from-yellow-400 to-yellow-100 text-transparent bg-clip-text">
+          명운(命運) 매거진
+        </h1>
+        <p className="text-gray-300">
+          당신의 운명을 밝혀줄 소름 돋는 정보와 비법들을 확인하세요.
+          {/* (마케팅 훅 추가) - 나중에 AI 자동화가 되면 주석 해제 */}
+          {/* <span className="text-yellow-400 font-medium"> [매일 아침 9시 새로운 글 업로드!]</span> */}
+        </p>
       </div>
+
+      {/* 블로그 리스트 섹션 */}
+      <div className="grid gap-6">
+        {blogPosts.map((post) => (
+          <Link href={`/blog/${post.id}`} key={post.id}>
+            {/* 블로그 카드 디자인 강화 - 더 두꺼운 테두리와 선명한 그림자 */}
+            <div className="bg-[#111111]/80 p-6 rounded-2xl border-2 border-gray-800 hover:border-yellow-500/80 hover:shadow-[0_0_30px_rgba(234,179,8,0.2)] transition-all duration-300 group cursor-pointer backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full border border-yellow-500/30">
+                  {post.category}
+                </span>
+                <span className="text-sm text-gray-500">{post.date}</span>
+              </div>
+              <h2 className="text-xl font-bold mb-2 text-white group-hover:text-yellow-400 transition-colors">
+                {post.title}
+              </h2>
+              <p className="text-gray-400 text-sm line-clamp-2">
+                {post.summary}
+              </p>
+            </div>
+          </Link>
+        ))}
+      </div>
+
     </div>
   );
 }
