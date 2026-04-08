@@ -2,6 +2,10 @@
 import { MetadataRoute } from 'next';
 import { supabase } from '@/app/lib/supabase';
 
+// 🚀 베르첼의 고집불통 캐시를 강제로 부수고 항상 최신 지도를 만들게 하는 마법의 주문!
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://saju.ymstudio.co.kr';
 
@@ -11,7 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .select('slug, created_at')
     .order('created_at', { ascending: false });
 
-  // 💡 수정된 부분: url 배열을 명확하게 생성
+  // 가져온 글들을 지도 형식에 맞게 변환
   const blogUrls = posts?.map((post) => ({
     url: `${baseUrl}/blog/${post.slug}`,
     lastModified: new Date(post.created_at),
@@ -19,7 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     {
-      url: baseUrl, // 메인 페이지
+      url: `${baseUrl}/`, // 메인 페이지
       lastModified: new Date(),
     },
     {
