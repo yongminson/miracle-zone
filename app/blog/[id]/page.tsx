@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-// 📝 임시 상세 글 데이터 (나중에 AI로 생성한 글을 여기에 채워넣으면 됩니다)
+// 📝 임시 상세 글 데이터
 const postDetails: Record<string, any> = {
   "fortune-2026": {
     title: "2026년 하반기, 무조건 대박 나는 사주 특징 3가지",
@@ -28,8 +28,11 @@ const postDetails: Record<string, any> = {
   },
 };
 
-export default function BlogPost({ params }: { params: { id: string } }) {
-  const post = postDetails[params.id];
+// 🚀 Next.js 최신 버전에 맞춘 비동기(async/await) 파라미터 처리
+export default async function BlogPost({ params }: { params: Promise<{ id: string }> | { id: string } }) {
+  // params가 Promise일 경우를 대비해 await로 풀어줍니다.
+  const resolvedParams = await params;
+  const post = postDetails[resolvedParams.id];
 
   if (!post) {
     notFound();
