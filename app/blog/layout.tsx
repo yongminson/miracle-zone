@@ -1,4 +1,4 @@
-// 📝 app/blog/layout.tsx (새로 만들거나 수정하세요)
+// 📝 app/blog/layout.tsx (기존 코드를 지우고 이 코드로 덮어쓰세요)
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -15,16 +15,21 @@ export default function BlogLayout({
   children: React.ReactNode;
 }) {
   return (
-    // 🎨 신비로운 고문서 배경 이미지 적용 (blog-bg.png)
+    // 🎨 최상위 body 레벨에서 배경을 처리합니다.
     <div 
       className="min-h-screen text-white pt-24 pb-16 px-4"
       style={{
-        backgroundImage: "url('/blog-bg.png')", // 다운로드 받은 파일명과 일치해야 합니다
+        // 🚀 깔끔한 배경 이미지로 변경!
+        backgroundImage: "url('/blog-bg-clean.png')", // 새로 다운로드 받은 파일명과 일치해야 합니다
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundAttachment: 'fixed', // 스크롤 시 배경은 고정
+        backgroundAttachment: 'fixed', // 스크롤 시 배경은 고정 (매우 중요!)
       }}
     >
+      {/* 💡 탭 메뉴 상/하단 짤림 해결: 
+         전체 페이지가 이 div 안에 렌더링되므로 
+         배경이 항상 전체를 커버합니다. 
+      */}
       {children}
     </div>
   );
