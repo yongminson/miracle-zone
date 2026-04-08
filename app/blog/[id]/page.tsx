@@ -15,7 +15,7 @@ const postDetails: Record<string, any> = {
     summary: "돼지꿈, 똥꿈 등 꾸고 나서 절대 입 밖으로 꺼내면 안 되는 대박 꿈해몽을 정리해 드립니다.",
     date: "2026.04.07",
     category: "꿈해몽",
-    content: "어젯밤 화장실에서 똥을 밟는 꿈을 꾸셨나요? 절대 누구에게도 말하지 마세요! 그건 바로... (중략) ... 어젯밤 꾼 내 꿈의 진짜 의미, 완벽하게 풀이해 드립니다.",
+    content: "어젯밤 화장실에서 똥을 밟는 꿈을 꾸셨나요? 절대 누구에게도 말하지 마세요! 그건 바로... (중략) ... 어젯밤 꾼 내 꿈의 진짜 의미, 인공지능이 완벽하게 풀이해 드립니다.",
     buttonText: "🌙 내 꿈 길몽인지 확인하기",
   },
   "lotto-dreams": {
@@ -28,9 +28,7 @@ const postDetails: Record<string, any> = {
   },
 };
 
-// 🚀 Next.js 최신 버전에 맞춘 비동기(async/await) 파라미터 처리
 export default async function BlogPost({ params }: { params: Promise<{ id: string }> | { id: string } }) {
-  // params가 Promise일 경우를 대비해 await로 풀어줍니다.
   const resolvedParams = await params;
   const post = postDetails[resolvedParams.id];
 
@@ -39,8 +37,10 @@ export default async function BlogPost({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-gray-200 pt-20 pb-16 px-4">
-      <div className="max-w-3xl mx-auto bg-[#1a1a1a] rounded-3xl p-6 md:p-10 border border-gray-800 shadow-2xl">
+    // 🚨 여기서 기존의 bg-[#0a0a0a]를 삭제하여 투명하게 만들었습니다!
+    <div className="min-h-screen text-gray-200 pt-20 pb-16 px-4">
+      {/* 글 박스도 살짝 투명(bg-[#111111]/80)하게 해서 배경이 은은하게 비치도록 수정 */}
+      <div className="max-w-3xl mx-auto bg-[#111111]/80 backdrop-blur-md rounded-3xl p-6 md:p-10 border border-gray-800 shadow-2xl">
         
         {/* 뒤로가기 버튼 */}
         <Link href="/blog" className="inline-block text-gray-400 hover:text-yellow-400 mb-8 transition-colors text-sm">
@@ -49,7 +49,7 @@ export default async function BlogPost({ params }: { params: Promise<{ id: strin
 
         {/* 본문 헤더 */}
         <div className="mb-10 border-b border-gray-800 pb-8">
-          <span className="text-xs font-semibold px-3 py-1 bg-yellow-500/10 text-yellow-500 rounded-full mb-4 inline-block">
+          <span className="text-xs font-semibold px-3 py-1 bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 rounded-full mb-4 inline-block">
             {post.category}
           </span>
           <h1 className="text-2xl md:text-4xl font-bold mb-4 text-white leading-snug">
@@ -65,7 +65,7 @@ export default async function BlogPost({ params }: { params: Promise<{ id: strin
         </div>
 
         {/* 🚀 핵심 마케팅 훅 (메인 앱으로 납치하는 버튼) */}
-        <div className="text-center bg-black/50 p-8 rounded-2xl border border-yellow-500/30">
+        <div className="text-center bg-black/60 backdrop-blur-sm p-8 rounded-2xl border border-yellow-500/30">
           <h3 className="text-xl font-bold mb-6 text-white">당신의 진짜 운명이 궁금하다면?</h3>
           <Link href="/">
             <button className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-yellow-600 to-yellow-400 text-black font-bold rounded-xl text-lg hover:scale-105 transition-transform shadow-[0_0_20px_rgba(234,179,8,0.3)]">
