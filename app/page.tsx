@@ -3722,7 +3722,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
               type="text"
               value={couponInput}
               onChange={(e) => setCouponInput(e.target.value)}
-              placeholder="예: 로또1등기원"
+              placeholder="쿠폰 번호 입력"
               className="mb-4 w-full rounded-lg border border-gray-700 bg-black px-4 py-3 text-center text-white focus:border-yellow-500 focus:outline-none"
             />
             
@@ -3748,10 +3748,10 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
         <div className="flex flex-wrap items-center justify-center gap-2">
           <span className="rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm">이번 주 추천 조합</span>
           
-          {/* 👇 이스터에그가 적용된 무료 3회 제공 버튼 */}
+          {/* 👇 아무도 모르게 완벽히 위장한 이스터에그 버튼 (손가락/눌림 효과 제거) */}
           <span 
             onClick={handleCouponSecretClick}
-            className="cursor-pointer select-none rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm transition-transform active:scale-95"
+            className="select-none rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm"
           >
             무료 3회 제공
           </span>
