@@ -11,7 +11,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@seyoungsong/hanjadict": "^0.4.5",
-    "@supabase/supabase-js": "^2.99.2",
+    "@supabase/supabase-js": "^2.102.1",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.577.0",
