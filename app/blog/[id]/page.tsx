@@ -38,8 +38,8 @@ export default async function BlogPost({ params }: { params: Promise<{ id: strin
         </div>
 
         <div className="prose prose-invert max-w-none mb-16 text-gray-300 leading-relaxed text-lg">
-          {/* DB에 저장된 본문 내용 출력 */}
-          <p>{post.content}</p>
+          {/* 🚀 DB에 저장된 본문 내용 출력 (줄바꿈/엔터 완벽 적용) */}
+          <div className="whitespace-pre-wrap">{post.content}</div>
           <p className="mt-8 text-yellow-400 font-medium">더 자세하고 소름 돋는 결과는 아래에서 직접 확인해 보세요!</p>
         </div>
 
