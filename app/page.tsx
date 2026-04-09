@@ -2867,19 +2867,9 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                     <div className="mt-8 space-y-3 relative">
                       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent rounded-xl">
                         <p className="text-white font-bold mb-4 drop-shadow-md">전문가 수준의 10가지 심층 풀이가 준비되었습니다.</p>
-                        <button 
-                          onClick={(e) => { e.preventDefault(); handleFacePremium(); }}
-                          className="
-                            relative overflow-hidden group animate-bounce px-8 py-3 rounded-full
-                            bg-gradient-to-r from-yellow-500 via-yellow-300 to-amber-500 text-black font-extrabold
-                            shadow-[0_0_25px_rgba(234,179,8,0.6)] hover:shadow-[0_0_35px_rgba(234,179,8,0.9)]
-                            transition-transform duration-300 hover:scale-105
-                          "
-                        >
-                          <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent transition-all duration-700 ease-in-out group-hover:translate-x-full" />
-                          <span className="relative z-10 flex items-center gap-2">
-                            🔒 프리미엄 심층 분석 열기
-                          </span>
+                        <button onClick={(e) => { e.preventDefault(); handleFacePremium(); }} className="relative w-full overflow-hidden rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 px-8 py-4 text-base font-extrabold text-slate-900 shadow-[0_0_20px_rgba(234,179,8,0.5)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(234,179,8,0.9)] active:scale-95 group">
+                          <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent transition-all duration-700 ease-out group-hover:translate-x-full" />
+                          <span className="relative z-10 flex items-center justify-center gap-2">🔒 프리미엄 심층 분석 열기</span>
                         </button>
                       </div>
 
@@ -3216,21 +3206,9 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                   </div>
 
                   ) : (
-                    <button
-                      type="button"
-                      onClick={handleNamePremium}
-                      className="
-                        relative overflow-hidden group w-full rounded-xl px-6 py-4 text-base font-extrabold text-slate-900 
-                        bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500
-                        transition-all duration-300 hover:scale-[1.02] active:scale-95
-                        shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_35px_rgba(245,158,11,0.7)]
-                        animate-pulse
-                      "
-                    >
+                    <button type="button" onClick={handleNamePremium} className="relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 px-6 py-4 text-base font-extrabold text-slate-900 shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(245,158,11,0.8)] active:scale-95 group">
                       <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent transition-all duration-700 ease-out group-hover:translate-x-full" />
-                      <span className="relative z-10">
-                        ✨ 전문가 심층 분석 리포트 잠금 해제 (4,900원)
-                      </span>
+                      <span className="relative z-10">✨ 전문가 심층 분석 리포트 잠금 해제 (4,900원)</span>
                     </button>
                   )}
                   <button
@@ -3831,25 +3809,9 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
               일반 번호 생성 (남은 횟수: {freeCount}/3)
             </button>
 
-            <button
-              type="button"
-              onClick={handlePremiumClick}
-              disabled={showLottoPaymentModal || showLottoProgressModal}
-              className="
-                relative overflow-hidden group flex-1 rounded-xl px-6 py-3 text-sm font-bold text-slate-900 
-                bg-gradient-to-r from-yellow-500 via-yellow-300 to-amber-500 bg-[length:200%_auto]
-                transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50
-                shadow-[0_0_20px_rgba(234,179,8,0.4)] hover:shadow-[0_0_30px_rgba(234,179,8,0.7)]
-                animate-pulse
-              "
-            >
-              {/* ✨ 광선 지나가는 효과 */}
-              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent transition-all duration-700 group-hover:translate-x-full" />
-              <span className="relative z-10">
-                {premiumCount > 0 
-                  ? `✨ 통계 번호 추출 (잔여: ${premiumCount}회)` 
-                  : `✨ 고급 통계 10회권 충전 (4,500원)`}
-              </span>
+            <button type="button" onClick={handlePremiumClick} disabled={showLottoPaymentModal || showLottoProgressModal} className="relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 px-6 py-4 text-sm font-bold text-slate-900 shadow-[0_0_20px_rgba(234,179,8,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(234,179,8,0.8)] active:scale-95 disabled:opacity-50 group">
+              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent transition-all duration-700 ease-out group-hover:translate-x-full" />
+              <span className="relative z-10">{premiumCount > 0 ? `✨ 통계 번호 추출 (잔여: ${premiumCount}회)` : `✨ 고급 통계 10회권 충전 (4,500원)`}</span>
             </button>
           </div>
         </div>
