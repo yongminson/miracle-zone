@@ -1,114 +1,104 @@
 import { NextRequest, NextResponse } from "next/server";
-import { tableData } from "@seyoungsong/hanjadict";
+import OpenAI from "openai";
 
-type HanjaEntry = { hanja: string; meaning: string };
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
-const TWO_SOUND_RULE: Record<string, string[]> = {
-  용: ["룡"], 이: ["리"], 여: ["녀"], 유: ["류"], 연: ["련"],
-  열: ["렬"], 예: ["례"], 율: ["률"], 낙: ["락"], 노: ["로"],
+const CHOSUNG_TO_OHAENG: Record<number, string> = {
+  0: "목(木)", 1: "목(木)", 15: "목(木)",
+  2: "화(火)", 3: "화(火)", 4: "화(火)", 5: "화(火)", 16: "화(火)",
+  11: "토(土)", 18: "토(土)",
+  9: "금(金)", 10: "금(金)", 12: "금(金)", 13: "금(金)", 14: "금(金)",
+  6: "수(水)", 7: "수(水)", 8: "수(水)", 17: "수(水)",
 };
 
-function getHanjaScore(hanja: string, originalMeaningFull: string, bestMeaning: string): number {
-  let score = 0;
-
-  const meaningCount = originalMeaningFull.split(/[,;]/).length;
-  score += meaningCount * 100;
-
-  const goodKeywords = ["아름다울", "빛날", "어질", "지혜", "뛰어날", "굳셀", "착할", "슬기", "길할", "덕", "현명할", "백성", "맑을", "밝을", "은혜", "옥돌", "보배"];
-  for (const kw of goodKeywords) {
-    if (bestMeaning.includes(kw)) {
-      score += 300;
-      break;
-    }
+function getEumryeongOhaeng(name: string): string {
+  const hangulOnly = name.replace(/[^\uAC00-\uD7A3]/g, "");
+  if (!hangulOnly) return "계산 불가 (한자만 입력됨)";
+  const ohaengList: string[] = [];
+  for (const char of hangulOnly) {
+    const code = char.charCodeAt(0);
+    if (code < 0xac00 || code > 0xd7a3) continue;
+    const chosungIndex = Math.floor((code - 0xac00) / 588);
+    const ohaeng = CHOSUNG_TO_OHAENG[chosungIndex];
+    if (ohaeng) ohaengList.push(ohaeng);
   }
-
-  const badKeywords = [
-    "땅 이름", "산 이름", "강 이름", "물 이름", "나라 이름", "고을 이름", "별 이름", "벌레 이름", "짐승 이름", "새 이름",
-    "벌레", "짐승", "새", "병", "죽을", "나쁠", "어리석을", "모양", "단위", "제사", "귀신", "악할", "흉할",
-    "원망할", "근심할", "미워할", "어두울", "더러울", "속일", "벌줄", "죽일", "망할", "괴로울", "슬플", "가난할", "도둑"
-  ];
-  for (const bad of badKeywords) {
-    if (originalMeaningFull.includes(bad)) {
-      score -= 3000; 
-      break;
-    }
-  }
-
-  const coreNames = "美未微迷尾敏旻珉民閔秀洙守水壽修受首俊準遵駿浚智志地知芝枝賢玄炫顯英永榮泳映迎眞珍振辰進鎭瑞序舒書徐龍容用勇庸溶熔成星聖誠城姸延燕緣淵河夏荷東童同大大多正政廷停熙喜嬉載在才勳訓赫圭奎相尙基起機泰太源元原明命善宣恩銀敬景海光廣建宇佑祐碩錫哲喆浩鎬晧煥奐植亨鍾宗昇勝";
-  if (coreNames.includes(hanja)) {
-    score += 2000;
-  }
-
-  return score;
+  return ohaengList.length ? ohaengList.join(", ") : "계산 불가";
 }
 
-function getQueriesToMatch(query: string): string[] {
-  return [query, ...(TWO_SOUND_RULE[query] || [])];
-}
-
-function searchByPronunciation(query: string): HanjaEntry[] {
-  const queriesToMatch = getQueriesToMatch(query);
-  const hanjaMap = new Map<string, { meaning: string, score: number }>(); 
-
-  for (const [hanja, meaning] of Object.entries(tableData)) {
-    if (!meaning || typeof meaning !== "string") continue;
-
-    const readings = meaning.split(/[,;]/);
-    let matchedMeaning = "";
-
-    for (const reading of readings) {
-      const clean = reading.replace(/\([^)]+\)/g, "").trim();
-      for (const q of queriesToMatch) {
-        if (clean.endsWith(q)) {
-          matchedMeaning = clean; 
-          break;
-        }
-      }
-      if (matchedMeaning) break;
-    }
-
-    if (matchedMeaning) {
-      if (matchedMeaning === query || matchedMeaning.length === 1) {
-        matchedMeaning = `${query} (이름·지명)`;
-      }
-      
-      const score = getHanjaScore(hanja, meaning, matchedMeaning);
-
-      if (!hanjaMap.has(hanja)) {
-        hanjaMap.set(hanja, { meaning: matchedMeaning, score });
-      } else {
-         if(score > hanjaMap.get(hanja)!.score){
-             hanjaMap.set(hanja, { meaning: matchedMeaning, score });
-         }
-      }
-    }
+const RESPONSE_FORMAT = `
+{
+  "freeSummary": "이름의 전반적인 기운에 대한 1줄 요약",
+  "freeWeakness": "이 이름의 가장 치명적인 단점 1줄 (팩트폭력)",
+  "premiumReport": {
+    "basisBox": {
+      "pronunciation": "음령오행 요약 (예: 손(金)-용(土)-민(水))",
+      "resource": "자원오행 요약 (★반드시 글자별 1:1 매칭 명시. 예: 孫-목(木), 龍-토(土), 民-수(水))",
+      "sajuRelation": "사주와의 관계 요약"
+    },
+    "coreEnergy": "핵심 기운 및 파동 분석 (3~4문장)",
+    "nameFlow": "음양오행 심층 분석 (3~4문장)",
+    "sajuFit": "사주와 이름의 궁합 (3~4문장)",
+    "lifeCycle": "인생 총운 (3~4문장)"
   }
-
-  let results: (HanjaEntry & { score: number })[] = [];
-  for (const [hanja, data] of hanjaMap.entries()) {
-    results.push({ hanja, meaning: data.meaning, score: data.score });
-  }
-
-  results.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return a.meaning.localeCompare(b.meaning, 'ko-KR');
-  });
-
-  return results.map(r => ({ hanja: r.hanja, meaning: r.meaning }));
 }
+🚨 [절대 경고] premiumReport 안의 coreEnergy, nameFlow, sajuFit, lifeCycle 4개의 키는 화면을 그리는 필수 데이터입니다. 무조건 100% 빠짐없이 출력하세요.
+`;
+
+const SYSTEM_PROMPT_BASE = `당신은 최고급 철학관 원장이자, 타협 없이 팩트폭력을 날리는 정통 성명학 전문가입니다.
+
+[분석 원칙 - ★한문(자원오행) 절대 우선 및 불변의 법칙★]
+1. 자원오행 불변의 법칙: 한자(예: 孫龍民)가 입력되었다면, 한글 이름이 있든 없든 **각 한자의 자원오행(목화토금수)은 무조건 똑같은 오행으로 영구 고정**하여 평가하세요. 상황이나 맥락에 따라 같은 한자의 오행을 다르게 유추하면 절대 안 됩니다.
+2. 한글 유추 필수: 사용자가 한자만 입력하여 음령오행이 [계산 불가]로 들어왔다면, 한자의 대표 한국어 발음을 스스로 유추(예: 孫龍民 -> 손용민)하여 음령오행을 계산한 뒤 풀이에 똑같이 반영하세요.
+3. 한자 뜻 중심 분석: 분석의 90% 이상은 반드시 '한자의 고유한 뜻과 자원오행'을 중심으로 진행하세요.
+4. 획수 연산 금지: 숫자 연산(예: 총 31획)을 절대 하지 마세요.
+5. 압축된 팩트폭력: 중간에 응답이 끊기지 않도록 각 프리미엄 항목은 딱 3~4문장으로 압축하여 뼈를 때리는 팩트만 전달하세요.
+6. 🚨 [가장 중요]: 각 프리미엄 항목(coreEnergy, nameFlow, sajuFit, lifeCycle) 풀이 중, 가장 뼈를 때리는 핵심 팩트 딱 1문장을 반드시 특수문자 【 와 】 로 감싸세요.
+`;
 
 export async function POST(request: NextRequest) {
+  if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: "API 키 오류" }, { status: 500 });
+
   try {
     const body = await request.json();
-    const { char } = body;
-    if (!char || typeof char !== "string") return NextResponse.json({ error: "입력 오류" }, { status: 400 });
+    const { name, hanja, birthDate, birthTime, gender } = body;
+    if (!name) return NextResponse.json({ error: "이름 필수" }, { status: 400 });
 
-    const singleChar = char.trim().slice(0, 1);
-    if (!singleChar) return NextResponse.json({ error: "입력 오류" }, { status: 400 });
+    let finalName = name;
+    let finalHanja = hanja || "";
 
-    const results = searchByPronunciation(singleChar);
-    return NextResponse.json({ results });
+    // 사용자가 孫龍民 처럼 한자만 덩그러니 쳤을 때, 데이터 꼬임 방지
+    const isAllHanja = /^[\u4e00-\u9fa5]+$/.test(name.replace(/\s+/g, ""));
+    if (isAllHanja && !hanja) {
+        finalHanja = name.trim();
+        finalName = "미입력(한자만 입력됨)";
+    }
+
+    const calculatedOhang = getEumryeongOhaeng(finalName);
+    
+    // AI에게 넘어가는 최종 지시문
+    const userPrompt = `성별: ${gender}, 생일: ${birthDate || "모름"}, 시간: ${birthTime}. 
+    한글이름: ${finalName}, 한자이름: ${finalHanja}. 
+    백엔드 계산 음령오행: [${calculatedOhang}]. 
+    위 정보를 바탕으로 철저한 '한자(자원오행)' 중심의 분석을 JSON으로 반환해.`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT_BASE + RESPONSE_FORMAT },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0, 
+      seed: 1004,     
+      max_tokens: 2500,
+    });
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) throw new Error("응답 없음");
+
+    const parsed = JSON.parse(content);
+    return NextResponse.json(parsed);
   } catch (error) {
-    return NextResponse.json({ error: "서버 오류" }, { status: 500 });
+    return NextResponse.json({ error: "이름 풀이 중 오류 발생" }, { status: 500 });
   }
 }
