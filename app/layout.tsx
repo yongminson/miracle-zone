@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script"; // 🚀 포트원 & 구글 애드센스 스크립트 불러오기
+import Analytics from "@/components/Analytics";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,20 +39,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <head>
-        {/* 🚀 1. 포트원(아임포트) 결제 라이브러리 유지! (절대 지우면 안됨) */}
-        <Script src="https://cdn.iamport.kr/v1/iamport.js" strategy="beforeInteractive" />
-        
-        {/* 🚀 2. 구글 애드센스 심사용 코드 추가! */}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {/* 🚀 1. 포트원(아임포트) 결제 라이브러리 (필수 유지) */}
         <Script 
+          src="https://cdn.iamport.kr/v1/iamport.js" 
+          strategy="beforeInteractive" 
+        />
+        
+        {/* 🚀 2. 구글 애드센스 심사용 스크립트 */}
+        <Script 
+          id="google-adsense"
           async 
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5451727566627568" 
           crossOrigin="anonymous" 
           strategy="afterInteractive"
         />
-      </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+
+        {/* 🚀 3. 메인 콘텐츠 및 분석 툴 */}
         {children}
+        <Analytics />
       </body>
     </html>
   );
