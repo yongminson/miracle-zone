@@ -4167,7 +4167,7 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
             </div>
           </div>
         )}
-        <FooterPolicy tabId="mbti" as any />
+        <FooterPolicy tabId="mbti" />
       </div>
     </div>
   );
@@ -4442,7 +4442,7 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
             </div>
           </div>
         )}
-        <FooterPolicy tabId="match" as any />
+        <FooterPolicy tabId="match" />
       </div>
     </div>
   );
