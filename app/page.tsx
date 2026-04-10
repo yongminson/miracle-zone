@@ -297,6 +297,7 @@ type DaeunInfo = {
 // 🚀 [추가] 탭별 맞춤 푸터 & 약관 모달 & 진짜 관리자 로그인 컴포넌트
 function FooterPolicy({ tabId }: { tabId: TabId }) {
   const [showPolicy, setShowPolicy] = useState<string | null>(null);
+  const [showCompanyInfo, setShowCompanyInfo] = useState(false); // 🚀 사업자 정보 토글 상태
 
   const handleAdminLogin = () => {
     const pwd = prompt("운영자 비밀번호를 입력하세요.");
@@ -329,22 +330,28 @@ function FooterPolicy({ tabId }: { tabId: TabId }) {
         </p>
       )}
 
-<div className="flex justify-center gap-4 text-[10px] text-white/50 pt-2 font-medium">
+<div className="flex flex-wrap justify-center gap-x-3 gap-y-2 text-[10px] text-white/50 pt-2 font-medium">
         <button type="button" onClick={() => setShowPolicy("terms")} className="hover:text-white transition-colors">이용약관</button>
         <span>|</span>
         <button type="button" onClick={() => setShowPolicy("privacy")} className="hover:text-white transition-colors">개인정보처리방침</button>
         <span>|</span>
         <button type="button" onClick={() => setShowPolicy("refund")} className="hover:text-white transition-colors">환불정책</button>
+        <span>|</span>
+        <button type="button" onClick={() => setShowCompanyInfo(!showCompanyInfo)} className="hover:text-white transition-colors flex items-center gap-1">
+          사업자 정보 {showCompanyInfo ? "▲" : "▼"}
+        </button>
       </div>
 
-      {/* 🚀 PG 심사용 사업자 정보 */}
-      <div className="mt-4 pt-4 border-t border-white/10 text-[10px] text-white/30 space-y-1.5 leading-relaxed break-keep">
-        <p className="font-bold text-white/50">와이엠 스튜디오 (YM Studio)</p>
-        <p>대표자: 손용민 | 사업자등록번호: 510-21-21827</p>
-        <p>주소: 충청남도 아산시 둔포면 운교길 129번길 14-71</p>
-        <p>고객센터: 010-6367-9994 | 이메일: yongmincucu@naver.com</p>
-        <p>통신판매업신고번호: 신고 예정</p>
-      </div>
+      {/* 🚀 PG 심사용 사업자 정보 (아코디언 토글 적용) */}
+      {showCompanyInfo && (
+        <div className="mt-4 pt-4 border-t border-white/10 text-[10px] text-white/30 space-y-1.5 leading-relaxed break-keep animate-fade-in-up">
+          <p className="font-bold text-white/50">와이엠 스튜디오 (YM Studio)</p>
+          <p>대표자: 손용민 | 사업자등록번호: 510-21-21827</p>
+          <p>주소: 충청남도 아산시 둔포면 운교길 129번길 14-71</p>
+          <p>고객센터: 010-6367-9994 | 이메일: yongmincucu@naver.com</p>
+          <p>통신판매업신고번호: 신고 예정</p>
+        </div>
+      )}
 
       {/* 🔒 더블클릭 시 숨겨진 운영자 로그인 작동 */}
       <p className="text-[9px] text-white/20 pt-2 cursor-default select-none" onDoubleClick={handleAdminLogin}>
