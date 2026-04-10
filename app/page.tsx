@@ -297,7 +297,6 @@ type DaeunInfo = {
 // 🚀 [추가] 탭별 맞춤 푸터 & 약관 모달 & 진짜 관리자 로그인 컴포넌트
 function FooterPolicy({ tabId }: { tabId: TabId }) {
   const [showPolicy, setShowPolicy] = useState<string | null>(null);
-  const [showCompanyInfo, setShowCompanyInfo] = useState(false);
 
   const handleAdminLogin = () => {
     const pwd = prompt("운영자 비밀번호를 입력하세요.");
@@ -330,28 +329,22 @@ function FooterPolicy({ tabId }: { tabId: TabId }) {
         </p>
       )}
 
-      <div className="flex flex-wrap justify-center gap-x-3 gap-y-2 text-[10px] text-white/50 pt-2 font-medium">
+<div className="flex justify-center gap-4 text-[10px] text-white/50 pt-2 font-medium">
         <button type="button" onClick={() => setShowPolicy("terms")} className="hover:text-white transition-colors">이용약관</button>
         <span>|</span>
         <button type="button" onClick={() => setShowPolicy("privacy")} className="hover:text-white transition-colors">개인정보처리방침</button>
         <span>|</span>
         <button type="button" onClick={() => setShowPolicy("refund")} className="hover:text-white transition-colors">환불정책</button>
-        <span>|</span>
-        <button type="button" onClick={() => setShowCompanyInfo(!showCompanyInfo)} className="hover:text-white transition-colors flex items-center gap-1">
-          사업자 정보 {showCompanyInfo ? "▲" : "▼"}
-        </button>
       </div>
 
-      {/* 🚀 PG 심사용 사업자 정보 (아코디언 토글 적용) */}
-      {showCompanyInfo && (
-        <div className="mt-4 pt-4 border-t border-white/10 text-[10px] text-white/30 space-y-1.5 leading-relaxed break-keep animate-fade-in-up">
-          <p className="font-bold text-white/50">와이엠 스튜디오 (YM Studio)</p>
-          <p>대표자: 손용민 | 사업자등록번호: 510-21-21827</p>
-          <p>주소: 충청남도 아산시 둔포면 운교길 129번길 14-71</p>
-          <p>고객센터: 010-6367-9994 | 이메일: yongmincucu@naver.com</p>
-          <p>통신판매업신고번호: 신고 예정</p>
-        </div>
-      )}
+      {/* 🚀 PG 심사용 사업자 정보 */}
+      <div className="mt-4 pt-4 border-t border-white/10 text-[10px] text-white/30 space-y-1.5 leading-relaxed break-keep">
+        <p className="font-bold text-white/50">와이엠 스튜디오 (YM Studio)</p>
+        <p>대표자: 손용민 | 사업자등록번호: 510-21-21827</p>
+        <p>주소: 충청남도 아산시 둔포면 운교길 129번길 14-71</p>
+        <p>고객센터: 010-6367-9994 | 이메일: yongmincucu@naver.com</p>
+        <p>통신판매업신고번호: 신고 예정</p>
+      </div>
 
       {/* 🔒 더블클릭 시 숨겨진 운영자 로그인 작동 */}
       <p className="text-[9px] text-white/20 pt-2 cursor-default select-none" onDoubleClick={handleAdminLogin}>
@@ -2874,9 +2867,11 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                     <div className="mt-8 space-y-3 relative">
                       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent rounded-xl">
                         <p className="text-white font-bold mb-4 drop-shadow-md">전문가 수준의 10가지 심층 풀이가 준비되었습니다.</p>
-                        <button onClick={(e) => { e.preventDefault(); handleFacePremium(); }} className="relative w-full overflow-hidden rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 px-8 py-4 text-base font-extrabold text-slate-900 shadow-[0_0_20px_rgba(234,179,8,0.5)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(234,179,8,0.9)] active:scale-95 group">
-                          <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent transition-all duration-700 ease-out group-hover:translate-x-full" />
-                          <span className="relative z-10 flex items-center justify-center gap-2">🔒 프리미엄 심층 분석 열기</span>
+                        <button 
+                          onClick={(e) => { e.preventDefault(); handleFacePremium(); }}
+                          className="animate-bounce px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-extrabold rounded-full shadow-[0_0_20px_rgba(234,179,8,0.5)]"
+                        >
+                          🔒 프리미엄 심층 분석 열기
                         </button>
                       </div>
 
@@ -3213,9 +3208,12 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                   </div>
 
                   ) : (
-                    <button type="button" onClick={handleNamePremium} className="relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 px-6 py-4 text-base font-extrabold text-slate-900 shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(245,158,11,0.8)] active:scale-95 group">
-                      <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent transition-all duration-700 ease-out group-hover:translate-x-full" />
-                      <span className="relative z-10">✨ 전문가 심층 분석 리포트 잠금 해제 (4,900원)</span>
+                    <button
+                      type="button"
+                      onClick={handleNamePremium}
+                      className="w-full rounded-xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 px-6 py-4 text-base font-semibold text-slate-900 shadow-lg shadow-yellow-500/30 transition-all hover:scale-[1.02] active:scale-95"
+                    >
+                      ✨ 전문가 심층 분석 리포트 잠금 해제 (4,900원)
                     </button>
                   )}
                   <button
@@ -3816,9 +3814,15 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
               일반 번호 생성 (남은 횟수: {freeCount}/3)
             </button>
 
-            <button type="button" onClick={handlePremiumClick} disabled={showLottoPaymentModal || showLottoProgressModal} className="relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 px-6 py-4 text-sm font-bold text-slate-900 shadow-[0_0_20px_rgba(234,179,8,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(234,179,8,0.8)] active:scale-95 disabled:opacity-50 group">
-              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent transition-all duration-700 ease-out group-hover:translate-x-full" />
-              <span className="relative z-10">{premiumCount > 0 ? `✨ 통계 번호 추출 (잔여: ${premiumCount}회)` : `✨ 고급 통계 10회권 충전 (4,500원)`}</span>
+            <button
+              type="button"
+              onClick={handlePremiumClick}
+              disabled={showLottoPaymentModal || showLottoProgressModal}
+              className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-yellow-900/25 transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-50"
+            >
+              {premiumCount > 0 
+                ? `✨ 통계 번호 추출 (잔여: ${premiumCount}회)` 
+                : `✨ 고급 통계 10회권 충전 (4,500원)`}
             </button>
           </div>
         </div>
@@ -4167,7 +4171,7 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
             </div>
           </div>
         )}
-        <FooterPolicy tabId="mbti" />
+        <FooterPolicy tabId="mbti" as any />
       </div>
     </div>
   );
@@ -4442,7 +4446,7 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
             </div>
           </div>
         )}
-        <FooterPolicy tabId="match" />
+        <FooterPolicy tabId="match" as any />
       </div>
     </div>
   );
