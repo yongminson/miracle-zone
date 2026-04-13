@@ -4673,15 +4673,31 @@ export default function Home() {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={handleKakaoLogin}
-                  className="flex items-center gap-2 bg-[#FEE500] hover:bg-[#FEE500]/90 text-[#000000] px-3 py-2 rounded-xl text-xs font-bold transition-transform active:scale-95 shadow-lg shadow-[#FEE500]/20 animate-fade-in"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M16 4.64C8.953 4.64 3.2 9.426 3.2 15.33c0 3.824 2.454 7.17 6.166 8.922l-1.33 4.88c-.122.45.39.81.77.56l5.65-3.77c.5.06 1.015.094 1.544.094 7.047 0 12.8-4.787 12.8-10.686S23.047 4.64 16 4.64z" fill="#000000"/>
-                  </svg>
-                  카카오 로그인
-                </button>
+                <div className="flex flex-col items-end gap-1">
+                  <button
+                    onClick={handleKakaoLogin}
+                    className="flex items-center gap-2 bg-[#FEE500] hover:bg-[#FEE500]/90 text-[#000000] px-3 py-2 rounded-xl text-xs font-bold transition-transform active:scale-95 shadow-lg shadow-[#FEE500]/20 animate-fade-in"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M16 4.64C8.953 4.64 3.2 9.426 3.2 15.33c0 3.824 2.454 7.17 6.166 8.922l-1.33 4.88c-.122.45.39.81.77.56l5.65-3.77c.5.06 1.015.094 1.544.094 7.047 0 12.8-4.787 12.8-10.686S23.047 4.64 16 4.64z" fill="#000000"/>
+                    </svg>
+                    카카오 로그인
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      const email = prompt("심사용 아이디(이메일)를 입력하세요.");
+                      if (!email) return;
+                      const password = prompt("비밀번호를 입력하세요.");
+                      if (!password) return;
+                      const { error } = await supabase.auth.signInWithPassword({ email, password });
+                      if (error) alert("로그인 실패: " + error.message);
+                      else alert("심사용 테스트 계정으로 로그인되었습니다.");
+                    }} 
+                    className="text-[10px] text-white/30 hover:text-white/70 transition-colors animate-fade-in"
+                  >
+                    심사관 로그인
+                  </button>
+                </div>
               )
             )}
           </div>
