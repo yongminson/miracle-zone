@@ -210,7 +210,7 @@ const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean }[] =
   { id: "match", label: "소름돋는 궁합", icon: Heart, isReady: true }, 
   { id: "mbti", label: "MBTI - 심층 성격 검사", icon: Activity, isReady: true },
   { id: "dream", label: "꿈 해몽", icon: BookOpen, isReady: true },
-  { id: "lotto", label: "행운의 로또", icon: Trophy, isReady: true },
+  //{ id: "lotto", label: "행운의 로또", icon: Trophy, isReady: true },
   { id: "altar", label: "기적의 제단", icon: Flame, isReady: true },
 ];
 
