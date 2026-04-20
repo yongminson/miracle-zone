@@ -312,24 +312,28 @@ function FooterPolicy({ tabId }: { tabId: TabId }) {
   return (
     <div className={`mx-auto w-full max-w-md border border-white/10 bg-black/40 backdrop-blur-md rounded-2xl pt-6 pb-8 text-center space-y-3 px-4 relative z-50 shadow-xl ${tabId === "altar" ? "mt-3 mb-4" : "mt-12 mb-8"}`}>
       {tabId === "lotto" ? (
-        <>
+          <>
+            <p className="text-[10px] text-white/40 break-keep leading-relaxed">
+              제공된 로또 번호는 수학적 난수와 통계 기반으로 추첨되며, 당첨을 보장하지 않습니다. 과도한 복권 몰입은 가계 재정에 부담이 될 수 있습니다.
+            </p>
+            <p className="text-[10px] font-bold text-white/30 pt-1">
+              도박중독예방상담센터: 1336 | 동행복권: 1588-0908
+            </p>
+          </>
+        ) : tabId === "altar" ? (
+          <div className="space-y-1 text-center">
+            <p className="text-[10px] text-white/40 break-keep leading-relaxed">
+              본 서비스는 희망과 위로를 나누는 공간으로 특정 종교와 무관하며 법적 효력을 갖지 않습니다.
+            </p>
+            <p className="text-[10px] text-red-400/80 pl-5 -indent-5 leading-relaxed break-keep animate-pulse">
+              ※ 욕설, 혐오, 정치, 비방 등 부적절한 내용은 통보 없이 즉시 삭제될 수 있습니다.
+            </p>
+          </div>
+        ) : (
           <p className="text-[10px] text-white/40 break-keep leading-relaxed">
-            제공된 로또 번호는 수학적 난수와 통계 기반으로 추출되며, 당첨을 보장하지 않습니다. 과도한 복권 몰입은 가계 재정에 부담이 될 수 있습니다.
+            본 서비스에서 제공하는 운세, 해몽, 관상 및 이름 풀이 결과는 정통 명리학에 기반한 통계적 해석으로, 절대적인 미래를 보장하지 않으며 법적 책임을 지지 않습니다.
           </p>
-          <p className="text-[10px] font-bold text-white/30 pt-1">
-            도박중독예방상담센터: 1336 | 동행복권: 1588-0908
-          </p>
-        </>
-      ) : tabId === "altar" ? (
-        <p className="text-[10px] text-white/40 break-keep leading-relaxed">
-          본 서비스는 희망과 위로를 나누는 공간으로 특정 종교와 무관하며 법적 효력을 갖지 않습니다.
-          ※ 욕설, 혐오, 정치, 비방 등 부적절한 내용은 통보 없이 즉시 삭제될 수 있습니다.
-        </p>
-      ) : (
-        <p className="text-[10px] text-white/40 break-keep leading-relaxed">
-          본 서비스에서 제공하는 운세, 해몽, 관상 및 이름 풀이 결과는 정통 명리학에 기반한 통계적 해석으로, 절대적인 미래를 보장하지 않으며 법적 책임을 지지 않습니다.
-        </p>
-      )}
+        )}
 
 <div className="flex flex-wrap justify-center gap-x-3 gap-y-2 text-[10px] text-white/50 pt-2 font-medium">
         <button type="button" onClick={() => setShowPolicy("terms")} className="hover:text-white transition-colors">이용약관</button>
