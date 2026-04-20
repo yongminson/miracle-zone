@@ -348,7 +348,7 @@ function FooterPolicy({ tabId }: { tabId: TabId }) {
           <p className="font-bold text-white/50">와이엠 스튜디오 (YM Studio)</p>
           <p>대표자: 손용민 | 사업자등록번호: 510-21-21827</p>
           <p>주소: 충청남도 아산시 둔포면 운교길 129번길 14-71</p>
-          <p>고객센터: 010-6367-9994 | 이메일: yongmincucu@naver.com</p>
+          <p>고객센터: 0507-1385-9994 | 이메일: support@ymsudio.co.kr</p>
           <p>통신판매업신고번호: 신고 예정</p>
         </div>
       )}
