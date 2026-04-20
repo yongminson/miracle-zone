@@ -323,6 +323,7 @@ function FooterPolicy({ tabId }: { tabId: TabId }) {
       ) : tabId === "altar" ? (
         <p className="text-[10px] text-white/40 break-keep leading-relaxed">
           본 서비스는 희망과 위로를 나누는 공간으로 특정 종교와 무관하며 법적 효력을 갖지 않습니다.
+          ※ 욕설, 혐오, 정치, 비방 등 부적절한 내용은 통보 없이 즉시 삭제될 수 있습니다.
         </p>
       ) : (
         <p className="text-[10px] text-white/40 break-keep leading-relaxed">
