@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   title: "명운(命運) - 당신의 운명을 밝히다",
   description: "AI 기반 소름 돋는 사주, 궁합, 타로, 꿈 해몽 서비스",
 
+  // 🚀 구글 봇에게 진짜 원본 주소(표준 URL)가 무엇인지 확실하게 알려주는 코드 추가!
+  alternates: {
+    canonical: "https://saju.ymstudio.co.kr",
+  },
+  
   verification: {
     google: "mTatlpiTN0G1CZ1XKfH_gHsYoV183kAtBlZVBxKp4fg", // 구글 검색 콘솔 (유지)
     other: {
