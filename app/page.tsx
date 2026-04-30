@@ -401,6 +401,64 @@ function getKstDateKey() {
   return formatter.format(now);
 }
 
+type PayMethodPg = "kpn" | "kakaopay" | "tosspay";
+
+function PaymentMethodSelector({
+  selectedPayMethod,
+  setSelectedPayMethod,
+}: {
+  selectedPayMethod: PayMethodPg;
+  setSelectedPayMethod: (v: PayMethodPg) => void;
+}) {
+  return (
+    <div className="mb-4">
+      <p className="mb-2 text-sm font-bold text-yellow-400">결제 수단 선택</p>
+      <div className="grid grid-cols-3 gap-2">
+        <button
+          type="button"
+          onClick={() => setSelectedPayMethod("kpn")}
+          className={`flex flex-col items-center justify-center gap-1 rounded-xl border px-1 py-3 text-[11px] font-semibold leading-tight text-white/90 transition-colors sm:text-xs ${
+            selectedPayMethod === "kpn"
+              ? "border-yellow-500 bg-yellow-500/20"
+              : "border-white/10 bg-white/5"
+          }`}
+        >
+          <span className="text-lg leading-none" aria-hidden>
+            💳
+          </span>
+          <span>신용카드</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSelectedPayMethod("kakaopay")}
+          className={`flex flex-col items-center justify-center gap-1 rounded-xl border px-1 py-3 text-[11px] font-semibold leading-tight text-white/90 transition-colors sm:text-xs ${
+            selectedPayMethod === "kakaopay"
+              ? "border-[#FEE500] bg-[#FEE500]/20"
+              : "border-white/10 bg-white/5"
+          }`}
+        >
+          <span className="text-lg leading-none" aria-hidden>
+            💬
+          </span>
+          <span>카카오페이</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSelectedPayMethod("tosspay")}
+          className={`flex flex-col items-center justify-center gap-1 rounded-xl border px-1 py-3 text-[11px] font-semibold leading-tight transition-colors sm:text-xs ${
+            selectedPayMethod === "tosspay"
+              ? "border-[#0064FF] bg-[#0064FF]/20 text-white"
+              : "border-white/10 bg-white/5 text-white/90"
+          }`}
+        >
+          <span className="text-[13px] font-extrabold tracking-tight">Toss</span>
+          <span>토스페이</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function FortuneTab({ isVisible }: { isVisible: boolean }) {
   const [gender, setGender] = useState<"male" | "female">("male");
   const [birthDate, setBirthDate] = useState("");
@@ -1420,6 +1478,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
   const [wishToastMessage, setWishToastMessage] = useState("");
   const [isMuted, setIsMuted] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [selectedPayMethod, setSelectedPayMethod] = useState<PayMethodPg>("kpn");
   const [premiumPeriod, setPremiumPeriod] = useState<PremiumPeriod>("24h");
   const [premiumNameDisplay, setPremiumNameDisplay] = useState<PremiumNameDisplay>("anonymous");
   const [premiumNameInput, setPremiumNameInput] = useState("");
@@ -1793,7 +1852,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
       
       const payData: any = {
-        pg: "kpn",
+        pg: selectedPayMethod,
         pay_method: "card",
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: name,
@@ -2046,6 +2105,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                   <input type="text" value={premiumNameInput} onChange={(e) => setPremiumNameInput(e.target.value)} placeholder={premiumNameDisplay === "partial" ? "예: 홍길동 → 홍*동" : "이름 입력"} className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 focus:border-yellow-500/50 focus:outline-none" />
                 )}
               </div>
+              <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />
               <div className="flex gap-2">
                 <button type="button" onClick={handlePremiumCancel} className="flex-1 rounded-xl border border-white/20 bg-white/5 py-3 text-sm font-medium text-white/90">취소</button>
                 <button type="button" onClick={handlePremiumConfirm} disabled={!premiumWishText.trim()} className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3 text-sm font-semibold text-slate-900 disabled:opacity-50">결제하고 띄우기</button>
@@ -2213,6 +2273,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   } | null>(null);
   const [showNamePaymentModal, setShowNamePaymentModal] = useState(false);
   const [isNamePremiumUnlocked, setIsNamePremiumUnlocked] = useState(false);
+  const [selectedPayMethod, setSelectedPayMethod] = useState<PayMethodPg>("kpn");
 
   // 🚀 모바일 결제 복귀 시 1:1 데이터 매칭 복구 및 무한 결제 방지 (버그 수정 완료)
   useEffect(() => {
@@ -2382,7 +2443,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     }
 
     IMP.request_pay({
-      pg: "kpn", // 🚀 모두 카카오페이로 임시 통일!
+      pg: selectedPayMethod,
       pay_method: "card",
       merchant_uid: `face_${Date.now()}`,
       name: "심층 관상 분석",
@@ -2612,7 +2673,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       const payData: any = {
-        pg: "kpn", 
+        pg: selectedPayMethod,
         pay_method: "card",
         merchant_uid: `mid_name_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "심층 이름 풀이 리포트",
@@ -2978,6 +3039,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
               <p className="mb-6 text-center text-sm text-white/70">
                 이마·눈·코·입·전체 균형에 대한 전문가 관상학자의 심층 분석을 확인하세요.
               </p>
+              <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />
               <div className="flex gap-3">
                 <button
                   type="button"
@@ -3274,6 +3336,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
               <p className="mb-6 text-center text-sm text-white/70">
                 핵심 기운 및 파동 분석, 음양오행 심층 분석, 사주(지장간/합충)와 이름 궁합, 인생 총운(초년/중년/말년)을 전문가가 심층 분석합니다.
               </p>
+              <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />
               <div className="flex gap-3">
                 <button
                   type="button"
@@ -3462,6 +3525,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
 
   const [visibleCount, setVisibleCount] = useState(0);
   const [showLottoPaymentModal, setShowLottoPaymentModal] = useState(false);
+  const [selectedPayMethod, setSelectedPayMethod] = useState<PayMethodPg>("kpn");
   const [showLottoProgressModal, setShowLottoProgressModal] = useState(false);
   const [lottoProgressStep, setLottoProgressStep] = useState(0);
   const [lottoProgressPct, setLottoProgressPct] = useState(0);
@@ -3603,7 +3667,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       const payData: any = {
-        pg: "kpn", 
+        pg: selectedPayMethod,
         pay_method: "card",
         merchant_uid: `mid_lotto_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "고급 통계 로또 추천 10회 이용권",
@@ -3750,6 +3814,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
               출현 빈도, 번호 분포, 구간 필터 등을 결합한 고급 통계 번호입니다.<br/>
               결제 시 계정에 10회가 충전되며 언제든 나누어 사용할 수 있습니다.
             </p>
+            <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />
             <div className="flex gap-3">
               <button type="button" onClick={() => setShowLottoPaymentModal(false)} className="flex-1 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 hover:bg-white/10">취소</button>
               <button type="button" onClick={handleLottoPaymentConfirm} className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-3 text-sm font-semibold text-slate-900 hover:from-yellow-400 hover:to-amber-500 shadow-lg">결제하고 충전하기</button>
