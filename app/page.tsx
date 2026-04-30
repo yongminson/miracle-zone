@@ -1852,8 +1852,9 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
       
       const payData: any = {
-        pg: selectedPayMethod === "kpn" ? "kpn" : 
-            selectedPayMethod === "tosspay" ? "tosspay" : "kakaopay",
+        ...(selectedPayMethod === "kakaopay" 
+          ? { pg: "kakaopay" } 
+          : { channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : "channel-key-8bc3f25e-6ae9-4e42-b181-6e2b42c6fa0d" }),
         pay_method: "card",
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: name,
@@ -2675,10 +2676,11 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       const payData: any = {
-        pg: selectedPayMethod === "kpn" ? "kpn" : 
-            selectedPayMethod === "tosspay" ? "tosspay" : "kakaopay",
+        ...(selectedPayMethod === "kakaopay" 
+          ? { pg: "kakaopay" } 
+          : { channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : "channel-key-8bc3f25e-6ae9-4e42-b181-6e2b42c6fa0d" }),
         pay_method: "card",
-        merchant_uid: `mid_name_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "심층 이름 풀이 리포트",
         amount: amount,
         buyer_email: "test@ymstudio.co.kr", 
@@ -3670,10 +3672,11 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       const payData: any = {
-        pg: selectedPayMethod === "kpn" ? "kpn" : 
-      selectedPayMethod === "tosspay" ? "tosspay" : "kakaopay",
+        ...(selectedPayMethod === "kakaopay" 
+          ? { pg: "kakaopay" } 
+          : { channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : "channel-key-8bc3f25e-6ae9-4e42-b181-6e2b42c6fa0d" }),
         pay_method: "card",
-        merchant_uid: `mid_lotto_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "고급 통계 로또 추천 10회 이용권",
         amount: amount,
         buyer_email: user.email || "test@ymstudio.co.kr", 
