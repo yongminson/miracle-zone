@@ -1793,7 +1793,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
       
       const payData: any = {
-        pg: "kakaopay", // 🚀 카카오페이 실결제 테스트를 위해 임시 변경!
+        pg: "kpn",
         pay_method: "card",
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: name,
@@ -2382,7 +2382,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     }
 
     IMP.request_pay({
-      pg: "kakaopay", // 🚀 모두 카카오페이로 임시 통일!
+      pg: "kpn", // 🚀 모두 카카오페이로 임시 통일!
       pay_method: "card",
       merchant_uid: `face_${Date.now()}`,
       name: "심층 관상 분석",
@@ -2612,7 +2612,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       const payData: any = {
-        pg: "kakaopay", 
+        pg: "kpn", 
         pay_method: "card",
         merchant_uid: `mid_name_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "심층 이름 풀이 리포트",
@@ -3603,7 +3603,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       const payData: any = {
-        pg: "kakaopay", 
+        pg: "kpn", 
         pay_method: "card",
         merchant_uid: `mid_lotto_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "고급 통계 로또 추천 10회 이용권",
