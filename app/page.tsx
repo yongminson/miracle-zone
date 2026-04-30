@@ -1852,7 +1852,8 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
       
       const payData: any = {
-        pg: selectedPayMethod,
+        pg: selectedPayMethod === "kpn" ? "kpn" : 
+      selectedPayMethod === "tosspay" ? "tosspay" : "kakaopay",
         pay_method: "card",
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: name,
@@ -2673,7 +2674,8 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       const payData: any = {
-        pg: selectedPayMethod,
+        pg: selectedPayMethod === "kpn" ? "kpn" : 
+      selectedPayMethod === "tosspay" ? "tosspay" : "kakaopay",
         pay_method: "card",
         merchant_uid: `mid_name_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "심층 이름 풀이 리포트",
@@ -3524,9 +3526,9 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
   }, [freeCount]);
 
   const [visibleCount, setVisibleCount] = useState(0);
-  const [showLottoPaymentModal, setShowLottoPaymentModal] = useState(false);
-  const [selectedPayMethod, setSelectedPayMethod] = useState<PayMethodPg>("kpn");
   const [showLottoProgressModal, setShowLottoProgressModal] = useState(false);
+  const [isAdWatching, setIsAdWatching] = useState(false); // 🚀 광고 시청 상태 추가
+  const [adProgress, setAdProgress] = useState(0); // 🚀 광고 진행률 상태 추가
   const [lottoProgressStep, setLottoProgressStep] = useState(0);
   const [lottoProgressPct, setLottoProgressPct] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -3667,7 +3669,8 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       const payData: any = {
-        pg: selectedPayMethod,
+        pg: selectedPayMethod === "kpn" ? "kpn" : 
+      selectedPayMethod === "tosspay" ? "tosspay" : "kakaopay",
         pay_method: "card",
         merchant_uid: `mid_lotto_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "고급 통계 로또 추천 10회 이용권",
@@ -3723,26 +3726,27 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
-  // 버튼 클릭 컨트롤러
-  const handlePremiumClick = () => {
+  // 🚀 버튼 클릭 컨트롤러 (결제를 5초 광고 시청 시뮬레이션으로 완벽 교체)
+  const handlePremiumClick = async () => {
     if (isDrawing) return;
 
     if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
-      alert("✨ [운영자 프리패스] 결제 없이 즉시 고급 통계 번호를 추출합니다!");
+      alert("✨ [운영자 프리패스] 대기 없이 즉시 고급 통계 번호를 추출합니다!");
       executeLottoDraw(false);
       return;
     }
 
-    if (!user) {
-      alert("이용권 충전 및 저장을 위해 우측 상단의 카카오 로그인을 먼저 진행해주세요!");
-      return;
+    // 결제 대신 5초간 꽉 채우는 광고 시청 프로그레스
+    setIsAdWatching(true);
+    setAdProgress(0);
+    
+    for (let i = 0; i <= 100; i += 2) {
+      setAdProgress(i);
+      await new Promise(r => setTimeout(r, 100)); // 0.1초씩 50번 = 5초
     }
     
-    if (premiumCount > 0) {
-      executeLottoDraw(true);
-    } else {
-      setShowLottoPaymentModal(true);
-    }
+    setIsAdWatching(false);
+    executeLottoDraw(false); // 수량 차감 없이 바로 프리미엄 번호 추출 로직 실행
   };
 
   // 실제 고급 통계 로또 번호 추출
@@ -3805,20 +3809,16 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     >
       <canvas ref={canvasRef} id="matrix-canvas" className="absolute inset-0 z-0 opacity-30 pointer-events-none" />
 
-      {/* 결제 모달창 */}
-      {showLottoPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && setShowLottoPaymentModal(false)}>
-          <div className="w-full max-w-md rounded-2xl border border-yellow-700/50 bg-[#16120d]/95 p-6 shadow-2xl shadow-amber-900/20 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="mb-4 text-center text-lg font-semibold text-yellow-300">✨ 고급 통계 추천 10회권 (4,500원)</h3>
-            <p className="mb-6 text-center text-sm leading-relaxed text-yellow-100/70">
-              출현 빈도, 번호 분포, 구간 필터 등을 결합한 고급 통계 번호입니다.<br/>
-              결제 시 계정에 10회가 충전되며 언제든 나누어 사용할 수 있습니다.
-            </p>
-            <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />
-            <div className="flex gap-3">
-              <button type="button" onClick={() => setShowLottoPaymentModal(false)} className="flex-1 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 hover:bg-white/10">취소</button>
-              <button type="button" onClick={handleLottoPaymentConfirm} className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-3 text-sm font-semibold text-slate-900 hover:from-yellow-400 hover:to-amber-500 shadow-lg">결제하고 충전하기</button>
+      {/* 🚀 결제 모달 대신 뜨는 광고 시청 모달창 */}
+      {isAdWatching && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-yellow-500/30 bg-slate-900/95 p-8 text-center shadow-2xl animate-fade-in-up">
+            <p className="text-sm font-bold text-orange-400 mb-2">스폰서 메시지</p>
+            <h3 className="text-xl font-extrabold text-white mb-6">광고 시청 후 번호가 추출됩니다</h3>
+            <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden mb-3">
+              <div className="h-full bg-gradient-to-r from-yellow-500 to-amber-500 transition-all duration-100 ease-linear" style={{ width: `${adProgress}%` }} />
             </div>
+            <p className="text-xs text-white/50">{adProgress}% 완료</p>
           </div>
         </div>
       )}
@@ -3912,12 +3912,10 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
             <button
               type="button"
               onClick={handlePremiumClick}
-              disabled={showLottoPaymentModal || showLottoProgressModal}
+              disabled={isAdWatching || showLottoProgressModal}
               className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-yellow-900/25 transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-50"
             >
-              {premiumCount > 0 
-                ? `✨ 통계 번호 추출 (잔여: ${premiumCount}회)` 
-                : `✨ 고급 통계 10회권 충전 (4,500원)`}
+              ✨ 광고 보고 고급 통계 번호 추출
             </button>
           </div>
         </div>
@@ -4741,8 +4739,8 @@ export default function Home() {
             <Bell className="w-4 h-4 animate-bounce" />
           </button>
 
-          {/* 🚀 카카오 로그인 상태 */}
-          <div>
+          {/* 🚀 카카오 로그인 상태 (심사 완료로 인한 임시 숨김 처리) */}
+          <div className="hidden">
             {!isAuthChecking && (
               user ? (
                 <div className="flex items-center gap-3 animate-fade-in">
