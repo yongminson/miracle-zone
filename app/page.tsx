@@ -2382,7 +2382,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     }
 
     IMP.request_pay({
-      pg: "tosspayments",
+      pg: "kakaopay", // 🚀 모두 카카오페이로 임시 통일!
       pay_method: "card",
       merchant_uid: `face_${Date.now()}`,
       name: "심층 관상 분석",
