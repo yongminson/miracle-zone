@@ -1852,9 +1852,9 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
       
       const payData: any = {
-        pg: "kpn",
-        pay_method: selectedPayMethod === "kpn" ? "card" : 
-                    selectedPayMethod === "kakaopay" ? "kakaopay" : "tosspay",
+        pg: selectedPayMethod === "kpn" ? "kpn" : 
+            selectedPayMethod === "tosspay" ? "tosspay" : "kakaopay",
+        pay_method: "card",
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: name,
         amount: amount,
@@ -2444,9 +2444,9 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     }
 
     IMP.request_pay({
-      pg: "kpn",
-      pay_method: selectedPayMethod === "kpn" ? "card" : 
-                  selectedPayMethod === "kakaopay" ? "kakaopay" : "tosspay",
+      pg: selectedPayMethod === "kpn" ? "kpn" : 
+          selectedPayMethod === "tosspay" ? "tosspay" : "kakaopay",
+      pay_method: "card",
       merchant_uid: `face_${Date.now()}`,
       name: "심층 관상 분석",
       amount: amount,
@@ -2675,9 +2675,9 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       const payData: any = {
-        pg: "kpn",
-        pay_method: selectedPayMethod === "kpn" ? "card" : 
-                    selectedPayMethod === "kakaopay" ? "kakaopay" : "tosspay",
+        pg: selectedPayMethod === "kpn" ? "kpn" : 
+            selectedPayMethod === "tosspay" ? "tosspay" : "kakaopay",
+        pay_method: "card",
         merchant_uid: `mid_name_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "심층 이름 풀이 리포트",
         amount: amount,
