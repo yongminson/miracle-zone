@@ -1562,7 +1562,10 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       setWishes(free);
       setPremiumWishes((prev) => {
         const localOnly = prev.filter((p) => String(p.id).startsWith("prem-"));
-        return [...premium, ...localOnly];
+        // 🚀 DB에서 가져온 진짜 소원과, 화면에 먼저 띄운 가짜 소원이 겹치면 가짜를 지워버립니다 (모바일 중복 버그 완벽 해결!)
+        const realContents = premium.map(p => p.content);
+        const filteredLocal = localOnly.filter(l => !realContents.includes(l.content));
+        return [...premium, ...filteredLocal];
       });
     } catch (err) {
       console.error("데이터 불러오기 실패:", err);
@@ -1976,7 +1979,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         </div>
 
         {/* 🚀 초소형 압축 입력창 영역 (화면 하단 밀착 & 가로 배치 강제) */}
-        <div className="relative z-10 flex w-full max-w-md flex-col items-center justify-end px-4 pb-2 mt-auto shrink-0">
+        <div className="relative z-10 flex w-full max-w-md mx-auto flex-col items-center justify-end px-4 pb-2 mt-auto shrink-0">
           <div className="w-full rounded-xl border border-white/20 bg-black/60 p-3 backdrop-blur-md shadow-xl">
             <textarea
               value={wishText}
