@@ -1845,7 +1845,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
       
       const payData: any = {
-        storeId: "store-22f774c9-5059-4b4e-ab05-85e04a3a09c2",
+        storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
         channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
         paymentId: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         orderName: name,
@@ -2440,7 +2440,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
     try {
       const response = await PortOne.requestPayment({
-        storeId: "store-22f774c9-5059-4b4e-ab05-85e04a3a09c2",
+        storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
         channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
         paymentId: `face_${Date.now()}`,
         orderName: "심층 관상 분석",
@@ -2685,7 +2685,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
       try {
         const response = await PortOne.requestPayment({
-          storeId: "store-22f774c9-5059-4b4e-ab05-85e04a3a09c2",
+          storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
           channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
           paymentId: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
           orderName: "심층 이름 풀이 리포트",
