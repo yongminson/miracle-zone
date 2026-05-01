@@ -2279,44 +2279,53 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   useEffect(() => {
     if (typeof window !== "undefined" && isVisible) {
       const lastImpUid = localStorage.getItem("last_authorized_imp_uid");
+      const pendingType = localStorage.getItem("pendingPaymentType");
 
-      // 1️⃣ 관상 데이터 복구
+      // 1️⃣ 관상 데이터 복구 — 결제 성공 imp_uid 있을 때만 잠금 해제
       const faceSaved = localStorage.getItem("pendingFaceData");
       if (faceSaved) {
-        try {
-          const parsed = JSON.parse(faceSaved);
-          if (parsed.faceImage) setFaceImage(parsed.faceImage);
-          if (parsed.faceResultData) {
-            setFaceResultData(parsed.faceResultData);
-            setShowFaceResult(true);
-            // 💡 결제 도장이 있으면 자물쇠 해제!
-            if (lastImpUid) setIsPhysiognomyPremiumUnlocked(true);
-          }
-        } catch(e) {}
+        if (pendingType === "physiognomy" && lastImpUid) {
+          try {
+            const parsed = JSON.parse(faceSaved);
+            if (parsed.faceImage) setFaceImage(parsed.faceImage);
+            if (parsed.faceResultData) {
+              setFaceResultData(parsed.faceResultData);
+              setShowFaceResult(true);
+              setIsPhysiognomyPremiumUnlocked(true);
+            }
+          } catch(e) {}
+          setActiveSajuMode("face");
+          localStorage.removeItem("last_authorized_imp_uid");
+        }
         localStorage.removeItem("pendingFaceData");
-        setActiveSajuMode("face");
+        localStorage.removeItem("pendingPaymentType");
+        localStorage.removeItem("pendingPaymentAmount");
       }
 
-      // 2️⃣ 이름풀이 데이터 복구
+      // 2️⃣ 이름풀이 데이터 복구 — 결제 성공 imp_uid 있을 때만 잠금 해제
       const nameSaved = localStorage.getItem("pendingNameData");
       if (nameSaved) {
-        try {
-          const parsed = JSON.parse(nameSaved);
-          if (parsed.nameInput) setNameInput(parsed.nameInput);
-          if (parsed.nameHanja) setNameHanja(parsed.nameHanja);
-          if (parsed.nameBirthDate) setNameBirthDate(parsed.nameBirthDate);
-          if (parsed.nameBirthTime) setNameBirthTime(parsed.nameBirthTime);
-          if (parsed.nameGender) setNameGender(parsed.nameGender);
-          if (parsed.hanjaSelections) setHanjaSelections(parsed.hanjaSelections);
-          if (parsed.nameResultData) {
-            setNameResultData(parsed.nameResultData);
-            setShowNameResult(true);
-            // 💡 결제 도장이 있으면 자물쇠 해제!
-            if (lastImpUid) setIsNamePremiumUnlocked(true);
-          }
-        } catch(e) {}
+        if (pendingType === "name" && lastImpUid) {
+          try {
+            const parsed = JSON.parse(nameSaved);
+            if (parsed.nameInput) setNameInput(parsed.nameInput);
+            if (parsed.nameHanja) setNameHanja(parsed.nameHanja);
+            if (parsed.nameBirthDate) setNameBirthDate(parsed.nameBirthDate);
+            if (parsed.nameBirthTime) setNameBirthTime(parsed.nameBirthTime);
+            if (parsed.nameGender) setNameGender(parsed.nameGender);
+            if (parsed.hanjaSelections) setHanjaSelections(parsed.hanjaSelections);
+            if (parsed.nameResultData) {
+              setNameResultData(parsed.nameResultData);
+              setShowNameResult(true);
+              setIsNamePremiumUnlocked(true);
+            }
+          } catch(e) {}
+          setActiveSajuMode("name");
+          localStorage.removeItem("last_authorized_imp_uid");
+        }
         localStorage.removeItem("pendingNameData");
-        setActiveSajuMode("name");
+        localStorage.removeItem("pendingPaymentType");
+        localStorage.removeItem("pendingPaymentAmount");
       }
     }
   }, [isVisible]);
@@ -2448,12 +2457,18 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       merchant_uid: `face_${Date.now()}`,
       name: "심층 관상 분석",
       amount: amount,
+      buyer_email: "test@ymstudio.co.kr",
+      buyer_name: "명운 사용자",
       m_redirect_url: isMobile ? window.location.href : undefined,
       app_scheme: "myungun"
     }, (rsp: any) => {
       if (rsp.success || (rsp.imp_uid && !rsp.error_msg)) {
         setIsPhysiognomyPremiumUnlocked(true);
         setShowPhysiognomyPaymentModal(false);
+      } else {
+        localStorage.removeItem("pendingFaceData");
+        localStorage.removeItem("pendingPaymentType");
+        localStorage.removeItem("pendingPaymentAmount");
       }
     });
   };
@@ -2677,6 +2692,10 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         pay_method: "card",
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "심층 이름 풀이 리포트",
+        amount: amount,
+        buyer_email: "test@ymstudio.co.kr",
+        buyer_name: "명운 사용자",
+        app_scheme: "myungun",
       };
 
       if (isMobile) {
