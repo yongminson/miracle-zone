@@ -1842,13 +1842,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       }
 
       // 2. 일반 유저 결제 로직 시작
-      const IMP = (window as any).IMP;
-      if (!IMP) {
-        alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!");
-        return;
-      }
-
-      IMP.init("imp61375123"); 
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
       
       const payData: any = {
@@ -1861,8 +1854,10 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
       };
 
+      const PortOne = (window as any).PortOne;
+      if (!PortOne) { alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!"); return; }
       if (isMobile) {
-        payData.m_redirect_url = window.location.origin + "?tab=altar"; // 🚀 메인 안 거치고 바로 제단 복귀
+        payData.redirectUrl = window.location.origin + "?tab=altar";
         localStorage.setItem("pendingPremiumWish", JSON.stringify({
           wishText: premiumWishText,
           period: premiumPeriod,
@@ -1871,10 +1866,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           amount: amount
         }));
       }
-
-      const PortOne = (window as any).PortOne;
-      if (!PortOne) { alert("🚨 결제 시스템 로딩 실패."); return; }
-      if (isMobile) { payData.redirectUrl = window.location.origin + "?tab=altar"; }
       const response = await PortOne.requestPayment(payData);
       const isSuccess = !response?.code;
       if (isSuccess) {
