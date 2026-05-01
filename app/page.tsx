@@ -1788,7 +1788,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
   };
   
   // 🚀 프리미엄 결제창 띄우기 함수 (포트원 검증 무시 + 완벽 프리패스 적용)
-  const handlePremiumConfirm = () => {
+  const handlePremiumConfirm = async () => {
     if (!premiumWishText.trim()) return;
 
     if (typeof window !== "undefined") {
