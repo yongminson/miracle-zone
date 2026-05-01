@@ -49,7 +49,7 @@ export default function RootLayout({
         {/* 🚀 1. 포트원(아임포트) 결제 라이브러리 */}
         <Script 
           src="https://cdn.portone.io/v2/browser-sdk.js" 
-          strategy="beforeInteractive" 
+          strategy="afterInteractive" 
         />
         
         {/* 🚀 2. 구글 애드센스 자동 광고 및 심사용 스크립트 */}

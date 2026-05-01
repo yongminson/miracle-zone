@@ -1854,7 +1854,14 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
       };
 
-      const PortOne = (window as any).PortOne;
+      let PortOne = (window as any).PortOne;
+      if (!PortOne) {
+        for (let i = 0; i < 10; i++) {
+          await new Promise(r => setTimeout(r, 500));
+          PortOne = (window as any).PortOne;
+          if (PortOne) break;
+        }
+      }
       if (!PortOne) { alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!"); return; }
       if (isMobile) {
         payData.redirectUrl = window.location.origin + "?tab=altar";
@@ -2429,7 +2436,14 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
   // 🚀 관상 심층 리포트 프리미엄 결제 연동 (4,900원)
   const handlePhysiognomyPaymentConfirm = async () => {
-    const PortOne = (window as any).PortOne;
+    let PortOne = (window as any).PortOne;
+    if (!PortOne) {
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        PortOne = (window as any).PortOne;
+        if (PortOne) break;
+      }
+    }
     if (!PortOne) { alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!"); return; }
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const amount = 4900;
@@ -2671,7 +2685,14 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   // 🚀 이름 풀이 프리미엄 결제 연동 (4,900원)
   const handleNamePaymentConfirm = async () => {
     if (typeof window !== "undefined") {
-      const PortOne = (window as any).PortOne;
+      let PortOne = (window as any).PortOne;
+      if (!PortOne) {
+        for (let i = 0; i < 10; i++) {
+          await new Promise(r => setTimeout(r, 500));
+          PortOne = (window as any).PortOne;
+          if (PortOne) break;
+        }
+      }
       if (!PortOne) return alert("🚨 결제 시스템 로딩 실패.");
 
       const amount = 4900;
