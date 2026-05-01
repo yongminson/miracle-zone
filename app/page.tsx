@@ -1853,7 +1853,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       
       const payData: any = {
         channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
-        pay_method: "card",
+        ...(selectedPayMethod !== "kpn" && { pay_method: "card" }),
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: name,
         amount: amount,
@@ -2442,18 +2442,13 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const amount = 4900;
 
-    if (isMobile) {
-      localStorage.setItem("pendingPaymentType", "physiognomy");
-      localStorage.setItem("pendingPaymentAmount", String(amount));
-      // 💡 현재 사진 상태를 함께 저장
-      localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
-    } else {
-      // PC의 경우 성공 콜백에서 즉시 해제
-    }
+    localStorage.setItem("pendingPaymentType", "physiognomy");
+    localStorage.setItem("pendingPaymentAmount", String(amount));
+    localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
 
     IMP.request_pay({
       channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
-      pay_method: "card",
+      ...(selectedPayMethod !== "kpn" && { pay_method: "card" }),
       merchant_uid: `face_${Date.now()}`,
       name: "심층 관상 분석",
       amount: amount,
@@ -2689,7 +2684,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
       const payData: any = {
         channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
-        pay_method: "card",
+        ...(selectedPayMethod !== "kpn" && { pay_method: "card" }),
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "심층 이름 풀이 리포트",
         amount: amount,
@@ -2700,13 +2695,12 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
       if (isMobile) {
         payData.m_redirect_url = window.location.href;
-        localStorage.setItem("pendingPaymentType", "name");
-        localStorage.setItem("pendingPaymentAmount", String(amount));
-        // 🚀 이름 입력값과 분석 결과를 브라우저 창고에 보관
-        localStorage.setItem("pendingNameData", JSON.stringify({
-          nameInput, nameHanja, nameBirthDate, nameBirthTime, nameGender, hanjaSelections, nameResultData
-        }));
       }
+      localStorage.setItem("pendingPaymentType", "name");
+      localStorage.setItem("pendingPaymentAmount", String(amount));
+      localStorage.setItem("pendingNameData", JSON.stringify({
+        nameInput, nameHanja, nameBirthDate, nameBirthTime, nameGender, hanjaSelections, nameResultData
+      }));
 
       IMP.request_pay(payData, async function (rsp: any) {
         const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
@@ -2729,9 +2723,11 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
             alert("서버 오류가 발생했습니다.");
           }
         } else {
+          localStorage.removeItem("pendingNameData");
+          localStorage.removeItem("pendingPaymentType");
+          localStorage.removeItem("pendingPaymentAmount");
           const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
-          if (isUserCancel && !isMobile) alert(`결제가 취소되었습니다.\n💡 PC 화면 결제창의 [결제 완료] 버튼을 눌러주세요!`);
-          else alert(`결제 실패: ${rsp.error_msg}`);
+          if (!isUserCancel) alert(`결제 실패: ${rsp.error_msg}`);
         }
       });
     }
