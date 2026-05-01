@@ -1846,7 +1846,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       
       const payData: any = {
         storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
-        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
+        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
         paymentId: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         orderName: name,
         totalAmount: amount,
@@ -2441,7 +2441,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     try {
       const response = await PortOne.requestPayment({
         storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
-        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
+        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
         paymentId: `face_${Date.now()}`,
         orderName: "심층 관상 분석",
         totalAmount: amount,
@@ -2686,7 +2686,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       try {
         const response = await PortOne.requestPayment({
           storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
-          channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
+          channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
           paymentId: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
           orderName: "심층 이름 풀이 리포트",
           totalAmount: amount,
@@ -3669,7 +3669,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       const payData: any = {
-        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
+        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
         pay_method: "card",
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "고급 통계 로또 추천 10회 이용권",
