@@ -1851,6 +1851,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         orderName: name,
         totalAmount: amount,
         currency: "KRW",
+        payMethod: selectedPayMethod === "kakaopay" ? "EASY_PAY" : selectedPayMethod === "tosspay" ? "EASY_PAY" : "CARD",
         customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
       };
 
@@ -2460,6 +2461,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         orderName: "심층 관상 분석",
         totalAmount: amount,
         currency: "KRW",
+        payMethod: selectedPayMethod === "kakaopay" ? "EASY_PAY" : selectedPayMethod === "tosspay" ? "EASY_PAY" : "CARD",
         customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
         redirectUrl: isMobile ? window.location.href : undefined,
       });
@@ -2712,6 +2714,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           orderName: "심층 이름 풀이 리포트",
           totalAmount: amount,
           currency: "KRW",
+          payMethod: selectedPayMethod === "kakaopay" ? "EASY_PAY" : selectedPayMethod === "tosspay" ? "EASY_PAY" : "CARD",
           customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
           redirectUrl: isMobile ? window.location.href : undefined,
         });
