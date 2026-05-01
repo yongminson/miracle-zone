@@ -1852,14 +1852,13 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
       
       const payData: any = {
+        storeId: "store-22f774c9-5059-4b4e-ab05-85e04a3a09c2",
         channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
-        ...(selectedPayMethod !== "kpn" && { pay_method: "card" }),
-        merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-        name: name,
-        amount: amount,
-        buyer_email: "test@ymstudio.co.kr", 
-        buyer_name: "명운 사용자",
-        app_scheme: "myungun",
+        paymentId: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        orderName: name,
+        totalAmount: amount,
+        currency: "KRW",
+        customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
       };
 
       if (isMobile) {
@@ -1873,16 +1872,19 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         }));
       }
 
-      IMP.request_pay(payData, async function (rsp: any) {
-        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
-        if (isSuccess) {
-          try {
+      const PortOne = (window as any).PortOne;
+      if (!PortOne) { alert("🚨 결제 시스템 로딩 실패."); return; }
+      if (isMobile) { payData.redirectUrl = window.location.origin + "?tab=altar"; }
+      const response = await PortOne.requestPayment(payData);
+      const isSuccess = !response?.code;
+      if (isSuccess) {
+        try {
             const verifyRes = await fetch("/api/payments/verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                imp_uid: rsp.imp_uid,
-                merchant_uid: rsp.merchant_uid,
+                imp_uid: response.paymentId,
+                merchant_uid: response.paymentId,
                 amount: amount,
                 wishText: premiumWishText,
                 period: premiumPeriod,
@@ -1917,11 +1919,10 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
             setShowPremiumModal(false);
           }
         } else {
-          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
-          if (isUserCancel && !isMobile) alert(`결제가 취소되었습니다.\n💡 스마트폰에서 승인 후, PC 화면 결제창의 [결제 완료]를 꼭 눌러주세요!`);
-          else alert(`결제 실패:\n${rsp.error_msg}`);
-        }
-      });
+          if (response?.code !== "FAILURE_TYPE_PG_CANCEL") {
+            alert(`결제 실패:\n${response?.message}`);
+          }
+      }
     }
   };
 
@@ -2437,8 +2438,8 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
   // 🚀 관상 심층 리포트 프리미엄 결제 연동 (4,900원)
   const handlePhysiognomyPaymentConfirm = async () => {
-    const IMP = (window as any).IMP;
-    IMP.init("imp61375123"); 
+    const PortOne = (window as any).PortOne;
+    if (!PortOne) { alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!"); return; }
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const amount = 4900;
 
@@ -2446,26 +2447,30 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     localStorage.setItem("pendingPaymentAmount", String(amount));
     localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
 
-    IMP.request_pay({
-      channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
-      ...(selectedPayMethod !== "kpn" && { pay_method: "card" }),
-      merchant_uid: `face_${Date.now()}`,
-      name: "심층 관상 분석",
-      amount: amount,
-      buyer_email: "test@ymstudio.co.kr",
-      buyer_name: "명운 사용자",
-      m_redirect_url: isMobile ? window.location.href : undefined,
-      app_scheme: "myungun"
-    }, (rsp: any) => {
-      if (rsp.success || (rsp.imp_uid && !rsp.error_msg)) {
-        setIsPhysiognomyPremiumUnlocked(true);
-        setShowPhysiognomyPaymentModal(false);
-      } else {
+    try {
+      const response = await PortOne.requestPayment({
+        storeId: "store-22f774c9-5059-4b4e-ab05-85e04a3a09c2",
+        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
+        paymentId: `face_${Date.now()}`,
+        orderName: "심층 관상 분석",
+        totalAmount: amount,
+        currency: "KRW",
+        customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
+        redirectUrl: isMobile ? window.location.href : undefined,
+      });
+      if (response?.code) {
         localStorage.removeItem("pendingFaceData");
         localStorage.removeItem("pendingPaymentType");
         localStorage.removeItem("pendingPaymentAmount");
+      } else {
+        setIsPhysiognomyPremiumUnlocked(true);
+        setShowPhysiognomyPaymentModal(false);
       }
-    });
+    } catch(e) {
+      localStorage.removeItem("pendingFaceData");
+      localStorage.removeItem("pendingPaymentType");
+      localStorage.removeItem("pendingPaymentAmount");
+    }
   };
 
   const handleFaceShare = async () => {
@@ -2675,44 +2680,41 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   // 🚀 이름 풀이 프리미엄 결제 연동 (4,900원)
   const handleNamePaymentConfirm = async () => {
     if (typeof window !== "undefined") {
-      const IMP = (window as any).IMP;
-      if (!IMP) return alert("🚨 결제 시스템 로딩 실패.");
-      IMP.init("imp61375123"); 
+      const PortOne = (window as any).PortOne;
+      if (!PortOne) return alert("🚨 결제 시스템 로딩 실패.");
 
       const amount = 4900;
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-      const payData: any = {
-        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
-        ...(selectedPayMethod !== "kpn" && { pay_method: "card" }),
-        merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-        name: "심층 이름 풀이 리포트",
-        amount: amount,
-        buyer_email: "test@ymstudio.co.kr",
-        buyer_name: "명운 사용자",
-        app_scheme: "myungun",
-      };
-
-      if (isMobile) {
-        payData.m_redirect_url = window.location.href;
-      }
       localStorage.setItem("pendingPaymentType", "name");
       localStorage.setItem("pendingPaymentAmount", String(amount));
       localStorage.setItem("pendingNameData", JSON.stringify({
         nameInput, nameHanja, nameBirthDate, nameBirthTime, nameGender, hanjaSelections, nameResultData
       }));
 
-      IMP.request_pay(payData, async function (rsp: any) {
-        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
-        if (isSuccess) {
+      try {
+        const response = await PortOne.requestPayment({
+          storeId: "store-22f774c9-5059-4b4e-ab05-85e04a3a09c2",
+          channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
+          paymentId: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+          orderName: "심층 이름 풀이 리포트",
+          totalAmount: amount,
+          currency: "KRW",
+          customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
+          redirectUrl: isMobile ? window.location.href : undefined,
+        });
+        if (response?.code) {
+          localStorage.removeItem("pendingNameData");
+          localStorage.removeItem("pendingPaymentType");
+          localStorage.removeItem("pendingPaymentAmount");
+        } else {
           try {
             const verifyRes = await fetch("/api/payments/verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentType: "saju", imp_uid: rsp.imp_uid, merchant_uid: rsp.merchant_uid, amount: amount }),
+              body: JSON.stringify({ paymentType: "saju", imp_uid: response.paymentId, merchant_uid: response.paymentId, amount: amount }),
             });
             const verifyData = await verifyRes.json();
-
             if (verifyRes.ok && verifyData.success) {
               setShowNamePaymentModal(false);
               setIsNamePremiumUnlocked(true);
@@ -2722,14 +2724,12 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           } catch (error) {
             alert("서버 오류가 발생했습니다.");
           }
-        } else {
-          localStorage.removeItem("pendingNameData");
-          localStorage.removeItem("pendingPaymentType");
-          localStorage.removeItem("pendingPaymentAmount");
-          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
-          if (!isUserCancel) alert(`결제 실패: ${rsp.error_msg}`);
         }
-      });
+      } catch(e) {
+        localStorage.removeItem("pendingNameData");
+        localStorage.removeItem("pendingPaymentType");
+        localStorage.removeItem("pendingPaymentAmount");
+      }
     }
   };
 

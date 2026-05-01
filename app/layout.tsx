@@ -48,7 +48,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {/* 🚀 1. 포트원(아임포트) 결제 라이브러리 */}
         <Script 
-          src="https://cdn.iamport.kr/v1/iamport.js" 
+          src="https://cdn.portone.io/v2/browser-sdk.js" 
           strategy="beforeInteractive" 
         />
         
