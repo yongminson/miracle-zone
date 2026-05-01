@@ -1894,6 +1894,17 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
 
             const verifyData = await verifyRes.json();
             if (verifyRes.ok && verifyData.success) {
+                            // 🚀 [추가] PC 환경에서도 결제 즉시 제단에 소원이 짠! 하고 나타나도록 강제 업데이트
+                            setLastWish(premiumWishText);
+                            const newPremiumWish: PremiumWish = {
+                              id: `prem-opt-${Date.now()}`,
+                              content: premiumWishText,
+                              badge: `[✨ ${premiumNameDisplay === "anonymous" ? "익명" : premiumNameInput || "익명"} 님의 ${premiumPeriod === "24h" ? "24시간" : "특별기원"}]`,
+                              period: premiumPeriod,
+                              createdAt: Date.now()
+                            };
+                            setPremiumWishes(prev => [newPremiumWish, ...prev]);
+
                             // 🚀 [수정완료] 프리미엄 전용 시각/청각 효과 트리거
                             setIsCandleOn(true);
                             setIsPremiumGlow(true);
@@ -4624,9 +4635,11 @@ export default function Home() {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
     
-    const impUid = urlParams.get("imp_uid");
-    const errorMsg = urlParams.get("error_msg") || urlParams.get("message");
-    const isSuccess = urlParams.get("imp_success") === "true" || urlParams.get("success") === "true" || (impUid && !errorMsg);
+    // 💡 V2 방식은 URL에 paymentId를 반환하므로 둘 다 잡아내야 합니다.
+    const impUid = urlParams.get("paymentId") || urlParams.get("imp_uid");
+    const errorMsg = urlParams.get("message") || urlParams.get("error_msg");
+    const errorCode = urlParams.get("code");
+    const isSuccess = (impUid && !errorCode && !errorMsg) || urlParams.get("imp_success") === "true" || urlParams.get("success") === "true";
 
     if (impUid) {
       const pendingType = localStorage.getItem("pendingPaymentType");
@@ -4664,7 +4677,7 @@ export default function Home() {
             .then(() => {
               alert("✨ 결제가 완료되었습니다. 결과를 확인하세요!");
               localStorage.setItem("last_authorized_imp_uid", impUid); 
-              localStorage.removeItem("pendingPaymentType");
+              // 💡 SajuTab에서 결제 타입을 읽어야 하므로 여기서 삭제하지 않고 보존합니다. (SajuTab 내부에서 삭제 처리됨)
               window.history.replaceState({}, "", window.location.pathname);
               setActiveTab("saju");
             });
