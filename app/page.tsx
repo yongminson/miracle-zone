@@ -1852,16 +1852,14 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
       
       const payData: any = {
-        ...(selectedPayMethod === "kakaopay" 
-          ? { pg: "kakaopay" } 
-          : { channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : "channel-key-8bc3f25e-6ae9-4e42-b181-6e2b42c6fa0d" }),
+        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
         pay_method: "card",
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: name,
         amount: amount,
         buyer_email: "test@ymstudio.co.kr", 
         buyer_name: "명운 사용자",
-        app_scheme: "myungun", 
+        app_scheme: "myungun",
       };
 
       if (isMobile) {
@@ -2445,8 +2443,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     }
 
     IMP.request_pay({
-      pg: selectedPayMethod === "kpn" ? "kpn" : 
-          selectedPayMethod === "tosspay" ? "tosspay" : "kakaopay",
+      channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
       pay_method: "card",
       merchant_uid: `face_${Date.now()}`,
       name: "심층 관상 분석",
@@ -2676,16 +2673,10 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       const payData: any = {
-        ...(selectedPayMethod === "kakaopay" 
-          ? { pg: "kakaopay" } 
-          : { channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : "channel-key-8bc3f25e-6ae9-4e42-b181-6e2b42c6fa0d" }),
+        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
         pay_method: "card",
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "심층 이름 풀이 리포트",
-        amount: amount,
-        buyer_email: "test@ymstudio.co.kr", 
-        buyer_name: "명운 사용자",
-        app_scheme: "myungun",
       };
 
       if (isMobile) {
@@ -3672,9 +3663,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       const payData: any = {
-        ...(selectedPayMethod === "kakaopay" 
-          ? { pg: "kakaopay" } 
-          : { channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : "channel-key-8bc3f25e-6ae9-4e42-b181-6e2b42c6fa0d" }),
+        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-72ae12ef-4e55-495e-93d4-7cb6b3a81c1a" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
         pay_method: "card",
         merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         name: "고급 통계 로또 추천 10회 이용권",
