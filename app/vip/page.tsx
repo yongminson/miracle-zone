@@ -142,6 +142,8 @@ export default function VipLandingPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   /** PDF 또는 부적 수동 저장 시도 완료 — '새 리포트 받기' CS 방어 */
   const [isDownloaded, setIsDownloaded] = useState(false);
+  /** 모바일 뒤로가기·스와이프 시 네이티브 confirm 대신 표시 */
+  const [showExitModal, setShowExitModal] = useState(false);
   type VipFileFallback = {
     blobUrl: string;
     filename: string;
@@ -155,11 +157,21 @@ export default function VipLandingPage() {
   const isDownloadedRef = useRef(isDownloaded);
   isDownloadedRef.current = isDownloaded;
 
-  /** 리포트 완료 화면에서 새로고침·뒤로가기 이탈 방지 (CS 방어) */
+  const vipHistoryListenersRef = useRef<{
+    onPopState: () => void;
+    onBeforeUnload: (e: BeforeUnloadEvent) => void;
+  } | null>(null);
+
+  /** 리포트 완료 화면: History trap + popstate(커스텀 모달) + 새로고침 방지 */
   useEffect(() => {
     if (typeof window === "undefined") return;
     const shouldGuard = isSuccess && reportMarkdown.trim().length > 0;
-    if (!shouldGuard) return;
+    if (!shouldGuard) {
+      setShowExitModal(false);
+      return;
+    }
+
+    window.history.pushState({ page: "vip_result" }, "", window.location.href);
 
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       if (!isDownloadedRef.current) {
@@ -171,24 +183,45 @@ export default function VipLandingPage() {
     const onPopState = () => {
       if (isDownloadedRef.current) {
         window.removeEventListener("popstate", onPopState);
+        window.removeEventListener("beforeunload", onBeforeUnload);
+        vipHistoryListenersRef.current = null;
         return;
       }
-      window.history.pushState(null, "", window.location.href);
-      const leave = window.confirm("아직 리포트를 저장하지 않으셨습니다! 정말 나가시겠습니까?");
-      if (!leave) return;
-      window.removeEventListener("popstate", onPopState);
-      window.removeEventListener("beforeunload", onBeforeUnload);
-      window.history.back();
+      window.history.pushState({ page: "vip_result" }, "", window.location.href);
+      setShowExitModal(true);
     };
 
+    vipHistoryListenersRef.current = { onPopState, onBeforeUnload };
     window.addEventListener("beforeunload", onBeforeUnload);
     window.addEventListener("popstate", onPopState);
 
     return () => {
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("popstate", onPopState);
+      if (vipHistoryListenersRef.current?.onPopState === onPopState) {
+        vipHistoryListenersRef.current = null;
+      }
+      setShowExitModal(false);
     };
   }, [isSuccess, reportMarkdown]);
+
+  useEffect(() => {
+    if (isDownloaded && showExitModal) setShowExitModal(false);
+  }, [isDownloaded, showExitModal]);
+
+  const handleExitModalConfirmLeave = useCallback(() => {
+    setShowExitModal(false);
+    const l = vipHistoryListenersRef.current;
+    if (l) {
+      window.removeEventListener("popstate", l.onPopState);
+      window.removeEventListener("beforeunload", l.onBeforeUnload);
+      vipHistoryListenersRef.current = null;
+    }
+    router.back();
+    requestAnimationFrame(() => {
+      router.back();
+    });
+  }, [router]);
 
   const showFullScreenLoader = (isFetchingReport || isPdfGenerating) && !reportMarkdown.trim();
   const isBusy = isFetchingReport || isPdfGenerating;
@@ -742,6 +775,41 @@ export default function VipLandingPage() {
           <DynamicLoader
             subtitle={isPdfGenerating ? "고해상도 PDF로 저장하고 있어요." : undefined}
           />
+        </div>
+      ) : null}
+
+      {showExitModal ? (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="vip-exit-modal-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-amber-500/40 bg-slate-950/95 p-6 shadow-2xl shadow-black/50 sm:p-8">
+            <h2 id="vip-exit-modal-title" className="sr-only">
+              VIP 리포트 저장 안내
+            </h2>
+            <p className="whitespace-pre-line text-left text-sm leading-relaxed text-slate-200 sm:text-base">
+              아직 리포트를 저장하지 않으셨습니다!{"\n"}
+              지금 나가시면 결과가 영구히 삭제됩니다. 그래도 나가시겠습니까?
+            </p>
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowExitModal(false)}
+                className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/20 sm:w-auto sm:min-w-[160px]"
+              >
+                [취소 (화면에 남기)]
+              </button>
+              <button
+                type="button"
+                onClick={handleExitModalConfirmLeave}
+                className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-gradient-to-r from-rose-900/90 to-rose-700 px-4 py-3 text-sm font-bold text-white shadow-lg transition hover:brightness-110 sm:w-auto sm:min-w-[160px]"
+              >
+                [네, 나갈게요]
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
