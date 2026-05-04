@@ -1781,6 +1781,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       if (!PortOne) { alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!"); return; }
       if (isMobile) {
         payData.redirectUrl = window.location.origin + "?tab=altar";
+        localStorage.setItem("pendingPaymentType", "altar");
         localStorage.setItem("pendingPremiumWish", JSON.stringify({
           wishText: premiumWishText,
           period: premiumPeriod,
@@ -1837,10 +1838,13 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
               setPremiumNameInput("");
               if (typeof fetchWishes === 'function') fetchWishes(); 
             } else {
-              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+              alert(
+                `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
+              );
             }
           } catch (error) {
-            alert("✨ 결제는 성공했습니다!\n(다만 현재 서버 오류로 화면 반영 지연 중)");
+            console.error("제단 결제 검증:", error);
+            alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
             setShowPremiumModal(false);
           }
         } else {
@@ -2207,7 +2211,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       const lastImpUid = localStorage.getItem("last_authorized_imp_uid");
       const pendingType = localStorage.getItem("pendingPaymentType");
 
-      // 1️⃣ 관상 데이터 복구 — 결제 성공 imp_uid 있을 때만 잠금 해제
+      // 1️⃣ 관상 데이터 복구 — 결제 성공 imp_uid 있을 때만 잠금 해제 (다른 결제 플로우의 pendingPaymentType 오염 방지)
       const faceSaved = localStorage.getItem("pendingFaceData");
       if (faceSaved) {
         if (pendingType === "physiognomy" && lastImpUid) {
@@ -2222,10 +2226,12 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           } catch(e) {}
           setActiveSajuMode("face");
           localStorage.removeItem("last_authorized_imp_uid");
+          localStorage.removeItem("pendingFaceData");
+          localStorage.removeItem("pendingPaymentType");
+          localStorage.removeItem("pendingPaymentAmount");
+        } else {
+          localStorage.removeItem("pendingFaceData");
         }
-        localStorage.removeItem("pendingFaceData");
-        localStorage.removeItem("pendingPaymentType");
-        localStorage.removeItem("pendingPaymentAmount");
       }
 
       // 2️⃣ 이름풀이 데이터 복구 — 결제 성공 imp_uid 있을 때만 잠금 해제
@@ -2248,10 +2254,12 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           } catch(e) {}
           setActiveSajuMode("name");
           localStorage.removeItem("last_authorized_imp_uid");
+          localStorage.removeItem("pendingNameData");
+          localStorage.removeItem("pendingPaymentType");
+          localStorage.removeItem("pendingPaymentAmount");
+        } else {
+          localStorage.removeItem("pendingNameData");
         }
-        localStorage.removeItem("pendingNameData");
-        localStorage.removeItem("pendingPaymentType");
-        localStorage.removeItem("pendingPaymentAmount");
       }
     }
   }, [isVisible]);
@@ -2395,6 +2403,30 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         localStorage.removeItem("pendingFaceData");
         localStorage.removeItem("pendingPaymentType");
         localStorage.removeItem("pendingPaymentAmount");
+      } else if (!isMobile) {
+        try {
+          const verifyRes = await fetch("/api/payments/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              paymentType: "saju",
+              imp_uid: response.paymentId,
+              merchant_uid: response.paymentId,
+              amount,
+            }),
+          });
+          const verifyData = (await verifyRes.json()) as { success?: boolean; message?: string };
+          if (verifyRes.ok && verifyData.success) {
+            setIsPhysiognomyPremiumUnlocked(true);
+            setShowPhysiognomyPaymentModal(false);
+          } else {
+            alert(
+              `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
+            );
+          }
+        } catch {
+          alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
+        }
       } else {
         setIsPhysiognomyPremiumUnlocked(true);
         setShowPhysiognomyPaymentModal(false);
@@ -2660,10 +2692,12 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
               setShowNamePaymentModal(false);
               setIsNamePremiumUnlocked(true);
             } else {
-              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+              alert(
+                `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
+              );
             }
-          } catch (error) {
-            alert("서버 오류가 발생했습니다.");
+          } catch {
+            alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
           }
         }
       } catch(e) {
@@ -4480,63 +4514,146 @@ export default function Home() {
     if (targetTab) setActiveTab(targetTab);
   }, []);
 
-  // 🚀 모바일 결제 결과 처리 (로또 10회권 충전 로직 포함)
+  // 🚀 모바일 결제 결과 처리 — 상품(pendingPaymentType)별 분기, VIP와 localStorage 충돌 방지, 검증 실패 시 명시 알림
   useEffect(() => {
     if (typeof window === "undefined") return;
     const urlParams = new URLSearchParams(window.location.search);
-    
-    // 💡 V2 방식은 URL에 paymentId를 반환하므로 둘 다 잡아내야 합니다.
+
     const impUid = urlParams.get("paymentId") || urlParams.get("imp_uid");
     const errorMsg = urlParams.get("message") || urlParams.get("error_msg");
     const errorCode = urlParams.get("code");
-    const isSuccess = (impUid && !errorCode && !errorMsg) || urlParams.get("imp_success") === "true" || urlParams.get("success") === "true";
+    const isSuccess =
+      (!!impUid && !errorCode && !errorMsg) ||
+      urlParams.get("imp_success") === "true" ||
+      urlParams.get("success") === "true";
 
-    if (impUid) {
-      const pendingType = localStorage.getItem("pendingPaymentType");
+    if (!impUid) return;
 
-      if (isSuccess) {
-        // 1️⃣ 기적의 제단
-        if (localStorage.getItem("pendingPremiumWish")) {
-          const wishData = JSON.parse(localStorage.getItem("pendingPremiumWish")!);
-          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "altar", imp_uid: impUid, amount: wishData.amount, wishText: wishData.wishText, period: wishData.period, nameDisplay: wishData.nameDisplay, nameInput: wishData.nameInput }) })
-            .then(() => {
-              alert("✨ 특별 공양 등록 완료!");
-              localStorage.removeItem("pendingPremiumWish");
-              // 🚀 주소창 찌꺼기 완전 삭제! (새로고침 시 무조건 메인으로 가게 됨)
-              window.history.replaceState({}, "", window.location.pathname);
-              setActiveTab("altar");
-              // 🚀 데이터와 함께 확실하게 신호 발송 (시간 넉넉히 800ms)
-              setTimeout(() => window.dispatchEvent(new CustomEvent("premiumAltarSuccess", { detail: wishData })), 800);
-            });
-        } 
-        // 2️⃣ 행운의 로또 10회권
-        else if (pendingType === "lotto") {
-          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "lotto", imp_uid: impUid, amount: localStorage.getItem("pendingPaymentAmount"), userId: localStorage.getItem("pendingPaymentUserId") }) })
-            .then(() => {
-              alert("✨ 결제 성공! 고급 통계 로또 10회 이용권이 충전되었습니다.");
-              localStorage.removeItem("pendingPaymentType");
-              localStorage.removeItem("pendingPaymentAmount");
-              localStorage.removeItem("pendingPaymentUserId");
-              window.history.replaceState({}, "", window.location.pathname);
-              setActiveTab("lotto");
-            });
-        }
-        // 3️⃣ 관상 / 이름 풀이
-        else if (pendingType === "physiognomy" || pendingType === "name") {
-          fetch("/api/payments/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paymentType: "saju", imp_uid: impUid, amount: localStorage.getItem("pendingPaymentAmount") }) })
-            .then(() => {
-              alert("✨ 결제가 완료되었습니다. 결과를 확인하세요!");
-              localStorage.setItem("last_authorized_imp_uid", impUid); 
-              // 💡 SajuTab에서 결제 타입을 읽어야 하므로 여기서 삭제하지 않고 보존합니다. (SajuTab 내부에서 삭제 처리됨)
-              window.history.replaceState({}, "", window.location.pathname);
-              setActiveTab("saju");
-            });
-        }
-      } else {
-        alert(`결제 실패: ${errorMsg || "사용자 취소"}`);
-        window.history.replaceState({}, "", window.location.pathname);
-      }
+    const clearQuery = () => window.history.replaceState({}, "", window.location.pathname);
+    const pendingType = localStorage.getItem("pendingPaymentType");
+
+    // VIP PG 복귀는 `/vip` + `vip_mobile_payment_pending` 전용 — tools에 붙은 쿼리만 정리
+    if (localStorage.getItem("vip_mobile_payment_pending") === "1" || pendingType === "vip") {
+      localStorage.removeItem("vip_mobile_payment_pending");
+      localStorage.removeItem("pendingVipMerchantUid");
+      if (pendingType === "vip") localStorage.removeItem("pendingPaymentType");
+      clearQuery();
+      return;
     }
+
+    if (!isSuccess) {
+      alert(`결제 실패: ${errorMsg || "사용자 취소"}`);
+      clearQuery();
+      return;
+    }
+
+    const verifyAndAct = async (body: Record<string, unknown>, onOk: () => void) => {
+      try {
+        const verifyRes = await fetch("/api/payments/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const verifyData = (await verifyRes.json()) as { success?: boolean; message?: string };
+        if (!verifyRes.ok || !verifyData.success) {
+          alert(
+            `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || verifyRes.statusText || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
+          );
+          return;
+        }
+        onOk();
+        clearQuery();
+      } catch (e) {
+        console.error("[payments/verify]", e);
+        alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
+      }
+    };
+
+    void (async () => {
+      const wishRaw = localStorage.getItem("pendingPremiumWish");
+
+      // 1️⃣ 제단 — pendingPremiumWish + pendingType === altar 일 때만 (다른 결제와 착각 방지)
+      if (pendingType === "altar" && wishRaw) {
+        let wishData: {
+          wishText: string;
+          period: string;
+          nameDisplay: string;
+          nameInput: string;
+          amount: number;
+        };
+        try {
+          wishData = JSON.parse(wishRaw) as typeof wishData;
+        } catch {
+          alert("결제 검증 오류: 제단 소원 데이터가 손상되었습니다.");
+          clearQuery();
+          return;
+        }
+        await verifyAndAct(
+          {
+            paymentType: "altar",
+            imp_uid: impUid,
+            amount: wishData.amount,
+            wishText: wishData.wishText,
+            period: wishData.period,
+            nameDisplay: wishData.nameDisplay,
+            nameInput: wishData.nameInput,
+          },
+          () => {
+            alert("✨ 특별 공양 등록 완료!");
+            localStorage.removeItem("pendingPremiumWish");
+            localStorage.removeItem("pendingPaymentType");
+            setActiveTab("altar");
+            setTimeout(
+              () => window.dispatchEvent(new CustomEvent("premiumAltarSuccess", { detail: wishData })),
+              800,
+            );
+          },
+        );
+        return;
+      }
+
+      // 2️⃣ 로또 10회권
+      if (pendingType === "lotto") {
+        await verifyAndAct(
+          {
+            paymentType: "lotto",
+            imp_uid: impUid,
+            amount: localStorage.getItem("pendingPaymentAmount"),
+            userId: localStorage.getItem("pendingPaymentUserId"),
+          },
+          () => {
+            alert("✨ 결제 성공! 고급 통계 로또 10회 이용권이 충전되었습니다.");
+            localStorage.removeItem("pendingPaymentType");
+            localStorage.removeItem("pendingPaymentAmount");
+            localStorage.removeItem("pendingPaymentUserId");
+            setActiveTab("lotto");
+          },
+        );
+        return;
+      }
+
+      // 3️⃣ 관상 / 이름 — 현재 탭을 saju로만 전환, pendingPaymentType은 SajuTab 복구용으로 유지
+      if (pendingType === "physiognomy" || pendingType === "name") {
+        await verifyAndAct(
+          {
+            paymentType: "saju",
+            imp_uid: impUid,
+            amount: localStorage.getItem("pendingPaymentAmount"),
+          },
+          () => {
+            alert("✨ 결제가 완료되었습니다. 결과를 확인하세요!");
+            localStorage.setItem("last_authorized_imp_uid", impUid);
+            setActiveTab("saju");
+          },
+        );
+        return;
+      }
+
+      alert(
+        "결제 복귀 처리: 저장된 결제 종류와 일치하지 않습니다. 같은 브라우저에서 결제를 완료했는지 확인해 주세요.",
+      );
+      clearQuery();
+    })();
   }, []);
 
   // 🚀 [추가됨] 로그인 상태 확인 및 감지

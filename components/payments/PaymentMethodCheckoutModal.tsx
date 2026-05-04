@@ -46,7 +46,7 @@ export type PaymentMethodCheckoutModalProps = {
   /** KPN 등 표준 PG 필수 필드 — 미입력 시 더미 번호 사용 */
   buyerTel?: string;
   buyerEmail?: string;
-  /** 모바일 리다이렉트 복귀 시 식별용 (예: vip) */
+  /** VIP 모바일 PG 복귀 시에만 사용 — `tools` 결제용 `pendingPaymentType`과 절대 공유하지 않음 */
   pendingPaymentType?: string;
   /** 결제 성공 시 PG 거래 식별자 전달 */
   onPaymentSuccess: (payload: PortOnePaymentSuccessPayload) => void | Promise<void>;
@@ -98,8 +98,8 @@ export function PaymentMethodCheckoutModal({
     const merchant_uid = `VIP${Date.now()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    if (pendingPaymentType && isMobile) {
-      localStorage.setItem("pendingPaymentType", pendingPaymentType);
+    if (pendingPaymentType === "vip" && isMobile) {
+      localStorage.setItem("vip_mobile_payment_pending", "1");
       localStorage.setItem("pendingVipMerchantUid", merchant_uid);
     }
 
@@ -140,9 +140,9 @@ export function PaymentMethodCheckoutModal({
 
       const response = await PortOne.requestPayment(payPayload);
 
-      if (isMobile && pendingPaymentType) {
+      if (isMobile && pendingPaymentType === "vip") {
         if (response && typeof response === "object" && response.code) {
-          localStorage.removeItem("pendingPaymentType");
+          localStorage.removeItem("vip_mobile_payment_pending");
           localStorage.removeItem("pendingVipMerchantUid");
           const rsp = response as { message?: string; error_msg?: string };
           console.error("결제 실패 상세 사유:", rsp.message ?? rsp.error_msg, rsp);
@@ -153,7 +153,7 @@ export function PaymentMethodCheckoutModal({
       }
 
       if (response && typeof response === "object" && response.code) {
-        localStorage.removeItem("pendingPaymentType");
+        localStorage.removeItem("vip_mobile_payment_pending");
         localStorage.removeItem("pendingVipMerchantUid");
         const rsp = response as { message?: string; error_msg?: string };
         console.error("결제 실패 상세 사유:", rsp.message ?? rsp.error_msg, rsp);
@@ -167,13 +167,13 @@ export function PaymentMethodCheckoutModal({
           ? (response.paymentId ?? response.txId ?? merchant_uid)
           : merchant_uid;
 
-      localStorage.removeItem("pendingPaymentType");
+      localStorage.removeItem("vip_mobile_payment_pending");
       localStorage.removeItem("pendingVipMerchantUid");
 
       await onPaymentSuccess({ imp_uid: String(imp_uid), merchant_uid });
     } catch (err) {
       console.error("결제 예외(포트원 SDK):", err);
-      localStorage.removeItem("pendingPaymentType");
+      localStorage.removeItem("vip_mobile_payment_pending");
       localStorage.removeItem("pendingVipMerchantUid");
       onPaymentError("결제가 취소되었거나 오류가 발생했습니다.");
     } finally {

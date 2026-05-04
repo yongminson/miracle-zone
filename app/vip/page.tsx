@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { PaymentMethodCheckoutModal } from "@/components/payments/PaymentMethodCheckoutModal";
-import { Gem, Sparkles, BrainCircuit } from "lucide-react";
+import { BrainCircuit, Calendar, Clock, Gem, Sparkles } from "lucide-react";
 import { DynamicLoader } from "@/components/ui/DynamicLoader";
 import { VipPdfTemplate } from "@/components/vip/VipPdfTemplate";
 import type { VipPdfUserInfo } from "@/components/vip/VipPdfTemplate";
@@ -41,6 +41,21 @@ function extractAmuletUrlFromMarkdown(markdown: string): string | null {
   const raw = m[1].trim().replace(/^<|>$/g, "");
   if (!raw) return null;
   return raw;
+}
+
+/** 숫자만 받아 `YYYY-MM-DD`로 하이픈 삽입 (예: 19841013 → 1984-10-13) */
+function maskBirthDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+}
+
+/** 숫자만 받아 `HH:MM`으로 콜론 삽입 (예: 0930 → 09:30) */
+function maskBirthTimeInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
 }
 
 export default function VipLandingPage() {
@@ -80,6 +95,10 @@ export default function VipLandingPage() {
     }
     if (!birthDate.trim()) {
       setErrorMessage("생년월일을 입력해 주세요.");
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate.trim())) {
+      setErrorMessage("생년월일을 YYYY-MM-DD 형식(8자리 숫자)으로 입력해 주세요.");
       return;
     }
 
@@ -186,7 +205,9 @@ export default function VipLandingPage() {
         const verifyData = (await verifyRes.json()) as { success?: boolean; message?: string };
 
         if (!verifyRes.ok || !verifyData.success) {
-          setErrorMessage((verifyData.message && verifyData.message.trim()) || "결제 검증에 실패했습니다.");
+          const msg = (verifyData.message && verifyData.message.trim()) || "결제 검증에 실패했습니다.";
+          setErrorMessage(msg);
+          alert(`결제 검증 오류: ${msg}\n서버 키·IAMPORT 설정을 확인해 주세요.`);
           return;
         }
 
@@ -206,10 +227,10 @@ export default function VipLandingPage() {
     const impUid = params.get("paymentId") || params.get("imp_uid");
     const errorMsg = params.get("message") || params.get("error_msg");
     const errorCode = params.get("code");
-    const pendingType = localStorage.getItem("pendingPaymentType");
+    const vipMobile = localStorage.getItem("vip_mobile_payment_pending") === "1";
     const merchantUid = localStorage.getItem("pendingVipMerchantUid");
 
-    if (!impUid || pendingType !== "vip") return;
+    if (!impUid || !vipMobile) return;
 
     const isSuccess =
       (!!impUid && !errorCode && !errorMsg) ||
@@ -219,11 +240,11 @@ export default function VipLandingPage() {
     window.history.replaceState({}, "", window.location.pathname);
 
     if (isSuccess && merchantUid) {
-      localStorage.removeItem("pendingPaymentType");
+      localStorage.removeItem("vip_mobile_payment_pending");
       localStorage.removeItem("pendingVipMerchantUid");
       void completeVipAfterPayment(impUid, merchantUid);
     } else {
-      localStorage.removeItem("pendingPaymentType");
+      localStorage.removeItem("vip_mobile_payment_pending");
       localStorage.removeItem("pendingVipMerchantUid");
       setErrorMessage(errorMsg?.trim() || "결제가 취소되었습니다.");
     }
@@ -237,6 +258,10 @@ export default function VipLandingPage() {
     }
     if (!birthDate.trim()) {
       setErrorMessage("생년월일을 입력해 주세요.");
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate.trim())) {
+      setErrorMessage("생년월일을 YYYY-MM-DD 형식(8자리 숫자)으로 입력해 주세요.");
       return;
     }
     setErrorMessage(null);
@@ -409,27 +434,47 @@ export default function VipLandingPage() {
             <div className="grid gap-5 sm:grid-cols-2">
             <label className="block sm:col-span-2">
                 <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-amber-500/80">
-                  생년월일 (양력 YYYY-MM-DD)
+                  생년월일 (양력)
                 </span>
-                <input
-                  type="date"
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                  style={{ colorScheme: "dark" }} // 💡 달력 아이콘을 하얗게!
-                  className="w-full rounded-xl border border-slate-700/80 bg-black/40 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    spellCheck={false}
+                    maxLength={10}
+                    placeholder="YYYY-MM-DD"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(maskBirthDateInput(e.target.value))}
+                    className="w-full rounded-xl border border-slate-700/80 bg-black/40 py-3 pl-4 pr-11 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
+                  />
+                  <Calendar
+                    className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-amber-500/55"
+                    aria-hidden
+                  />
+                </div>
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-amber-500/80">
                   출생 시각 (선택)
                 </span>
-                <input
-                  type="time"
-                  value={birthTime}
-                  onChange={(e) => setBirthTime(e.target.value)}
-                  style={{ colorScheme: "dark" }} // 💡 시계 아이콘을 하얗게!
-                  className="w-full rounded-xl border border-slate-700/80 bg-black/40 px-4 py-3 text-sm text-slate-100 outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    spellCheck={false}
+                    maxLength={5}
+                    placeholder="HH:MM"
+                    value={birthTime}
+                    onChange={(e) => setBirthTime(maskBirthTimeInput(e.target.value))}
+                    className="w-full rounded-xl border border-slate-700/80 bg-black/40 py-3 pl-4 pr-11 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
+                  />
+                  <Clock
+                    className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-amber-500/55"
+                    aria-hidden
+                  />
+                </div>
               </label>
               <fieldset className="block">
                 <legend className="mb-1.5 text-xs font-medium uppercase tracking-wider text-amber-500/80">
