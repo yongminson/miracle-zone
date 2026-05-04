@@ -3,10 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import type { CsDashboardTabId, CsDashboardBootstrapPayload, CsDashboardRow } from "@/lib/admin/cs-dashboard-types";
+import type { CsDashboardTabId, CsDashboardRow } from "@/lib/admin/cs-dashboard-types";
 import { CsDashboardCard } from "@/components/admin/CsDashboardCard";
-
-type Props = CsDashboardBootstrapPayload;
+import { CsDashboardPagination } from "@/components/admin/CsDashboardPagination";
 
 const TABS: { id: CsDashboardTabId; label: string }[] = [
   { id: "vip", label: "VIP 결제" },
@@ -14,15 +13,33 @@ const TABS: { id: CsDashboardTabId; label: string }[] = [
   { id: "altar", label: "기적의 제단" },
 ];
 
-export function CsUnifiedDashboardClient({ vip, altar, saju }: Props) {
-  const [activeTab, setActiveTab] = useState<CsDashboardTabId>("vip");
+export type CsUnifiedDashboardClientProps = {
+  activeTab: CsDashboardTabId;
+  onTabChange: (tab: CsDashboardTabId) => void;
+  rows: CsDashboardRow[];
+  totalCount: number;
+  currentPage: number;
+  itemsPerPage: number;
+  onPageChange: (page: number) => void;
+  sourceNote: string | null;
+  isLoading?: boolean;
+};
+
+export function CsUnifiedDashboardClient({
+  activeTab,
+  onTabChange,
+  rows,
+  totalCount,
+  currentPage,
+  itemsPerPage,
+  onPageChange,
+  sourceNote,
+  isLoading = false,
+}: CsUnifiedDashboardClientProps) {
   const [query, setQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
-  const activePayload = activeTab === "vip" ? vip : activeTab === "altar" ? altar : saju;
-
   const filtered = useMemo(() => {
-    const rows = activePayload.rows;
     const q = query.trim().toLowerCase();
     const digits = q.replace(/\D/g, "");
     if (!q) return rows;
@@ -37,7 +54,7 @@ export function CsUnifiedDashboardClient({ vip, altar, saju }: Props) {
         (digits.length > 0 && phoneNorm.includes(digits));
       return nameHit || phoneHit || notesHit || refHit || idHit;
     });
-  }, [activePayload.rows, query]);
+  }, [rows, query]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -52,7 +69,14 @@ export function CsUnifiedDashboardClient({ vip, altar, saju }: Props) {
         : "표시할 사주·관상·이름 결제 내역이 없습니다.";
 
   return (
-    <div className="mx-auto min-h-screen max-w-md bg-slate-950 px-4 pb-10 pt-6 text-slate-100">
+    <div className="relative mx-auto min-h-screen max-w-md bg-slate-950 px-4 pb-10 pt-6 text-slate-100">
+      {isLoading ? (
+        <div
+          className="pointer-events-none absolute inset-0 z-20 bg-slate-950/40 backdrop-blur-[1px]"
+          aria-hidden
+        />
+      ) : null}
+
       <header className="mb-5 flex items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-500/80">Admin</p>
@@ -76,14 +100,16 @@ export function CsUnifiedDashboardClient({ vip, altar, saju }: Props) {
             <button
               key={t.id}
               type="button"
+              disabled={isLoading}
               onClick={() => {
-                setActiveTab(t.id);
+                if (t.id === activeTab) return;
                 setQuery("");
+                onTabChange(t.id);
               }}
               className={
                 selected
                   ? "flex-1 rounded-xl bg-gradient-to-b from-amber-500/25 to-amber-600/15 px-2 py-2.5 text-center text-xs font-bold text-amber-50 shadow-md ring-1 ring-amber-500/40 sm:text-sm"
-                  : "flex-1 rounded-xl px-2 py-2.5 text-center text-xs font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-200 sm:text-sm"
+                  : "flex-1 rounded-xl px-2 py-2.5 text-center text-xs font-medium text-slate-400 transition hover:bg-white/5 hover:text-slate-200 disabled:opacity-50 sm:text-sm"
               }
             >
               {t.label}
@@ -92,7 +118,7 @@ export function CsUnifiedDashboardClient({ vip, altar, saju }: Props) {
         })}
       </nav>
 
-      <div className="relative mb-5">
+      <div className="relative mb-2">
         <Search
           className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-amber-500/70"
           aria-hidden
@@ -112,22 +138,31 @@ export function CsUnifiedDashboardClient({ vip, altar, saju }: Props) {
           className="w-full rounded-2xl border border-amber-500/25 bg-slate-900/90 py-4 pl-12 pr-4 text-base text-slate-100 shadow-inner shadow-black/20 outline-none ring-0 placeholder:text-slate-500 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
         />
       </div>
+      <p className="mb-4 text-center text-[10px] text-slate-500">현재 페이지에 로드된 {rows.length}건 내에서만 검색됩니다.</p>
 
-      {activePayload.sourceNote ? (
+      {sourceNote ? (
         <p className="mb-4 rounded-xl border border-amber-500/30 bg-amber-950/40 px-3 py-2.5 text-xs leading-relaxed text-amber-100/90">
-          {activePayload.sourceNote}
+          {sourceNote}
         </p>
       ) : null}
 
-      <ul className="space-y-4">
+      <ul className={`space-y-4 ${isLoading ? "opacity-60" : ""}`}>
         {filtered.length === 0 ? (
           <li className="rounded-2xl border border-white/10 bg-slate-900/50 px-4 py-10 text-center text-sm text-slate-400">
-            {activePayload.rows.length === 0 && !query.trim() ? emptyDefaultMessage : "검색 결과가 없습니다."}
+            {rows.length === 0 && !query.trim() ? emptyDefaultMessage : "검색 결과가 없습니다."}
           </li>
         ) : (
           filtered.map((row) => <CsDashboardCard key={`${activeTab}-${row.id}`} row={row} onToast={showToast} />)
         )}
       </ul>
+
+      <CsDashboardPagination
+        currentPage={currentPage}
+        totalCount={totalCount}
+        itemsPerPage={itemsPerPage}
+        onPageChange={onPageChange}
+        disabled={isLoading}
+      />
 
       {toast ? (
         <div

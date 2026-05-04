@@ -49,27 +49,37 @@ function mapDbRow(row: Record<string, unknown>): VipCsOrderRow {
   };
 }
 
-export type FetchVipCsResult = {
+export type FetchVipCsPagedResult = {
   rows: VipCsOrderRow[];
+  totalCount: number;
   sourceNote: string | null;
 };
 
-export async function fetchVipCsOrders(): Promise<FetchVipCsResult> {
+/** `vip_orders` — 서버사이드 페이지네이션 + `count: exact` */
+export async function fetchVipCsOrdersPaginated(params: {
+  page: number;
+  perPage: number;
+}): Promise<FetchVipCsPagedResult> {
   const supabaseAdmin = createSupabaseAdminClient();
   if (!supabaseAdmin) {
     return {
       rows: [],
+      totalCount: 0,
       sourceNote: "NEXT_PUBLIC_SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY가 없습니다.",
     };
   }
 
-  /** `.eq("status", …)` 없음 — `vip_orders` 전 행(최신순) */
-  const { data, error } = await supabaseAdmin
+  const page = Math.max(1, Math.floor(params.page));
+  const perPage = Math.min(100, Math.max(1, Math.floor(params.perPage)));
+  const from = (page - 1) * perPage;
+  const to = page * perPage - 1;
+
+  const { data, error, count } = await supabaseAdmin
     .from("vip_orders")
-    .select("*")
+    .select("*", { count: "exact" })
     .order("created_at", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false })
-    .limit(500);
+    .range(from, to);
 
   if (error) {
     console.error("[vip_orders] 관리자 목록 조회 실패:", {
@@ -80,14 +90,17 @@ export async function fetchVipCsOrders(): Promise<FetchVipCsResult> {
     });
     return {
       rows: [],
+      totalCount: 0,
       sourceNote: `vip_orders 조회 실패 (${error.code}): ${error.message}`,
     };
   }
 
+  const totalCount = typeof count === "number" ? count : 0;
   const mapped = (data ?? []).map((r) => mapDbRow(r as Record<string, unknown>));
 
   return {
     rows: mapped,
-    sourceNote: mapped.length === 0 ? "저장된 VIP 주문이 없습니다." : null,
+    totalCount,
+    sourceNote: totalCount === 0 ? "저장된 VIP 주문이 없습니다." : null,
   };
 }

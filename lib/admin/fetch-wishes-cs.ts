@@ -1,4 +1,4 @@
-import type { CsDashboardRow, CsDashboardTabPayload } from "@/lib/admin/cs-dashboard-types";
+import type { CsDashboardRow } from "@/lib/admin/cs-dashboard-types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 
 function truncate(s: string, max: number): string {
@@ -40,22 +40,37 @@ function mapWishRow(row: Record<string, unknown>): CsDashboardRow {
   };
 }
 
-/** `wishes` — 기적의 제단(소원) 결제/등록 내역 */
-export async function fetchAltarWishesForCs(): Promise<CsDashboardTabPayload> {
+export type FetchAltarWishesPagedResult = {
+  rows: CsDashboardRow[];
+  totalCount: number;
+  sourceNote: string | null;
+};
+
+/** `wishes` — 기적의 제단(소원), 서버사이드 페이지네이션 */
+export async function fetchAltarWishesPaginated(params: {
+  page: number;
+  perPage: number;
+}): Promise<FetchAltarWishesPagedResult> {
   const supabaseAdmin = createSupabaseAdminClient();
   if (!supabaseAdmin) {
     return {
       rows: [],
+      totalCount: 0,
       sourceNote: "NEXT_PUBLIC_SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY가 없습니다.",
     };
   }
 
-  const { data, error } = await supabaseAdmin
+  const page = Math.max(1, Math.floor(params.page));
+  const perPage = Math.min(100, Math.max(1, Math.floor(params.perPage)));
+  const from = (page - 1) * perPage;
+  const to = page * perPage - 1;
+
+  const { data, error, count } = await supabaseAdmin
     .from("wishes")
-    .select("*")
+    .select("*", { count: "exact" })
     .order("created_at", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false })
-    .limit(500);
+    .range(from, to);
 
   if (error) {
     console.error("[wishes] CS 대시보드 조회 실패:", {
@@ -66,13 +81,17 @@ export async function fetchAltarWishesForCs(): Promise<CsDashboardTabPayload> {
     });
     return {
       rows: [],
+      totalCount: 0,
       sourceNote: `wishes 조회 실패 (${error.code}): ${error.message}`,
     };
   }
 
+  const totalCount = typeof count === "number" ? count : 0;
   const rows = (data ?? []).map((r) => mapWishRow(r as Record<string, unknown>));
+
   return {
     rows,
-    sourceNote: rows.length === 0 ? "저장된 제단 소원이 없습니다." : null,
+    totalCount,
+    sourceNote: totalCount === 0 ? "저장된 제단 소원이 없습니다." : null,
   };
 }

@@ -17,13 +17,3 @@ export type CsDashboardRow = {
   notes: string | null;
 };
 
-export type CsDashboardTabPayload = {
-  rows: CsDashboardRow[];
-  sourceNote: string | null;
-};
-
-export type CsDashboardBootstrapPayload = {
-  vip: CsDashboardTabPayload;
-  altar: CsDashboardTabPayload;
-  saju: CsDashboardTabPayload;
-};
