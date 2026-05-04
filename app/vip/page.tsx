@@ -9,7 +9,7 @@ import { BrainCircuit, Calendar, Clock, Gem, Sparkles } from "lucide-react";
 import { DynamicLoader } from "@/components/ui/DynamicLoader";
 import { VipPdfTemplate } from "@/components/vip/VipPdfTemplate";
 import type { VipPdfUserInfo } from "@/components/vip/VipPdfTemplate";
-import { usePdfDownload } from "@/hooks/usePdfDownload";
+import { usePdfDownload, VIP_PDF_FILENAME } from "@/hooks/usePdfDownload";
 import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
 import { clearPendingPaymentData, readPendingPaymentData } from "@/lib/payments/pending-payment-data";
 import { clearPendingPaymentState } from "@/lib/payments/pending-payment-state";
@@ -140,6 +140,17 @@ export default function VipLandingPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPaymentPending, setIsPaymentPending] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  /** PDF 또는 부적 수동 저장 시도 완료 — '새 리포트 받기' CS 방어 */
+  const [isDownloaded, setIsDownloaded] = useState(false);
+  type VipFileFallback = {
+    blobUrl: string;
+    filename: string;
+    revoke: () => void;
+    /** CORS 실패 시 원본 URL — 새 창으로 열기 안내 */
+    openInNewTabOnly?: boolean;
+  };
+  const [pdfFallback, setPdfFallback] = useState<VipFileFallback | null>(null);
+  const [amuletFallback, setAmuletFallback] = useState<VipFileFallback | null>(null);
 
   const showFullScreenLoader = (isFetchingReport || isPdfGenerating) && !reportMarkdown.trim();
   const isBusy = isFetchingReport || isPdfGenerating;
@@ -149,6 +160,15 @@ export default function VipLandingPage() {
     if (!options?.imp_uid) {
       setIsSuccess(false);
       setAmuletUrl(null);
+      setPdfFallback((p) => {
+        p?.revoke();
+        return null;
+      });
+      setAmuletFallback((p) => {
+        p?.revoke();
+        return null;
+      });
+      setIsDownloaded(false);
     }
 
     const draft = options?.imp_uid ? readVipCheckoutDraft() : null;
@@ -260,11 +280,27 @@ export default function VipLandingPage() {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       });
 
+      setIsDownloaded(false);
       setIsSuccess(true);
 
-      // 3. PDF 렌더링·다운로드
+      // 3. PDF 렌더링·자동 저장 (모바일 폴백 링크는 pdfFallback으로 노출)
       try {
-        await downloadPdf(pdfRootRef.current);
+        setPdfFallback((prev) => {
+          prev?.revoke();
+          return null;
+        });
+        const pdfRes = await downloadPdf(pdfRootRef.current);
+        if (pdfRes?.ok) {
+          setPdfFallback({
+            blobUrl: pdfRes.blobUrl,
+            filename: pdfRes.filename,
+            revoke: pdfRes.revoke,
+          });
+        } else if (pdfRes && !pdfRes.ok) {
+          const full = `PDF 저장 실패 — ${pdfRes.error}`;
+          setErrorMessage(`리포트 내용은 완성되었으나 PDF 변환 중 에러가 발생했습니다: ${pdfRes.error}`);
+          reportGenAlert(full);
+        }
       } catch (pdfError: unknown) {
         console.error("PDF 생성 에러:", pdfError);
         const msg = pdfError instanceof Error ? pdfError.message : "알 수 없는 오류";
@@ -440,8 +476,178 @@ export default function VipLandingPage() {
     setShowPaymentModal(true);
   }, [birthDate, birthTime, gender, mbti, name]);
 
-  const amuletDownloadName =
-    amuletUrl?.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "vip-amulet.jpg";
+  const pdfFallbackRef = useRef(pdfFallback);
+  const amuletFallbackRef = useRef(amuletFallback);
+  pdfFallbackRef.current = pdfFallback;
+  amuletFallbackRef.current = amuletFallback;
+
+  useEffect(() => {
+    return () => {
+      pdfFallbackRef.current?.revoke();
+      amuletFallbackRef.current?.revoke();
+    };
+  }, []);
+
+  const handleManualPdfDownload = useCallback(async () => {
+    const res = await downloadPdf(pdfRootRef.current);
+    if (res?.ok) {
+      setPdfFallback((prev) => {
+        prev?.revoke();
+        return { blobUrl: res.blobUrl, filename: res.filename, revoke: res.revoke };
+      });
+      setIsDownloaded(true);
+    } else if (res && !res.ok) {
+      reportGenAlert(`PDF 생성 실패 — ${res.error}`);
+    }
+  }, [downloadPdf]);
+
+  const handleSaveAmuletImage = useCallback(async () => {
+    if (!amuletUrl) return;
+    const filename =
+      amuletUrl.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "vip-amulet.jpg";
+    try {
+      const res = await fetch(amuletUrl, { mode: "cors" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      try {
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = filename;
+        a.rel = "noopener noreferrer";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        requestAnimationFrame(() => {
+          try {
+            document.body.removeChild(a);
+          } catch {
+            /* ignore */
+          }
+        });
+      } catch {
+        /* 인앱에서 막힐 수 있음 — 폴백 링크로 유도 */
+      }
+      setAmuletFallback((prev) => {
+        prev?.revoke();
+        return { blobUrl, filename, revoke: () => URL.revokeObjectURL(blobUrl) };
+      });
+      setIsDownloaded(true);
+    } catch {
+      setAmuletFallback((prev) => {
+        prev?.revoke();
+        return {
+          blobUrl: amuletUrl,
+          filename,
+          revoke: () => {},
+          openInNewTabOnly: true,
+        };
+      });
+      window.open(amuletUrl, "_blank", "noopener,noreferrer");
+      setIsDownloaded(true);
+    }
+  }, [amuletUrl]);
+
+  const handleNewReportClick = useCallback(() => {
+    if (!isDownloaded) {
+      if (
+        !confirm(
+          "아직 리포트를 저장하지 않으셨습니다!\n새 리포트를 받으면 현재 결과가 영구히 삭제됩니다.\n정말 새로 진행하시겠습니까?",
+        )
+      ) {
+        return;
+      }
+    }
+    setPdfFallback((p) => {
+      p?.revoke();
+      return null;
+    });
+    setAmuletFallback((p) => {
+      p?.revoke();
+      return null;
+    });
+    setIsSuccess(false);
+    setIsDownloaded(false);
+    setAmuletUrl(null);
+    setReportMarkdown("");
+    setPdfUserInfo({ name: "", sajuSummary: "" });
+    setErrorMessage(null);
+    clearVipCheckoutDraft();
+  }, [isDownloaded]);
+
+  const vipDownloadButtonRow = (
+    <div className="mt-8 flex w-full max-w-md flex-col items-stretch gap-3 sm:mx-auto sm:max-w-lg sm:flex-row sm:justify-center sm:items-center">
+      <button
+        type="button"
+        disabled={isPdfGenerating}
+        onClick={() => void handleManualPdfDownload()}
+        className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-gradient-to-r from-amber-700 via-amber-500 to-yellow-500 px-5 py-3.5 text-sm font-bold text-stone-950 shadow-[0_0_24px_-6px_rgba(245,158,11,0.5)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[200px] sm:px-6"
+      >
+        [📥 PDF 다운로드]
+      </button>
+      <button
+        type="button"
+        disabled={!amuletUrl}
+        onClick={() => void handleSaveAmuletImage()}
+        className="inline-flex min-h-[48px] items-center justify-center rounded-2xl border-2 border-amber-400/60 bg-amber-500/15 px-5 py-3.5 text-sm font-bold text-amber-100 transition hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[200px] sm:px-6"
+      >
+        [🖼️ 이미지 저장]
+      </button>
+    </div>
+  );
+
+  const vipFallbackHints = (
+    <>
+      {pdfFallback ? (
+        <div className="mx-auto mt-5 max-w-lg rounded-xl border border-amber-500/35 bg-amber-950/50 px-4 py-3 text-left text-sm text-amber-100/95">
+          <p className="font-medium text-amber-200">PDF가 자동으로 저장되지 않았나요?</p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
+            아래 링크를 <strong className="text-amber-300">길게 눌러</strong> 다른 이름으로 저장하거나, 공유 메뉴에서 파일로 저장해 주세요. (카카오·네이버 인앱 브라우저)
+          </p>
+          <a
+            href={pdfFallback.blobUrl}
+            download={pdfFallback.filename}
+            className="mt-3 inline-flex break-all rounded-lg bg-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-50 underline decoration-amber-400/60 underline-offset-2 hover:bg-amber-500/30"
+          >
+            {VIP_PDF_FILENAME} — 탭하여 저장
+          </a>
+        </div>
+      ) : null}
+      {amuletFallback ? (
+        <div className="mx-auto mt-4 max-w-lg rounded-xl border border-amber-500/35 bg-amber-950/50 px-4 py-3 text-left text-sm text-amber-100/95">
+          <p className="font-medium text-amber-200">부적 이미지 저장</p>
+          {amuletFallback.openInNewTabOnly ? (
+            <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
+              원본 이미지 주소로 새 창을 열었습니다. 이미지를 <strong className="text-amber-300">길게 눌러</strong> 사진에 저장해 주세요.
+            </p>
+          ) : (
+            <>
+              <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
+                아래 링크를 길게 눌러 앨범에 저장해 주세요.
+              </p>
+              <a
+                href={amuletFallback.blobUrl}
+                download={amuletFallback.filename}
+                className="mt-3 inline-flex break-all rounded-lg bg-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-50 underline decoration-amber-400/60 underline-offset-2 hover:bg-amber-500/30"
+              >
+                {amuletFallback.filename} — 탭하여 저장
+              </a>
+            </>
+          )}
+          {amuletFallback.openInNewTabOnly ? (
+            <a
+              href={amuletFallback.blobUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex rounded-lg bg-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-50 underline"
+            >
+              이미지 다시 열기
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+    </>
+  );
 
   return (
     <div
@@ -498,11 +704,13 @@ export default function VipLandingPage() {
               🎉 VIP 대운 리포트가 완성되었습니다! 아래 생성된 PDF를 확인해 주세요.
             </p>
             <p className="mx-auto mt-6 max-w-lg text-sm leading-relaxed text-slate-300">
-              PDF 파일이 브라우저 기본 <strong className="text-amber-200">다운로드 폴더</strong>에 저장되었습니다.
-              파일명{' '}
-              <span className="font-mono text-amber-300/90">명운_VIP_대운리포트.pdf</span>
-              를 확인해 주세요.
+              PDF는 생성 직후 <strong className="text-amber-200">자동으로 저장</strong>을 시도합니다. 모바일·인앱에서는 막힐 수 있으니{" "}
+              <strong className="text-amber-200">[📥 PDF 다운로드]</strong>를 꼭 눌러 저장해 주세요. 파일명{" "}
+              <span className="font-mono text-amber-300/90">{VIP_PDF_FILENAME}</span>
             </p>
+
+            {vipDownloadButtonRow}
+            {vipFallbackHints}
 
             {amuletUrl ? (
               <div className="mt-12">
@@ -513,15 +721,13 @@ export default function VipLandingPage() {
                   alt="맞춤 부적"
                   className="mx-auto mt-6 max-h-80 w-auto max-w-full rounded-3xl object-contain shadow-[0_0_40px_rgba(245,158,11,0.45),0_25px_50px_-12px_rgba(0,0,0,0.6)] ring-2 ring-amber-500/35"
                 />
-                <a
-                  href={amuletUrl}
-                  download={amuletDownloadName}
-                  className="mt-8 inline-flex rounded-2xl bg-gradient-to-r from-amber-700 via-amber-500 to-yellow-500 px-6 py-4 font-serif text-sm font-bold leading-snug text-stone-950 shadow-[0_0_28px_-6px_rgba(245,158,11,0.55)] transition hover:brightness-105 sm:px-8 sm:text-base"
-                >
-                  [황금색 1:1 맞춤 부적 저장하기 (스마트폰 배경화면용)]
-                </a>
+                <p className="mx-auto mt-4 max-w-md text-xs leading-relaxed text-amber-200/60">
+                  부적 저장은 상단·하단의 <strong className="text-amber-200/90">[🖼️ 이미지 저장]</strong> 버튼을 이용해 주세요. (이미지를 길게 눌러 앨범에 저장)
+                </p>
               </div>
             ) : null}
+
+            {vipDownloadButtonRow}
 
             <div className="mt-12 flex flex-wrap items-center justify-center gap-4 border-t border-white/10 pt-10">
               <Link
@@ -532,14 +738,7 @@ export default function VipLandingPage() {
               </Link>
               <button
                 type="button"
-                onClick={() => {
-                  setIsSuccess(false);
-                  setAmuletUrl(null);
-                  setReportMarkdown("");
-                  setPdfUserInfo({ name: "", sajuSummary: "" });
-                  setErrorMessage(null);
-                  clearVipCheckoutDraft();
-                }}
+                onClick={handleNewReportClick}
                 className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-2.5 text-sm font-medium text-amber-100 transition hover:bg-amber-500/20"
               >
                 새 리포트 받기

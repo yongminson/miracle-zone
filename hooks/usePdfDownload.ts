@@ -15,19 +15,28 @@ export type UsePdfDownloadOptions = {
   scale?: number;
 };
 
+/** 모바일 인앱 등에서 `save()`가 막혀도 Blob 링크로 복구 가능 */
+export type VipPdfDownloadResult =
+  | { ok: true; blobUrl: string; filename: string; revoke: () => void }
+  | { ok: false; error: string };
+
 /**
  * 루트 요소의 자식 중 `[data-pdf-page]` 각각을 한 PDF 페이지로 캡처합니다.
- * 페이지 높이가 A4 비율로 고정되어 있어 본문은 패킹 단계에서 페이지 단위로 나뉩니다.
+ * Blob URL을 반환해 화면에 수동 다운로드 링크(폴백)를 둘 수 있습니다.
  */
 export function usePdfDownload(options: UsePdfDownloadOptions = {}) {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const downloadPdf = useCallback(
-    async (root: HTMLElement | null) => {
-      if (!root) return;
+    async (root: HTMLElement | null): Promise<VipPdfDownloadResult | null> => {
+      if (!root) {
+        return { ok: false, error: "PDF 루트 요소가 없습니다." };
+      }
 
       const pages = root.querySelectorAll<HTMLElement>("[data-pdf-page]");
-      if (pages.length === 0) return;
+      if (pages.length === 0) {
+        return { ok: false, error: "PDF 페이지 노드([data-pdf-page])를 찾지 못했습니다." };
+      }
 
       const scale = options.scale ?? 2;
       const pdf = new jsPDF({
@@ -56,7 +65,44 @@ export function usePdfDownload(options: UsePdfDownloadOptions = {}) {
           pdf.addImage(imgData, "PNG", 0, 0, PDF_PAGE_W_MM, PDF_PAGE_H_MM, undefined, "FAST");
         }
 
-        pdf.save(VIP_PDF_FILENAME);
+        const blob = pdf.output("blob");
+        const blobUrl = URL.createObjectURL(blob);
+        const filename = VIP_PDF_FILENAME;
+
+        try {
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = filename;
+          a.rel = "noopener noreferrer";
+          a.style.display = "none";
+          document.body.appendChild(a);
+          a.click();
+          requestAnimationFrame(() => {
+            try {
+              document.body.removeChild(a);
+            } catch {
+              /* ignore */
+            }
+          });
+        } catch {
+          /* 인앱 브라우저 등에서 click 실패해도 blobUrl 폴백으로 계속 진행 */
+        }
+
+        return {
+          ok: true,
+          blobUrl,
+          filename,
+          revoke: () => {
+            try {
+              URL.revokeObjectURL(blobUrl);
+            } catch {
+              /* ignore */
+            }
+          },
+        };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { ok: false, error: msg };
       } finally {
         setIsGenerating(false);
       }
