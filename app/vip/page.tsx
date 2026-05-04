@@ -152,6 +152,44 @@ export default function VipLandingPage() {
   const [pdfFallback, setPdfFallback] = useState<VipFileFallback | null>(null);
   const [amuletFallback, setAmuletFallback] = useState<VipFileFallback | null>(null);
 
+  const isDownloadedRef = useRef(isDownloaded);
+  isDownloadedRef.current = isDownloaded;
+
+  /** 리포트 완료 화면에서 새로고침·뒤로가기 이탈 방지 (CS 방어) */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const shouldGuard = isSuccess && reportMarkdown.trim().length > 0;
+    if (!shouldGuard) return;
+
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isDownloadedRef.current) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    const onPopState = () => {
+      if (isDownloadedRef.current) {
+        window.removeEventListener("popstate", onPopState);
+        return;
+      }
+      window.history.pushState(null, "", window.location.href);
+      const leave = window.confirm("아직 리포트를 저장하지 않으셨습니다! 정말 나가시겠습니까?");
+      if (!leave) return;
+      window.removeEventListener("popstate", onPopState);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.history.back();
+    };
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("popstate", onPopState);
+
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [isSuccess, reportMarkdown]);
+
   const showFullScreenLoader = (isFetchingReport || isPdfGenerating) && !reportMarkdown.trim();
   const isBusy = isFetchingReport || isPdfGenerating;
 
@@ -488,7 +526,8 @@ export default function VipLandingPage() {
     };
   }, []);
 
-  const handleManualPdfDownload = useCallback(async () => {
+  const handleDownloadPDF = useCallback(async () => {
+    if (isPdfGenerating) return;
     const res = await downloadPdf(pdfRootRef.current);
     if (res?.ok) {
       setPdfFallback((prev) => {
@@ -499,7 +538,7 @@ export default function VipLandingPage() {
     } else if (res && !res.ok) {
       reportGenAlert(`PDF 생성 실패 — ${res.error}`);
     }
-  }, [downloadPdf]);
+  }, [downloadPdf, isPdfGenerating]);
 
   const handleSaveAmuletImage = useCallback(async () => {
     if (!amuletUrl) return;
@@ -575,19 +614,23 @@ export default function VipLandingPage() {
     clearVipCheckoutDraft();
   }, [isDownloaded]);
 
-  const vipDownloadButtonRow = (
-    <div className="mt-8 flex w-full max-w-md flex-col items-stretch gap-3 sm:mx-auto sm:max-w-lg sm:flex-row sm:justify-center sm:items-center">
+  /** 동일 React 엘리먼트 객체를 두 번 넣으면 한 DOM에만 마운트되어 클릭이 한 줄에만 먹히므로, 호출마다 새 트리를 만듦 */
+  const renderVipDownloadButtonRow = (placement: "top" | "middle" | "bottom") => (
+    <div
+      key={`vip-download-row-${placement}`}
+      className="mt-8 flex w-full max-w-md flex-col items-stretch gap-3 sm:mx-auto sm:max-w-lg sm:flex-row sm:justify-center sm:items-center"
+    >
       <button
         type="button"
         disabled={isPdfGenerating}
-        onClick={() => void handleManualPdfDownload()}
+        onClick={() => void handleDownloadPDF()}
         className="inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-gradient-to-r from-amber-700 via-amber-500 to-yellow-500 px-5 py-3.5 text-sm font-bold text-stone-950 shadow-[0_0_24px_-6px_rgba(245,158,11,0.5)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-[200px] sm:px-6"
       >
-        [📥 PDF 다운로드]
+        {isPdfGenerating ? "PDF 생성 중…" : "[📥 PDF 다운로드]"}
       </button>
       <button
         type="button"
-        disabled={!amuletUrl}
+        disabled={!amuletUrl || isPdfGenerating}
         onClick={() => void handleSaveAmuletImage()}
         className="inline-flex min-h-[48px] items-center justify-center rounded-2xl border-2 border-amber-400/60 bg-amber-500/15 px-5 py-3.5 text-sm font-bold text-amber-100 transition hover:bg-amber-500/25 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[200px] sm:px-6"
       >
@@ -604,13 +647,23 @@ export default function VipLandingPage() {
           <p className="mt-1 text-xs leading-relaxed text-amber-100/80">
             아래 링크를 <strong className="text-amber-300">길게 눌러</strong> 다른 이름으로 저장하거나, 공유 메뉴에서 파일로 저장해 주세요. (카카오·네이버 인앱 브라우저)
           </p>
-          <a
-            href={pdfFallback.blobUrl}
-            download={pdfFallback.filename}
-            className="mt-3 inline-flex break-all rounded-lg bg-amber-500/20 px-3 py-2 text-xs font-semibold text-amber-50 underline decoration-amber-400/60 underline-offset-2 hover:bg-amber-500/30"
-          >
-            {VIP_PDF_FILENAME} — 탭하여 저장
-          </a>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <button
+              type="button"
+              disabled={isPdfGenerating}
+              onClick={() => void handleDownloadPDF()}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-amber-500/25 px-4 py-2 text-xs font-bold text-amber-50 transition hover:bg-amber-500/35 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isPdfGenerating ? "PDF 생성 중…" : "[📥 PDF 다운로드]"}
+            </button>
+            <a
+              href={pdfFallback.blobUrl}
+              download={pdfFallback.filename}
+              className="inline-flex min-h-[44px] items-center justify-center break-all rounded-xl bg-amber-500/20 px-4 py-2 text-xs font-semibold text-amber-50 underline decoration-amber-400/60 underline-offset-2 hover:bg-amber-500/30"
+            >
+              {VIP_PDF_FILENAME} — 탭하여 저장
+            </a>
+          </div>
         </div>
       ) : null}
       {amuletFallback ? (
@@ -709,8 +762,9 @@ export default function VipLandingPage() {
               <span className="font-mono text-amber-300/90">{VIP_PDF_FILENAME}</span>
             </p>
 
-            {vipDownloadButtonRow}
+            {renderVipDownloadButtonRow("top")}
             {vipFallbackHints}
+            {renderVipDownloadButtonRow("middle")}
 
             {amuletUrl ? (
               <div className="mt-12">
@@ -727,7 +781,7 @@ export default function VipLandingPage() {
               </div>
             ) : null}
 
-            {vipDownloadButtonRow}
+            {renderVipDownloadButtonRow("bottom")}
 
             <div className="mt-12 flex flex-wrap items-center justify-center gap-4 border-t border-white/10 pt-10">
               <Link
