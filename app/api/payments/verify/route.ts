@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import {
   parsePortOnePaymentPayload,
   portoneFetchPaymentJson,
@@ -10,6 +9,7 @@ import {
   upsertVipOrderRow,
   VIP_ORDER_AMOUNT_WON,
 } from "@/lib/payments/vip-order-supabase";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 
 type IamportTokenJson = {
   code?: number;
@@ -132,9 +132,7 @@ async function verifyPaidAmountUniversal(params: {
 
 export async function POST(req: Request) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseAdmin = createSupabaseAdminClient();
 
     const body = await req.json();
     const {
@@ -187,7 +185,20 @@ export async function POST(req: Request) {
         typeof vipPhoneRaw === "string" && vipPhoneRaw.trim() !== "" ? vipPhoneRaw.trim().slice(0, 32) : null;
 
       const reportUrl = resolveVipReportPublicUrlFromRequest(req);
-      const dbResult = await upsertVipOrderRow(supabase, {
+
+      if (!supabaseAdmin) {
+        console.error(
+          "[vip_orders] 결제 검증은 성공했으나 Supabase Admin 클라이언트를 만들 수 없습니다. " +
+            "SUPABASE_SERVICE_ROLE_KEY·NEXT_PUBLIC_SUPABASE_URL을 Vercel에 설정했는지 확인하세요.",
+        );
+        return NextResponse.json({
+          success: true,
+          message: "결제 확인 완료(vip_orders DB 기록 생략: Service Role 미설정)",
+          vipOrderDbSkipped: true,
+        });
+      }
+
+      const dbResult = await upsertVipOrderRow(supabaseAdmin, {
         user_name: vipCustomerName,
         phone_number: vipPhone,
         imp_uid: lookupId,
@@ -196,14 +207,16 @@ export async function POST(req: Request) {
         status: "paid",
       });
       if (!dbResult.ok) {
-        console.error("[vip_orders] 결제 검증 직후 DB 기록 실패:", dbResult.message, dbResult.code);
-        return NextResponse.json(
-          {
-            success: false,
-            message: `결제는 확인되었으나 VIP 주문 DB 기록에 실패했습니다: ${dbResult.message}`,
-          },
-          { status: 500 },
-        );
+        console.error("[vip_orders] DB 저장 실패(포트원 결제는 유효함):", {
+          message: dbResult.message,
+          code: dbResult.code,
+          imp_uid: lookupId,
+        });
+        return NextResponse.json({
+          success: true,
+          message: "결제 확인 완료(vip_orders 기록 실패 — Vercel 로그 참고)",
+          vipOrderDbError: dbResult.message,
+        });
       }
 
       return NextResponse.json({ success: true, message: "결제 확인 및 처리 완료" });
@@ -217,21 +230,51 @@ export async function POST(req: Request) {
       const v = await verifyPaidAmountUniversal({ lookupId, expectedAmountWon: expected });
       if (!v.ok) return NextResponse.json({ success: false, message: v.message }, { status: 400 });
 
-      const { error } = await supabase.from("wishes").insert({
+      if (!supabaseAdmin) {
+        console.error("[wishes] altar insert 불가: Supabase Admin(SUPABASE_SERVICE_ROLE_KEY) 없음");
+        return NextResponse.json(
+          { success: false, message: "서버 DB 설정 오류(SUPABASE_SERVICE_ROLE_KEY 필요)" },
+          { status: 503 },
+        );
+      }
+      const { error } = await supabaseAdmin.from("wishes").insert({
         content: wishText,
         duration: period,
         display_mode: nameDisplay,
         display_name: nameInput || "",
       });
-      if (error) throw error;
+      if (error) {
+        console.error("[wishes] insert 실패:", {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+        throw error;
+      }
     } else if (currentPaymentType === "lotto") {
       const expected = 4500;
       const v = await verifyPaidAmountUniversal({ lookupId, expectedAmountWon: expected });
       if (!v.ok) return NextResponse.json({ success: false, message: v.message }, { status: 400 });
 
       if (userId) {
-        const { error } = await supabase.rpc("add_premium_lotto", { user_id: userId, add_count: 10 });
-        if (error) throw error;
+        if (!supabaseAdmin) {
+          console.error("[lotto] add_premium_lotto 불가: Supabase Admin(SUPABASE_SERVICE_ROLE_KEY) 없음");
+          return NextResponse.json(
+            { success: false, message: "서버 DB 설정 오류(SUPABASE_SERVICE_ROLE_KEY 필요)" },
+            { status: 503 },
+          );
+        }
+        const { error } = await supabaseAdmin.rpc("add_premium_lotto", { user_id: userId, add_count: 10 });
+        if (error) {
+          console.error("[lotto] add_premium_lotto 실패:", {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint,
+          });
+          throw error;
+        }
       }
     } else if (currentPaymentType === "saju") {
       const expectedFromBody = typeof rawAmount === "number" ? rawAmount : Number(rawAmount);

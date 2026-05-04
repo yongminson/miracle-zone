@@ -1,4 +1,14 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
+
+function logDbError(context: string, err: PostgrestError | null | undefined): void {
+  if (!err) return;
+  console.error(`[vip_orders] ${context}`, {
+    message: err.message,
+    code: err.code,
+    details: err.details,
+    hint: err.hint,
+  });
+}
 
 /** VIP 단품 결제 금액(원) — 검증·DB 기록 공통 */
 export const VIP_ORDER_AMOUNT_WON = 29_900;
@@ -37,9 +47,15 @@ export async function upsertVipOrderRow(
   const { error: insertErr } = await supabase.from("vip_orders").insert(payload);
   if (insertErr?.code === "23505") {
     const { error: updateErr } = await supabase.from("vip_orders").update(payload).eq("imp_uid", imp);
-    if (updateErr) return { ok: false, message: updateErr.message, code: updateErr.code };
+    if (updateErr) {
+      logDbError("upsert(update) 실패", updateErr);
+      return { ok: false, message: updateErr.message, code: updateErr.code };
+    }
     return { ok: true };
   }
-  if (insertErr) return { ok: false, message: insertErr.message, code: insertErr.code };
+  if (insertErr) {
+    logDbError("insert 실패", insertErr);
+    return { ok: false, message: insertErr.message, code: insertErr.code };
+  }
   return { ok: true };
 }

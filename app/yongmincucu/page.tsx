@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * VIP CS 데이터는 `/api/yongmincucu/data` → `fetchVipCsOrders`에서 로드합니다.
+ * `vip_orders`에 대해 `select('*')`만 사용하며 `status === 'paid'` 등 WHERE 필터는 두지 않습니다.
+ */
+
 import { useState } from "react";
 import { CsVipDashboardClient } from "@/components/admin/CsVipDashboardClient";
 import type { VipCsOrderRow } from "@/lib/admin/vip-cs-types";

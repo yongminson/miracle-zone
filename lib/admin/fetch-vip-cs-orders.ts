@@ -1,10 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
 import type { VipCsOrderRow } from "@/lib/admin/vip-cs-types";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 
-function mapDbRow(row: Record<string, unknown>): VipCsOrderRow | null {
-  if (typeof row.imp_uid !== "string" || !row.imp_uid.trim()) return null;
-
-  const id = row.id != null ? String(row.id) : row.imp_uid;
+/** `status`·`imp_uid` 유무로 행을 버리지 않음 — 디버깅용으로 DB 행을 최대한 표시 */
+function mapDbRow(row: Record<string, unknown>): VipCsOrderRow {
+  const impRaw = typeof row.imp_uid === "string" ? row.imp_uid.trim() : "";
+  const id = row.id != null ? String(row.id) : impRaw || "unknown";
+  const imp_uid = impRaw || `(imp_uid 없음·id:${id})`;
   const user_name =
     typeof row.user_name === "string" && row.user_name.trim() !== ""
       ? row.user_name.trim()
@@ -42,7 +43,7 @@ function mapDbRow(row: Record<string, unknown>): VipCsOrderRow | null {
     phone_number,
     created_at,
     amount,
-    imp_uid: row.imp_uid.trim(),
+    imp_uid,
     report_url,
     status,
   };
@@ -54,19 +55,16 @@ export type FetchVipCsResult = {
 };
 
 export async function fetchVipCsOrders(): Promise<FetchVipCsResult> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-
-  if (!url || !serviceKey) {
+  const supabaseAdmin = createSupabaseAdminClient();
+  if (!supabaseAdmin) {
     return {
       rows: [],
       sourceNote: "NEXT_PUBLIC_SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY가 없습니다.",
     };
   }
 
-  const supabase = createClient(url, serviceKey);
-  /** 상태 필터 없음 — `vip_orders` 전체(최신순). paid / completed 등 모두 표시 */
-  const { data, error } = await supabase
+  /** `.eq("status", …)` 없음 — `vip_orders` 전 행(최신순) */
+  const { data, error } = await supabaseAdmin
     .from("vip_orders")
     .select("*")
     .order("created_at", { ascending: false, nullsFirst: false })
@@ -74,15 +72,19 @@ export async function fetchVipCsOrders(): Promise<FetchVipCsResult> {
     .limit(500);
 
   if (error) {
+    console.error("[vip_orders] 관리자 목록 조회 실패:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
     return {
       rows: [],
       sourceNote: `vip_orders 조회 실패 (${error.code}): ${error.message}`,
     };
   }
 
-  const mapped = (data ?? [])
-    .map((r) => mapDbRow(r as Record<string, unknown>))
-    .filter((r): r is VipCsOrderRow => r != null);
+  const mapped = (data ?? []).map((r) => mapDbRow(r as Record<string, unknown>));
 
   return {
     rows: mapped,

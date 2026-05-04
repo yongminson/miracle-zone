@@ -2,7 +2,6 @@
 export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 // ✨ 안전 필터 해제를 위해 HarmCategory, HarmBlockThreshold 추가
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import type { VipCalendarType, VipGender } from "@/lib/saju/vip-types";
@@ -12,6 +11,7 @@ import {
   upsertVipOrderRow,
   VIP_ORDER_AMOUNT_WON,
 } from "@/lib/payments/vip-order-supabase";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 
 // 구글 제미나이 초기화
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -39,10 +39,11 @@ async function persistVipOrderRow(
   const imp = typeof params.imp_uid === "string" ? params.imp_uid.trim() : "";
   if (!imp) return;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!url || !key) {
-    console.warn("[vip_orders] NEXT_PUBLIC_SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY 없음 — 저장 생략");
+  const supabaseAdmin = createSupabaseAdminClient();
+  if (!supabaseAdmin) {
+    console.error(
+      "[vip_orders] 리포트 완료 단계: Supabase Admin 클라이언트 없음(SUPABASE_SERVICE_ROLE_KEY) — vip_orders upsert 생략",
+    );
     return;
   }
 
@@ -52,7 +53,6 @@ async function persistVipOrderRow(
       ? params.phone_number.trim()
       : null;
 
-  const supabase = createClient(url, key);
   const row = {
     user_name: params.user_name,
     phone_number: phone,
@@ -62,8 +62,14 @@ async function persistVipOrderRow(
     status: "completed",
   };
 
-  const res = await upsertVipOrderRow(supabase, row);
-  if (!res.ok) console.error("[vip_orders] 리포트 완료 단계 upsert 실패:", res.message, res.code);
+  const res = await upsertVipOrderRow(supabaseAdmin, row);
+  if (!res.ok) {
+    console.error("[vip_orders] 리포트 완료 단계 upsert 실패:", {
+      message: res.message,
+      code: res.code,
+      imp_uid: imp,
+    });
+  }
 }
 
 function parseBirthParts(birthDate: string): { year: number; month: number; day: number } | null {
