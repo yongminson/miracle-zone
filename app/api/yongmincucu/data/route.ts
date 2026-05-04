@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchVipCsOrders } from "@/lib/admin/fetch-vip-cs-orders";
+import { fetchCsDashboardBootstrap } from "@/lib/admin/fetch-cs-dashboard-bootstrap";
 
 /** 클라이언트 번들에 넣지 않고 서버에서만 검증. 운영 시 `YONGMINCUCU_PASSWORD`로 교체 가능 */
 function expectedPassword(): string {
@@ -14,8 +14,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false }, { status: 401 });
     }
 
-    const { rows, sourceNote } = await fetchVipCsOrders();
-    return NextResponse.json({ ok: true, rows, sourceNote });
+    const payload = await fetchCsDashboardBootstrap();
+    return NextResponse.json({ ok: true, ...payload });
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 });
   }

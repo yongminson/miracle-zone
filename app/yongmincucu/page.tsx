@@ -1,21 +1,20 @@
 "use client";
 
 /**
- * VIP CS 데이터는 `/api/yongmincucu/data` → `fetchVipCsOrders`에서 로드합니다.
- * `vip_orders`에 대해 `select('*')`만 사용하며 `status === 'paid'` 등 WHERE 필터는 두지 않습니다.
+ * 통합 CS 대시보드 — `/api/yongmincucu/data`에서 VIP(`vip_orders`)·제단(`wishes`)·사주 탭 payload를 한 번에 받습니다.
+ * 각 테이블은 `select('*')` 기반이며 status 등으로 서버에서 걸러내지 않습니다(사주 탭은 별도 테이블 미구현 시 안내 문구만).
  */
 
 import { useState } from "react";
-import { CsVipDashboardClient } from "@/components/admin/CsVipDashboardClient";
-import type { VipCsOrderRow } from "@/lib/admin/vip-cs-types";
+import { CsUnifiedDashboardClient } from "@/components/admin/CsUnifiedDashboardClient";
+import type { CsDashboardBootstrapPayload } from "@/lib/admin/cs-dashboard-types";
 
 export default function YongmincucuPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [rows, setRows] = useState<VipCsOrderRow[]>([]);
-  const [sourceNote, setSourceNote] = useState<string | null>(null);
+  const [bootstrap, setBootstrap] = useState<CsDashboardBootstrapPayload | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,19 +32,18 @@ export default function YongmincucuPage() {
         return;
       }
 
-      const data = (await res.json()) as {
-        ok?: boolean;
-        rows?: VipCsOrderRow[];
-        sourceNote?: string | null;
-      };
+      const data = (await res.json()) as { ok?: boolean } & Partial<CsDashboardBootstrapPayload>;
 
-      if (!res.ok || !data.ok) {
+      if (!res.ok || !data.ok || !data.vip || !data.altar || !data.saju) {
         setErrorMessage("데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
         return;
       }
 
-      setRows(data.rows ?? []);
-      setSourceNote(data.sourceNote ?? null);
+      setBootstrap({
+        vip: data.vip,
+        altar: data.altar,
+        saju: data.saju,
+      });
       setIsAuthenticated(true);
       setPassword("");
     } catch {
@@ -55,7 +53,7 @@ export default function YongmincucuPage() {
     }
   };
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !bootstrap) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
         <form
@@ -93,7 +91,7 @@ export default function YongmincucuPage() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <CsVipDashboardClient initialRows={rows} sourceNote={sourceNote} />
+      <CsUnifiedDashboardClient vip={bootstrap.vip} altar={bootstrap.altar} saju={bootstrap.saju} />
     </div>
   );
 }
