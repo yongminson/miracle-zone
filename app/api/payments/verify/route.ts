@@ -89,6 +89,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "필수 데이터(imp_uid)가 누락되었습니다." }, { status: 400 });
     }
 
+    const impTrim = String(imp_uid).trim();
+    if (!impTrim.startsWith("imp_") && !impTrim.startsWith("imps_")) {
+      return NextResponse.json(
+        { success: false, message: "imp_uid는 imp_ 또는 imps_ 로 시작해야 합니다." },
+        { status: 400 },
+      );
+    }
+
     if (currentPaymentType === "vip") {
       if (!merchant_uid || typeof merchant_uid !== "string") {
         return NextResponse.json({ success: false, message: "merchant_uid가 누락되었습니다." }, { status: 400 });

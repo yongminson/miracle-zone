@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { PaymentMethodCheckoutModal } from "@/components/payments/PaymentMethodCheckoutModal";
 import { BrainCircuit, Calendar, Clock, Gem, Sparkles } from "lucide-react";
@@ -9,6 +10,13 @@ import { DynamicLoader } from "@/components/ui/DynamicLoader";
 import { VipPdfTemplate } from "@/components/vip/VipPdfTemplate";
 import type { VipPdfUserInfo } from "@/components/vip/VipPdfTemplate";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
+import {
+  extractImpUidFromReturnParams,
+  isLikelyPortOneReturnSuccess,
+  isValidIamportImpUid,
+} from "@/lib/payments/imp-uid";
+import { clearPendingPaymentData, readPendingPaymentData } from "@/lib/payments/pending-payment-data";
+import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 
 type VipApiSuccess = { success: true; markdown: string };
 type VipApiFail = { success: false; error?: string };
@@ -59,6 +67,8 @@ function maskBirthTimeInput(raw: string): string {
 }
 
 export default function VipLandingPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const pdfRootRef = useRef<HTMLDivElement>(null);
   const { downloadPdf, isGenerating: isPdfGenerating } = usePdfDownload({ scale: 2 });
 
@@ -192,7 +202,7 @@ export default function VipLandingPage() {
       setErrorMessage(null);
       setIsPaymentPending(true);
       try {
-        const verifyRes = await fetch("/api/payments/verify", {
+        const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -224,31 +234,80 @@ export default function VipLandingPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    const impUid = params.get("paymentId") || params.get("imp_uid");
+    const impUidRaw = extractImpUidFromReturnParams(params);
     const errorMsg = params.get("message") || params.get("error_msg");
     const errorCode = params.get("code");
     const vipMobile = localStorage.getItem("vip_mobile_payment_pending") === "1";
     const merchantUid = localStorage.getItem("pendingVipMerchantUid");
+    const pendingMeta = readPendingPaymentData();
+    const impSuccess = params.get("imp_success") === "true";
 
-    if (!impUid || !vipMobile) return;
+    const hasReturnSignal =
+      impSuccess ||
+      !!impUidRaw ||
+      !!params.get("paymentId") ||
+      !!params.get("success") ||
+      !!errorCode ||
+      !!errorMsg;
 
-    const isSuccess =
-      (!!impUid && !errorCode && !errorMsg) ||
-      params.get("imp_success") === "true" ||
-      params.get("success") === "true";
+    if (!hasReturnSignal) return;
 
-    window.history.replaceState({}, "", window.location.pathname);
+    const cleanUrl = () => {
+      clearPendingPaymentData();
+      router.replace(pathname || "/vip");
+    };
 
-    if (isSuccess && merchantUid) {
+    if (!impUidRaw) {
+      if (vipMobile || impSuccess) {
+        setErrorMessage(
+          errorMsg?.trim() ||
+            "결제 복귀 URL에 유효한 imp_uid가 없습니다. imp_ 또는 imps_ 로 시작하는 식별자가 필요합니다.",
+        );
+        localStorage.removeItem("vip_mobile_payment_pending");
+        localStorage.removeItem("pendingVipMerchantUid");
+      }
+      cleanUrl();
+      return;
+    }
+
+    if (!isValidIamportImpUid(impUidRaw)) {
+      alert("결제 식별 오류: imp_uid는 imp_ 또는 imps_ 로 시작해야 합니다.");
       localStorage.removeItem("vip_mobile_payment_pending");
       localStorage.removeItem("pendingVipMerchantUid");
-      void completeVipAfterPayment(impUid, merchantUid);
-    } else {
+      cleanUrl();
+      return;
+    }
+
+    const canProcessVip =
+      (vipMobile && !!merchantUid) ||
+      (impSuccess && !!merchantUid && pendingMeta?.flow === "vip");
+
+    if (!canProcessVip) {
+      if (impUidRaw && (vipMobile || impSuccess)) {
+        alert("VIP 결제 복귀 오류: 주문번호(merchant_uid)가 없거나 세션이 만료되었습니다. 다시 결제를 시도해 주세요.");
+        localStorage.removeItem("vip_mobile_payment_pending");
+        localStorage.removeItem("pendingVipMerchantUid");
+      }
+      if (impUidRaw) cleanUrl();
+      return;
+    }
+
+    const isSuccess = isLikelyPortOneReturnSuccess(params, impUidRaw);
+
+    if (!isSuccess || !merchantUid) {
       localStorage.removeItem("vip_mobile_payment_pending");
       localStorage.removeItem("pendingVipMerchantUid");
       setErrorMessage(errorMsg?.trim() || "결제가 취소되었습니다.");
+      cleanUrl();
+      return;
     }
-  }, [completeVipAfterPayment]);
+
+    localStorage.removeItem("vip_mobile_payment_pending");
+    localStorage.removeItem("pendingVipMerchantUid");
+    void completeVipAfterPayment(impUidRaw, merchantUid).finally(() => {
+      cleanUrl();
+    });
+  }, [completeVipAfterPayment, pathname, router]);
 
   const handleOpenPaymentModal = useCallback(() => {
     const trimmedName = name.trim();

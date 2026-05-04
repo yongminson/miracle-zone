@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
 import { toPng } from "html-to-image";
@@ -24,6 +25,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import {
+  extractImpUidFromReturnParams,
+  isLikelyPortOneReturnSuccess,
+  isValidIamportImpUid,
+} from "@/lib/payments/imp-uid";
+import { clearPendingPaymentData, readPendingPaymentData, savePendingPaymentData } from "@/lib/payments/pending-payment-data";
+import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 import { PaymentMethodSelector, type PayMethodPg } from "@/components/payments/PaymentMethodSelector";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -1789,12 +1797,13 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           nameInput: premiumNameInput,
           amount: amount
         }));
+        savePendingPaymentData({ v: 1, tab: "altar", flow: "altar" });
       }
       const response = await PortOne.requestPayment(payData);
       const isSuccess = !response?.code;
       if (isSuccess) {
         try {
-            const verifyRes = await fetch("/api/payments/verify", {
+            const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -2386,6 +2395,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     localStorage.setItem("pendingPaymentType", "physiognomy");
     localStorage.setItem("pendingPaymentAmount", String(amount));
     localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
+    savePendingPaymentData({ v: 1, tab: "saju", flow: "physiognomy" });
 
     try {
       const response = await PortOne.requestPayment({
@@ -2405,7 +2415,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         localStorage.removeItem("pendingPaymentAmount");
       } else if (!isMobile) {
         try {
-          const verifyRes = await fetch("/api/payments/verify", {
+          const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -2663,6 +2673,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       localStorage.setItem("pendingNameData", JSON.stringify({
         nameInput, nameHanja, nameBirthDate, nameBirthTime, nameGender, hanjaSelections, nameResultData
       }));
+      savePendingPaymentData({ v: 1, tab: "saju", flow: "name" });
 
       try {
         const response = await PortOne.requestPayment({
@@ -2682,7 +2693,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           localStorage.removeItem("pendingPaymentAmount");
         } else {
           try {
-            const verifyRes = await fetch("/api/payments/verify", {
+            const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ paymentType: "saju", imp_uid: response.paymentId, merchant_uid: response.paymentId, amount: amount }),
@@ -3666,14 +3677,15 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
         localStorage.removeItem("pendingPremiumWish");
         localStorage.setItem("pendingPaymentType", "lotto");
         localStorage.setItem("pendingPaymentAmount", String(amount));
-        localStorage.setItem("pendingPaymentUserId", user.id); 
+        localStorage.setItem("pendingPaymentUserId", user.id);
+        savePendingPaymentData({ v: 1, tab: "lotto", flow: "lotto" });
       }
 
       IMP.request_pay(payData, async function (rsp: any) {
         const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
         if (isSuccess) {
           try {
-            const verifyRes = await fetch("/api/payments/verify", {
+            const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -4464,6 +4476,8 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
 }
 
 export default function Home() {
+  const router = useRouter();
+  const pathname = usePathname() || "/tools";
   const [activeTab, setActiveTab] = useState<TabId>("fortune");
   // 🚀 메뉴 스크롤 제어를 위한 Ref 추가
   const navRef = useRef<HTMLDivElement>(null);
@@ -4514,42 +4528,75 @@ export default function Home() {
     if (targetTab) setActiveTab(targetTab);
   }, []);
 
-  // 🚀 모바일 결제 결과 처리 — 상품(pendingPaymentType)별 분기, VIP와 localStorage 충돌 방지, 검증 실패 시 명시 알림
+  // 🚀 모바일 PG 리다이렉트 복귀 — imp_success·imp_uid·탭 복원(pending_payment_data)·IAMPORT imp_uid 검증
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const urlParams = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(window.location.search);
+    const impUid = extractImpUidFromReturnParams(params);
+    const errorMsg = params.get("message") || params.get("error_msg");
+    const errorCode = params.get("code");
 
-    const impUid = urlParams.get("paymentId") || urlParams.get("imp_uid");
-    const errorMsg = urlParams.get("message") || urlParams.get("error_msg");
-    const errorCode = urlParams.get("code");
-    const isSuccess =
-      (!!impUid && !errorCode && !errorMsg) ||
-      urlParams.get("imp_success") === "true" ||
-      urlParams.get("success") === "true";
+    const hasReturnSignal =
+      !!impUid ||
+      !!params.get("paymentId") ||
+      params.get("imp_success") === "true" ||
+      params.get("success") === "true" ||
+      !!errorCode ||
+      !!errorMsg;
 
-    if (!impUid) return;
+    if (!hasReturnSignal) return;
 
-    const clearQuery = () => window.history.replaceState({}, "", window.location.pathname);
+    const validTabs: TabId[] = ["fortune", "dream", "lotto", "altar", "saju", "mbti", "match"];
+    const tabFromUrl = urlParams.get("tab") as TabId | null;
+    if (tabFromUrl && validTabs.includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    } else {
+      const pendingMeta = readPendingPaymentData();
+      if (pendingMeta?.tab) {
+        const t = pendingMeta.tab as TabId;
+        if (validTabs.includes(t)) setActiveTab(t);
+      }
+    }
+
+    const clearReturn = () => {
+      clearPendingPaymentData();
+      router.replace(pathname);
+    };
+
     const pendingType = localStorage.getItem("pendingPaymentType");
 
-    // VIP PG 복귀는 `/vip` + `vip_mobile_payment_pending` 전용 — tools에 붙은 쿼리만 정리
     if (localStorage.getItem("vip_mobile_payment_pending") === "1" || pendingType === "vip") {
       localStorage.removeItem("vip_mobile_payment_pending");
       localStorage.removeItem("pendingVipMerchantUid");
       if (pendingType === "vip") localStorage.removeItem("pendingPaymentType");
-      clearQuery();
+      clearReturn();
       return;
     }
 
+    if (!impUid) {
+      if (params.get("imp_success") === "true") {
+        alert("결제 복귀 오류: URL에 유효한 imp_uid(imp_ / imps_)가 없습니다.");
+      }
+      clearReturn();
+      return;
+    }
+
+    if (!isValidIamportImpUid(impUid)) {
+      alert("결제 식별 오류: imp_uid는 imp_ 또는 imps_ 로 시작해야 합니다.");
+      clearReturn();
+      return;
+    }
+
+    const isSuccess = isLikelyPortOneReturnSuccess(params, impUid);
     if (!isSuccess) {
       alert(`결제 실패: ${errorMsg || "사용자 취소"}`);
-      clearQuery();
+      clearReturn();
       return;
     }
 
     const verifyAndAct = async (body: Record<string, unknown>, onOk: () => void) => {
       try {
-        const verifyRes = await fetch("/api/payments/verify", {
+        const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -4559,12 +4606,13 @@ export default function Home() {
           alert(
             `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || verifyRes.statusText || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
           );
+          clearReturn();
           return;
         }
         onOk();
-        clearQuery();
+        clearReturn();
       } catch (e) {
-        console.error("[payments/verify]", e);
+        console.error("[payment/verify]", e);
         alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
       }
     };
@@ -4572,7 +4620,6 @@ export default function Home() {
     void (async () => {
       const wishRaw = localStorage.getItem("pendingPremiumWish");
 
-      // 1️⃣ 제단 — pendingPremiumWish + pendingType === altar 일 때만 (다른 결제와 착각 방지)
       if (pendingType === "altar" && wishRaw) {
         let wishData: {
           wishText: string;
@@ -4585,7 +4632,7 @@ export default function Home() {
           wishData = JSON.parse(wishRaw) as typeof wishData;
         } catch {
           alert("결제 검증 오류: 제단 소원 데이터가 손상되었습니다.");
-          clearQuery();
+          clearReturn();
           return;
         }
         await verifyAndAct(
@@ -4612,7 +4659,6 @@ export default function Home() {
         return;
       }
 
-      // 2️⃣ 로또 10회권
       if (pendingType === "lotto") {
         await verifyAndAct(
           {
@@ -4632,7 +4678,6 @@ export default function Home() {
         return;
       }
 
-      // 3️⃣ 관상 / 이름 — 현재 탭을 saju로만 전환, pendingPaymentType은 SajuTab 복구용으로 유지
       if (pendingType === "physiognomy" || pendingType === "name") {
         await verifyAndAct(
           {
@@ -4652,9 +4697,9 @@ export default function Home() {
       alert(
         "결제 복귀 처리: 저장된 결제 종류와 일치하지 않습니다. 같은 브라우저에서 결제를 완료했는지 확인해 주세요.",
       );
-      clearQuery();
+      clearReturn();
     })();
-  }, []);
+  }, [pathname, router]);
 
   // 🚀 [추가됨] 로그인 상태 확인 및 감지
   useEffect(() => {
