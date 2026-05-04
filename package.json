@@ -14,12 +14,16 @@
     "@supabase/supabase-js": "^2.102.1",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "korean-lunar-calendar": "^0.3.6",
     "lucide-react": "^0.577.0",
     "next": "16.1.7",
     "nextjs-google-analytics": "^2.3.7",
     "openai": "^6.33.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "web-push": "^3.6.7"
   },
   "devDependencies": {

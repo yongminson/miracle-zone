@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script"; // 🚀 포트원 & 구글 애드센스 스크립트 불러오기
 import Analytics from "@/components/Analytics";
+import { GlobalSiteFooter } from "@/components/layout/GlobalSiteFooter";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,7 +46,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#030712] text-slate-100 min-h-screen flex flex-col`}>
         {/* 🚀 1. 포트원(아임포트) 결제 라이브러리 */}
         <Script 
           src="https://cdn.portone.io/v2/browser-sdk.js" 
@@ -62,7 +63,10 @@ export default function RootLayout({
         />
 
         {/* 🚀 3. 메인 콘텐츠 및 분석 툴 */}
-        {children}
+        <div className="flex min-h-screen flex-col">
+          <div className="flex-1">{children}</div>
+          <GlobalSiteFooter />
+        </div>
         <Analytics />
       </body>
     </html>
