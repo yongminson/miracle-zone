@@ -485,6 +485,8 @@ export default function VipLandingPage() {
             imp_uid,
             paymentId: imp_uid,
             merchant_uid,
+            vip_customer_name: name.trim() || undefined,
+            vip_phone: "010-0000-0000",
           }),
         });
 
@@ -508,7 +510,7 @@ export default function VipLandingPage() {
         setIsPaymentPending(false);
       }
     },
-    [handleIssueReport],
+    [handleIssueReport, name],
   );
 
   useEffect(() => {

@@ -5,9 +5,11 @@ import {
   portoneFetchPaymentJson,
   portoneLoginWithApiSecret,
 } from "@/lib/payments/portone-rest";
-
-/** VIP 상품 결제 금액(원) */
-const VIP_PRODUCT_AMOUNT_WON = 29_900;
+import {
+  resolveVipReportPublicUrlFromRequest,
+  upsertVipOrderRow,
+  VIP_ORDER_AMOUNT_WON,
+} from "@/lib/payments/vip-order-supabase";
 
 type IamportTokenJson = {
   code?: number;
@@ -167,12 +169,41 @@ export async function POST(req: Request) {
 
       const verified = await verifyPaidAmountUniversal({
         lookupId,
-        expectedAmountWon: VIP_PRODUCT_AMOUNT_WON,
+        expectedAmountWon: VIP_ORDER_AMOUNT_WON,
         merchantUidToMatch: merchant_uid,
       });
 
       if (!verified.ok) {
         return NextResponse.json({ success: false, message: verified.message }, { status: 400 });
+      }
+
+      const vipCustomerNameRaw = body.vip_customer_name;
+      const vipCustomerName =
+        typeof vipCustomerNameRaw === "string" && vipCustomerNameRaw.trim() !== ""
+          ? vipCustomerNameRaw.trim().slice(0, 80)
+          : "VIP 실결제(리포트 대기)";
+      const vipPhoneRaw = body.vip_phone;
+      const vipPhone =
+        typeof vipPhoneRaw === "string" && vipPhoneRaw.trim() !== "" ? vipPhoneRaw.trim().slice(0, 32) : null;
+
+      const reportUrl = resolveVipReportPublicUrlFromRequest(req);
+      const dbResult = await upsertVipOrderRow(supabase, {
+        user_name: vipCustomerName,
+        phone_number: vipPhone,
+        imp_uid: lookupId,
+        amount: VIP_ORDER_AMOUNT_WON,
+        report_url: reportUrl,
+        status: "paid",
+      });
+      if (!dbResult.ok) {
+        console.error("[vip_orders] 결제 검증 직후 DB 기록 실패:", dbResult.message, dbResult.code);
+        return NextResponse.json(
+          {
+            success: false,
+            message: `결제는 확인되었으나 VIP 주문 DB 기록에 실패했습니다: ${dbResult.message}`,
+          },
+          { status: 500 },
+        );
       }
 
       return NextResponse.json({ success: true, message: "결제 확인 및 처리 완료" });

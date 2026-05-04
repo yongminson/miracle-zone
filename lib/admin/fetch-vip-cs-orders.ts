@@ -65,11 +65,13 @@ export async function fetchVipCsOrders(): Promise<FetchVipCsResult> {
   }
 
   const supabase = createClient(url, serviceKey);
+  /** 상태 필터 없음 — `vip_orders` 전체(최신순). paid / completed 등 모두 표시 */
   const { data, error } = await supabase
     .from("vip_orders")
     .select("*")
-    .order("created_at", { ascending: false })
-    .limit(200);
+    .order("created_at", { ascending: false, nullsFirst: false })
+    .order("id", { ascending: false })
+    .limit(500);
 
   if (error) {
     return {

@@ -7,6 +7,11 @@ import { createClient } from "@supabase/supabase-js";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import type { VipCalendarType, VipGender } from "@/lib/saju/vip-types";
 import { extractVipSajuData } from "@/lib/saju/vip-saju-data";
+import {
+  resolveVipReportPublicUrlFromRequest,
+  upsertVipOrderRow,
+  VIP_ORDER_AMOUNT_WON,
+} from "@/lib/payments/vip-order-supabase";
 
 // 구글 제미나이 초기화
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -22,15 +27,6 @@ type VipRequestBody = {
   imp_uid?: string | null;
   phone_number?: string | null;
 };
-
-function resolveVipReportPublicUrl(request: NextRequest): string {
-  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
-  if (fromEnv) return `${fromEnv}/vip`;
-  const proto = request.headers.get("x-forwarded-proto") ?? "https";
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  if (host) return `${proto}://${host}/vip`;
-  return "/vip";
-}
 
 async function persistVipOrderRow(
   request: NextRequest,
@@ -50,7 +46,7 @@ async function persistVipOrderRow(
     return;
   }
 
-  const report_url = resolveVipReportPublicUrl(request);
+  const report_url = resolveVipReportPublicUrlFromRequest(request);
   const phone =
     typeof params.phone_number === "string" && params.phone_number.trim() !== ""
       ? params.phone_number.trim()
@@ -61,18 +57,13 @@ async function persistVipOrderRow(
     user_name: params.user_name,
     phone_number: phone,
     imp_uid: imp,
-    amount: 29_900,
+    amount: VIP_ORDER_AMOUNT_WON,
     report_url,
     status: "completed",
   };
 
-  const { error: insertErr } = await supabase.from("vip_orders").insert(row);
-  if (insertErr?.code === "23505") {
-    const { error: updateErr } = await supabase.from("vip_orders").update(row).eq("imp_uid", imp);
-    if (updateErr) console.error("[vip_orders] upsert(update) 실패:", updateErr);
-    return;
-  }
-  if (insertErr) console.error("[vip_orders] insert 실패:", insertErr);
+  const res = await upsertVipOrderRow(supabase, row);
+  if (!res.ok) console.error("[vip_orders] 리포트 완료 단계 upsert 실패:", res.message, res.code);
 }
 
 function parseBirthParts(birthDate: string): { year: number; month: number; day: number } | null {
