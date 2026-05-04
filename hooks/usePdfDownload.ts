@@ -15,19 +15,19 @@ export type UsePdfDownloadOptions = {
   scale?: number;
 };
 
-/** 모바일 인앱 등에서 `save()`가 막혀도 Blob 링크로 복구 가능 */
+/** Blob URL만 반환 — 다운로드는 화면의 순수 `<a href download>`로 처리 (모바일 인앱 호환) */
 export type VipPdfDownloadResult =
   | { ok: true; blobUrl: string; filename: string; revoke: () => void }
   | { ok: false; error: string };
 
 /**
  * 루트 요소의 자식 중 `[data-pdf-page]` 각각을 한 PDF 페이지로 캡처합니다.
- * Blob URL을 반환해 화면에 수동 다운로드 링크(폴백)를 둘 수 있습니다.
+ * (프로그래매틱 `a.click()` 없음 — 모바일 인앱에서 막히는 방식 제거)
  */
 export function usePdfDownload(options: UsePdfDownloadOptions = {}) {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const downloadPdf = useCallback(
+  const buildPdfBlob = useCallback(
     async (root: HTMLElement | null): Promise<VipPdfDownloadResult | null> => {
       if (!root) {
         return { ok: false, error: "PDF 루트 요소가 없습니다." };
@@ -69,25 +69,6 @@ export function usePdfDownload(options: UsePdfDownloadOptions = {}) {
         const blobUrl = URL.createObjectURL(blob);
         const filename = VIP_PDF_FILENAME;
 
-        try {
-          const a = document.createElement("a");
-          a.href = blobUrl;
-          a.download = filename;
-          a.rel = "noopener noreferrer";
-          a.style.display = "none";
-          document.body.appendChild(a);
-          a.click();
-          requestAnimationFrame(() => {
-            try {
-              document.body.removeChild(a);
-            } catch {
-              /* ignore */
-            }
-          });
-        } catch {
-          /* 인앱 브라우저 등에서 click 실패해도 blobUrl 폴백으로 계속 진행 */
-        }
-
         return {
           ok: true,
           blobUrl,
@@ -110,5 +91,5 @@ export function usePdfDownload(options: UsePdfDownloadOptions = {}) {
     [options.scale],
   );
 
-  return { downloadPdf, isGenerating };
+  return { buildPdfBlob, isGenerating };
 }
