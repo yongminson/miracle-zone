@@ -5,6 +5,7 @@ import { PaymentMethodSelector, type PayMethodPg } from "@/components/payments/P
 import { pickPaymentLookupIdFromPortOneResponse } from "@/lib/payments/imp-uid";
 import { savePendingPaymentData } from "@/lib/payments/pending-payment-data";
 import { savePendingPaymentState } from "@/lib/payments/pending-payment-state";
+import { getPortOnePaymentFailureReason } from "@/lib/payments/portone-response-guards";
 
 const STORE_ID = "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d";
 
@@ -145,25 +146,15 @@ export function PaymentMethodCheckoutModal({
 
       const response = await PortOne.requestPayment(payPayload);
 
-      if (isMobile && pendingPaymentType === "vip") {
-        if (response && typeof response === "object" && response.code) {
-          localStorage.removeItem("vip_mobile_payment_pending");
-          localStorage.removeItem("pendingVipMerchantUid");
-          const rsp = response as { message?: string; error_msg?: string };
-          console.error("결제 실패 상세 사유:", rsp.message ?? rsp.error_msg, rsp);
-          const msg = rsp.message?.trim() || rsp.error_msg?.trim();
-          onPaymentError(msg || "결제가 취소되었습니다.");
-        }
+      const failReason = getPortOnePaymentFailureReason(response, { isMobile });
+      if (failReason) {
+        localStorage.removeItem("vip_mobile_payment_pending");
+        localStorage.removeItem("pendingVipMerchantUid");
+        onPaymentError(failReason);
         return;
       }
 
-      if (response && typeof response === "object" && response.code) {
-        localStorage.removeItem("vip_mobile_payment_pending");
-        localStorage.removeItem("pendingVipMerchantUid");
-        const rsp = response as { message?: string; error_msg?: string };
-        console.error("결제 실패 상세 사유:", rsp.message ?? rsp.error_msg, rsp);
-        const msg = rsp.message?.trim() || rsp.error_msg?.trim();
-        onPaymentError(msg || "결제에 실패했습니다.");
+      if (isMobile && pendingPaymentType === "vip") {
         return;
       }
 

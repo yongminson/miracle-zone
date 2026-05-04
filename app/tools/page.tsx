@@ -33,6 +33,7 @@ import {
   savePendingPaymentState,
 } from "@/lib/payments/pending-payment-state";
 import { extractPaymentReturnId } from "@/lib/payments/return-params";
+import { getPortOnePaymentFailureReason } from "@/lib/payments/portone-response-guards";
 import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 import { PaymentMethodSelector, type PayMethodPg } from "@/components/payments/PaymentMethodSelector";
 
@@ -1724,7 +1725,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     return `[✨ 익명 님의 ${periodLabel} 기원]`;
   };
   
-  // 🚀 프리미엄 결제창 띄우기 함수 (포트원 검증 무시 + 완벽 프리패스 적용)
+  // 🚀 프리미엄 결제창 — 포트원 응답 가드 → PC만 즉시 서버 검증 → 성공 시에만 UI 반영
   const handlePremiumConfirm = async () => {
     if (!premiumWishText.trim()) return;
 
@@ -1826,16 +1827,26 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         });
       }
       const response = await PortOne.requestPayment(payData);
-      const isSuccess = !response?.code;
-      if (isSuccess) {
-        try {
+      const portOneFail = getPortOnePaymentFailureReason(response, { isMobile });
+      if (portOneFail) {
+        alert("결제가 취소되었습니다.");
+        localStorage.removeItem("pendingPaymentType");
+        localStorage.removeItem("pendingPremiumWish");
+        clearPendingPaymentData();
+        clearPendingPaymentState();
+        return;
+      }
+      if (isMobile) {
+        return;
+      }
+      try {
             const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                imp_uid: response.paymentId,
-                paymentId: response.paymentId,
-                merchant_uid: response.paymentId,
+                imp_uid: (response as { paymentId: string }).paymentId,
+                paymentId: (response as { paymentId: string }).paymentId,
+                merchant_uid: (response as { paymentId: string }).paymentId,
                 amount: amount,
                 wishText: premiumWishText,
                 period: premiumPeriod,
@@ -1878,15 +1889,10 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                 `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
               );
             }
-          } catch (error) {
-            console.error("제단 결제 검증:", error);
-            alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
-            setShowPremiumModal(false);
-          }
-        } else {
-          if (response?.code !== "FAILURE_TYPE_PG_CANCEL") {
-            alert(`결제 실패:\n${response?.message}`);
-          }
+      } catch (error) {
+        console.error("제단 결제 검증:", error);
+        alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
+        setShowPremiumModal(false);
       }
     }
   };
@@ -2471,38 +2477,42 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
         redirectUrl: isMobile ? `${toolsOrigin}?tab=saju` : undefined,
       });
-      if (response?.code) {
+      const portOneFail = getPortOnePaymentFailureReason(response, { isMobile });
+      if (portOneFail) {
+        alert("결제가 취소되었습니다.");
         localStorage.removeItem("pendingFaceData");
         localStorage.removeItem("pendingPaymentType");
         localStorage.removeItem("pendingPaymentAmount");
-      } else if (!isMobile) {
-        try {
-          const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              paymentType: "saju",
-              imp_uid: response.paymentId,
-              paymentId: response.paymentId,
-              merchant_uid: response.paymentId,
-              amount,
-            }),
-          });
-          const verifyData = (await verifyRes.json()) as { success?: boolean; message?: string };
-          if (verifyRes.ok && verifyData.success) {
-            setIsPhysiognomyPremiumUnlocked(true);
-            setShowPhysiognomyPaymentModal(false);
-          } else {
-            alert(
-              `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
-            );
-          }
-        } catch {
-          alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
+        clearPendingPaymentData();
+        clearPendingPaymentState();
+        return;
+      }
+      if (isMobile) {
+        return;
+      }
+      try {
+        const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paymentType: "saju",
+            imp_uid: (response as { paymentId: string }).paymentId,
+            paymentId: (response as { paymentId: string }).paymentId,
+            merchant_uid: (response as { paymentId: string }).paymentId,
+            amount,
+          }),
+        });
+        const verifyData = (await verifyRes.json()) as { success?: boolean; message?: string };
+        if (verifyRes.ok && verifyData.success) {
+          setIsPhysiognomyPremiumUnlocked(true);
+          setShowPhysiognomyPaymentModal(false);
+        } else {
+          alert(
+            `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
+          );
         }
-      } else {
-        setIsPhysiognomyPremiumUnlocked(true);
-        setShowPhysiognomyPaymentModal(false);
+      } catch {
+        alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
       }
     } catch(e) {
       localStorage.removeItem("pendingFaceData");
@@ -2764,35 +2774,42 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
           redirectUrl: isMobile ? `${toolsOrigin}?tab=saju` : undefined,
         });
-        if (response?.code) {
+        const portOneFailName = getPortOnePaymentFailureReason(response, { isMobile });
+        if (portOneFailName) {
+          alert("결제가 취소되었습니다.");
           localStorage.removeItem("pendingNameData");
           localStorage.removeItem("pendingPaymentType");
           localStorage.removeItem("pendingPaymentAmount");
-        } else {
-          try {
-            const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                paymentType: "saju",
-                imp_uid: response.paymentId,
-                paymentId: response.paymentId,
-                merchant_uid: response.paymentId,
-                amount: amount,
-              }),
-            });
-            const verifyData = await verifyRes.json();
-            if (verifyRes.ok && verifyData.success) {
-              setShowNamePaymentModal(false);
-              setIsNamePremiumUnlocked(true);
-            } else {
-              alert(
-                `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
-              );
-            }
-          } catch {
-            alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
+          clearPendingPaymentData();
+          clearPendingPaymentState();
+          return;
+        }
+        if (isMobile) {
+          return;
+        }
+        try {
+          const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              paymentType: "saju",
+              imp_uid: (response as { paymentId: string }).paymentId,
+              paymentId: (response as { paymentId: string }).paymentId,
+              merchant_uid: (response as { paymentId: string }).paymentId,
+              amount: amount,
+            }),
+          });
+          const verifyData = await verifyRes.json();
+          if (verifyRes.ok && verifyData.success) {
+            setShowNamePaymentModal(false);
+            setIsNamePremiumUnlocked(true);
+          } else {
+            alert(
+              `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
+            );
           }
+        } catch {
+          alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
         }
       } catch(e) {
         localStorage.removeItem("pendingNameData");
@@ -3771,9 +3788,17 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
       }
 
       IMP.request_pay(payData, async function (rsp: any) {
-        const isSuccess = rsp.success || (rsp.imp_uid && !rsp.error_msg);
-        if (isSuccess) {
-          try {
+        if (!rsp || rsp.success !== true) {
+          const isUserCancel =
+            rsp?.error_msg?.includes("사용자 취소") || rsp?.error_code === "F1002" || rsp?.error_code === "F1001";
+          if (isUserCancel && !isMobile) {
+            alert("결제가 취소되었습니다.\n💡 PC 화면 결제창의 [결제 완료] 버튼을 눌러주세요!");
+          } else {
+            alert(rsp?.error_msg ? `결제가 취소되었습니다.\n${rsp.error_msg}` : "결제가 취소되었습니다.");
+          }
+          return;
+        }
+        try {
             const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -3796,14 +3821,9 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
             } else {
               alert(`🚨 결제 검증 실패: ${verifyData.message}`);
             }
-          } catch (error) {
-            console.error("결제 검증 오류:", error);
-            alert("서버 오류가 발생했습니다.");
-          }
-        } else {
-          const isUserCancel = rsp.error_msg?.includes("사용자 취소") || rsp.error_code === "F1002";
-          if (isUserCancel && !isMobile) alert(`결제가 취소되었습니다.\n💡 PC 화면 결제창의 [결제 완료] 버튼을 눌러주세요!`);
-          else alert(`결제 실패: ${rsp.error_msg}`);
+        } catch (error) {
+          console.error("결제 검증 오류:", error);
+          alert("서버 오류가 발생했습니다.");
         }
       });
     }

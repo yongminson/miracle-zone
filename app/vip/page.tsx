@@ -89,12 +89,15 @@ export default function VipLandingPage() {
   const [isPaymentPending, setIsPaymentPending] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+  const showFullScreenLoader = (isFetchingReport || isPdfGenerating) && !reportMarkdown.trim();
   const isBusy = isFetchingReport || isPdfGenerating;
 
   const handleIssueReport = useCallback(async (options?: { imp_uid?: string | null }) => {
     setErrorMessage(null);
-    setIsSuccess(false);
-    setAmuletUrl(null);
+    if (!options?.imp_uid) {
+      setIsSuccess(false);
+      setAmuletUrl(null);
+    }
 
     const trimmedName = name.trim();
     if (!trimmedName) {
@@ -144,6 +147,7 @@ export default function VipLandingPage() {
       if (!res.ok || !data.success) {
         const msg = !data.success && "error" in data && data.error ? data.error : "리포트 생성 실패";
         setErrorMessage(`API 에러: ${msg}`);
+        setIsSuccess(false);
         return;
       }
 
@@ -167,10 +171,11 @@ export default function VipLandingPage() {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       });
 
+      setIsSuccess(true);
+
       // 3. PDF 렌더링·다운로드
       try {
         await downloadPdf(pdfRootRef.current);
-        setIsSuccess(true);
       } catch (pdfError: unknown) {
         console.error("PDF 생성 에러:", pdfError);
         const msg = pdfError instanceof Error ? pdfError.message : "알 수 없는 오류";
@@ -189,6 +194,7 @@ export default function VipLandingPage() {
         const msg = e instanceof Error ? e.message : String(e);
         setErrorMessage(`시스템 에러 (F12 콘솔 확인): ${msg}`);
       }
+      setIsSuccess(false);
     } finally {
       window.clearTimeout(timeoutId);
       setIsFetchingReport(false);
@@ -220,6 +226,7 @@ export default function VipLandingPage() {
           return;
         }
 
+        setShowPaymentModal(false);
         await handleIssueReport({ imp_uid });
       } catch {
         setErrorMessage("결제 검증 중 오류가 발생했습니다.");
@@ -357,7 +364,7 @@ export default function VipLandingPage() {
         }}
       />
 
-      {isBusy ? (
+      {showFullScreenLoader ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
           <DynamicLoader
             subtitle={isPdfGenerating ? "고해상도 PDF로 저장하고 있어요." : undefined}
