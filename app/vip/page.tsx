@@ -64,6 +64,58 @@ function maskBirthTimeInput(raw: string): string {
   return `${digits.slice(0, 2)}:${digits.slice(2)}`;
 }
 
+/** 모바일 PG 리다이렉트 후 풀 리로드 시에도 동일 입력으로 `/api/saju/vip` 호출 */
+const VIP_CHECKOUT_DRAFT_KEY = "vip_checkout_draft";
+
+type VipCheckoutDraft = {
+  name: string;
+  birthDate: string;
+  birthTime: string;
+  gender: "male" | "female";
+  mbti: string;
+};
+
+function readVipCheckoutDraft(): VipCheckoutDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(VIP_CHECKOUT_DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw) as Partial<VipCheckoutDraft>;
+    if (typeof d.name !== "string" || typeof d.birthDate !== "string") return null;
+    return {
+      name: d.name,
+      birthDate: d.birthDate,
+      birthTime: typeof d.birthTime === "string" ? d.birthTime : "",
+      gender: d.gender === "female" ? "female" : "male",
+      mbti: typeof d.mbti === "string" ? d.mbti : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeVipCheckoutDraft(draft: VipCheckoutDraft): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(VIP_CHECKOUT_DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearVipCheckoutDraft(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(VIP_CHECKOUT_DRAFT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function reportGenAlert(reason: string): void {
+  alert(`리포트 생성 중 오류가 발생했습니다.\n(사유: ${reason})`);
+}
+
 export default function VipLandingPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -99,17 +151,33 @@ export default function VipLandingPage() {
       setAmuletUrl(null);
     }
 
-    const trimmedName = name.trim();
+    const draft = options?.imp_uid ? readVipCheckoutDraft() : null;
+    const trimmedName = (draft?.name ?? name).trim();
+    const birthDateEff = (draft?.birthDate ?? birthDate).trim();
+    const birthTimeEff = (draft?.birthTime ?? birthTime).trim();
+    const genderEff = draft?.gender ?? gender;
+    const mbtiEff = (draft?.mbti ?? mbti).trim();
+
     if (!trimmedName) {
-      setErrorMessage("이름을 입력해 주세요.");
+      const msg = options?.imp_uid
+        ? "모바일 결제 직전에 저장된 이름이 없습니다. 다시 입력 후 결제해 주세요."
+        : "이름을 입력해 주세요.";
+      setErrorMessage(msg);
+      reportGenAlert(msg);
       return;
     }
-    if (!birthDate.trim()) {
-      setErrorMessage("생년월일을 입력해 주세요.");
+    if (!birthDateEff) {
+      const msg = options?.imp_uid
+        ? "모바일 결제 직전에 저장된 생년월일이 없습니다. 다시 입력 후 결제해 주세요."
+        : "생년월일을 입력해 주세요.";
+      setErrorMessage(msg);
+      reportGenAlert(msg);
       return;
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate.trim())) {
-      setErrorMessage("생년월일을 YYYY-MM-DD 형식(8자리 숫자)으로 입력해 주세요.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDateEff)) {
+      const msg = "생년월일을 YYYY-MM-DD 형식(8자리 숫자)으로 입력해 주세요.";
+      setErrorMessage(msg);
+      reportGenAlert(msg);
       return;
     }
 
@@ -132,31 +200,52 @@ export default function VipLandingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: trimmedName,
-          gender,
-          birthDate: birthDate.trim(),
-          birthTime: birthTime.trim() || null,
-          mbti: mbti.trim() || null,
+          gender: genderEff,
+          birthDate: birthDateEff,
+          birthTime: birthTimeEff || null,
+          mbti: mbtiEff || null,
           calendarType: "solar",
           ...paymentPayload,
         }),
         signal: controller.signal,
       });
 
-      const data = (await res.json()) as VipApiSuccess | VipApiFail;
-
-      if (!res.ok || !data.success) {
-        const msg = !data.success && "error" in data && data.error ? data.error : "리포트 생성 실패";
-        setErrorMessage(`API 에러: ${msg}`);
+      let data: VipApiSuccess | VipApiFail;
+      try {
+        data = (await res.json()) as VipApiSuccess | VipApiFail;
+      } catch (parseErr) {
+        const hint = parseErr instanceof Error ? parseErr.message : String(parseErr);
+        const msg = `서버 응답을 JSON으로 해석하지 못했습니다. (${hint})`;
+        setErrorMessage(msg);
+        reportGenAlert(msg);
         setIsSuccess(false);
         return;
       }
 
+      if (!res.ok || !data.success) {
+        const msg = !data.success && "error" in data && data.error ? data.error : "리포트 생성 실패";
+        const full = `API 응답 오류 (HTTP ${res.status}): ${msg}`;
+        setErrorMessage(full);
+        reportGenAlert(full);
+        setIsSuccess(false);
+        return;
+      }
+
+      if (options?.imp_uid) {
+        clearVipCheckoutDraft();
+        setName(trimmedName);
+        setBirthDate(birthDateEff);
+        setBirthTime(birthTimeEff);
+        setGender(genderEff);
+        setMbti(mbtiEff);
+      }
+
       const summary = buildSajuSummary({
         name: trimmedName,
-        birthDate: birthDate.trim(),
-        birthTime,
-        gender,
-        mbti,
+        birthDate: birthDateEff,
+        birthTime: birthTimeEff,
+        gender: genderEff,
+        mbti: mbtiEff,
       });
 
       // 2. 텍스트 세팅 완료
@@ -179,7 +268,9 @@ export default function VipLandingPage() {
       } catch (pdfError: unknown) {
         console.error("PDF 생성 에러:", pdfError);
         const msg = pdfError instanceof Error ? pdfError.message : "알 수 없는 오류";
+        const full = `PDF 저장 실패 — ${msg}`;
         setErrorMessage(`리포트 내용은 완성되었으나 PDF 변환 중 에러가 발생했습니다: ${msg}`);
+        reportGenAlert(full);
       }
 
     } catch (e: unknown) {
@@ -189,10 +280,14 @@ export default function VipLandingPage() {
         (e instanceof DOMException && e.name === "AbortError") ||
         (e instanceof Error && e.name === "AbortError");
       if (aborted) {
-        setErrorMessage("시간 초과: 리포트 생성에 5분 이상 소요되었습니다.");
+        const msg = "시간 초과: 리포트 생성에 5분 이상 소요되었습니다.";
+        setErrorMessage(msg);
+        reportGenAlert(msg);
       } else {
         const msg = e instanceof Error ? e.message : String(e);
+        const full = `네트워크 또는 예외 — ${msg}`;
         setErrorMessage(`시스템 에러 (F12 콘솔 확인): ${msg}`);
+        reportGenAlert(full);
       }
       setIsSuccess(false);
     } finally {
@@ -228,8 +323,11 @@ export default function VipLandingPage() {
 
         setShowPaymentModal(false);
         await handleIssueReport({ imp_uid });
-      } catch {
-        setErrorMessage("결제 검증 중 오류가 발생했습니다.");
+      } catch (e: unknown) {
+        const hint = e instanceof Error ? e.message : String(e);
+        const msg = `결제 검증 또는 리포트 요청 중 예외 — ${hint}`;
+        setErrorMessage(msg);
+        alert(`리포트 생성 중 오류가 발생했습니다.\n(사유: ${msg})`);
       } finally {
         setIsPaymentPending(false);
       }
@@ -291,14 +389,23 @@ export default function VipLandingPage() {
       return;
     }
 
-    const isSuccess = isLikelyPortOneReturnSuccess(params, returnPayId);
+    const pgReturnPositive = isLikelyPortOneReturnSuccess(params, returnPayId);
 
-    if (!isSuccess || !merchantUid) {
+    if (!pgReturnPositive || !merchantUid) {
       localStorage.removeItem("vip_mobile_payment_pending");
       localStorage.removeItem("pendingVipMerchantUid");
       setErrorMessage(errorMsg?.trim() || "결제가 취소되었습니다.");
       cleanUrl();
       return;
+    }
+
+    const draft = readVipCheckoutDraft();
+    if (draft) {
+      if (draft.name) setName(draft.name);
+      if (draft.birthDate) setBirthDate(draft.birthDate);
+      setBirthTime(draft.birthTime ?? "");
+      setGender(draft.gender);
+      setMbti(draft.mbti ?? "");
     }
 
     localStorage.removeItem("vip_mobile_payment_pending");
@@ -323,8 +430,15 @@ export default function VipLandingPage() {
       return;
     }
     setErrorMessage(null);
+    writeVipCheckoutDraft({
+      name: trimmedName,
+      birthDate: birthDate.trim(),
+      birthTime: birthTime.trim(),
+      gender,
+      mbti: mbti.trim(),
+    });
     setShowPaymentModal(true);
-  }, [birthDate, name]);
+  }, [birthDate, birthTime, gender, mbti, name]);
 
   const amuletDownloadName =
     amuletUrl?.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "vip-amulet.jpg";
@@ -424,6 +538,7 @@ export default function VipLandingPage() {
                   setReportMarkdown("");
                   setPdfUserInfo({ name: "", sajuSummary: "" });
                   setErrorMessage(null);
+                  clearVipCheckoutDraft();
                 }}
                 className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-2.5 text-sm font-medium text-amber-100 transition hover:bg-amber-500/20"
               >
