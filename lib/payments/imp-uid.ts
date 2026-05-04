@@ -34,10 +34,31 @@ export function pickIamportImpUidFromPortOneResponse(
   return null;
 }
 
-export function isLikelyPortOneReturnSuccess(params: URLSearchParams, impUid: string | null): boolean {
+/**
+ * V2 `paymentId`(임의 문자열) 또는 V1 `imp_uid` — 검증 API로 넘길 단일 식별자
+ * (모바일 리다이렉트는 `paymentId`만 오는 경우가 많음)
+ */
+export function pickPaymentLookupIdFromPortOneResponse(
+  response: Record<string, unknown> | void | null | undefined,
+  merchantUidFallback: string,
+): string | null {
+  if (response && typeof response === "object") {
+    const pid = response.paymentId;
+    if (typeof pid === "string" && pid.trim()) return pid.trim();
+    const keys = ["imp_uid", "impUid", "transactionId", "txId"] as const;
+    for (const k of keys) {
+      const v = response[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+  }
+  const fb = typeof merchantUidFallback === "string" ? merchantUidFallback.trim() : "";
+  return fb || null;
+}
+
+export function isLikelyPortOneReturnSuccess(params: URLSearchParams, paymentReturnId: string | null): boolean {
   if (params.get("imp_success") === "true") return true;
   if (params.get("success") === "true") return true;
   const err = params.get("code") || params.get("error_code") || params.get("message") || params.get("error_msg");
   if (err) return false;
-  return !!impUid;
+  return !!paymentReturnId;
 }

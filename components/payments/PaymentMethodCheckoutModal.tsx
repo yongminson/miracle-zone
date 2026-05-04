@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { PaymentMethodSelector, type PayMethodPg } from "@/components/payments/PaymentMethodSelector";
-import { pickIamportImpUidFromPortOneResponse } from "@/lib/payments/imp-uid";
+import { pickPaymentLookupIdFromPortOneResponse } from "@/lib/payments/imp-uid";
 import { savePendingPaymentData } from "@/lib/payments/pending-payment-data";
+import { savePendingPaymentState } from "@/lib/payments/pending-payment-state";
 
 const STORE_ID = "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d";
 
@@ -104,6 +105,7 @@ export function PaymentMethodCheckoutModal({
       localStorage.setItem("vip_mobile_payment_pending", "1");
       localStorage.setItem("pendingVipMerchantUid", merchant_uid);
       savePendingPaymentData({ v: 1, tab: "vip", flow: "vip" });
+      savePendingPaymentState({ tab: "vip", flow: "vip" });
     }
 
     setIsRequesting(true);
@@ -166,12 +168,12 @@ export function PaymentMethodCheckoutModal({
       }
 
       const resObj = response && typeof response === "object" ? (response as Record<string, unknown>) : null;
-      const imp_uid = pickIamportImpUidFromPortOneResponse(resObj, merchant_uid);
+      const imp_uid = pickPaymentLookupIdFromPortOneResponse(resObj, merchant_uid);
       if (!imp_uid) {
         localStorage.removeItem("vip_mobile_payment_pending");
         localStorage.removeItem("pendingVipMerchantUid");
         onPaymentError(
-          "결제 식별 오류: 포트원 응답에서 유효한 imp_uid(imp_ / imps_ 접두사)를 찾지 못했습니다. 모바일은 결제 완료 후 이 페이지로 돌아왔는지 확인해 주세요.",
+          "결제 식별 오류: 포트원 응답에서 paymentId·imp_uid 등 결제 식별자를 찾지 못했습니다. 모바일은 결제 완료 후 이 페이지로 돌아왔는지 확인해 주세요.",
         );
         return;
       }

@@ -10,12 +10,10 @@ import { DynamicLoader } from "@/components/ui/DynamicLoader";
 import { VipPdfTemplate } from "@/components/vip/VipPdfTemplate";
 import type { VipPdfUserInfo } from "@/components/vip/VipPdfTemplate";
 import { usePdfDownload } from "@/hooks/usePdfDownload";
-import {
-  extractImpUidFromReturnParams,
-  isLikelyPortOneReturnSuccess,
-  isValidIamportImpUid,
-} from "@/lib/payments/imp-uid";
+import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
 import { clearPendingPaymentData, readPendingPaymentData } from "@/lib/payments/pending-payment-data";
+import { clearPendingPaymentState } from "@/lib/payments/pending-payment-state";
+import { extractPaymentReturnId } from "@/lib/payments/return-params";
 import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 
 type VipApiSuccess = { success: true; markdown: string };
@@ -208,6 +206,7 @@ export default function VipLandingPage() {
           body: JSON.stringify({
             paymentType: "vip",
             imp_uid,
+            paymentId: imp_uid,
             merchant_uid,
           }),
         });
@@ -234,7 +233,7 @@ export default function VipLandingPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    const impUidRaw = extractImpUidFromReturnParams(params);
+    const returnPayId = extractPaymentReturnId(params);
     const errorMsg = params.get("message") || params.get("error_msg");
     const errorCode = params.get("code");
     const vipMobile = localStorage.getItem("vip_mobile_payment_pending") === "1";
@@ -244,7 +243,7 @@ export default function VipLandingPage() {
 
     const hasReturnSignal =
       impSuccess ||
-      !!impUidRaw ||
+      !!returnPayId ||
       !!params.get("paymentId") ||
       !!params.get("success") ||
       !!errorCode ||
@@ -254,26 +253,19 @@ export default function VipLandingPage() {
 
     const cleanUrl = () => {
       clearPendingPaymentData();
+      clearPendingPaymentState();
       router.replace(pathname || "/vip");
     };
 
-    if (!impUidRaw) {
+    if (!returnPayId) {
       if (vipMobile || impSuccess) {
         setErrorMessage(
           errorMsg?.trim() ||
-            "결제 복귀 URL에 유효한 imp_uid가 없습니다. imp_ 또는 imps_ 로 시작하는 식별자가 필요합니다.",
+            "결제 복귀 URL에 결제 식별자(paymentId / imp_uid)가 없습니다. 결제 완료 후 이 페이지로 돌아왔는지 확인해 주세요.",
         );
         localStorage.removeItem("vip_mobile_payment_pending");
         localStorage.removeItem("pendingVipMerchantUid");
       }
-      cleanUrl();
-      return;
-    }
-
-    if (!isValidIamportImpUid(impUidRaw)) {
-      alert("결제 식별 오류: imp_uid는 imp_ 또는 imps_ 로 시작해야 합니다.");
-      localStorage.removeItem("vip_mobile_payment_pending");
-      localStorage.removeItem("pendingVipMerchantUid");
       cleanUrl();
       return;
     }
@@ -283,16 +275,16 @@ export default function VipLandingPage() {
       (impSuccess && !!merchantUid && pendingMeta?.flow === "vip");
 
     if (!canProcessVip) {
-      if (impUidRaw && (vipMobile || impSuccess)) {
+      if (returnPayId && (vipMobile || impSuccess)) {
         alert("VIP 결제 복귀 오류: 주문번호(merchant_uid)가 없거나 세션이 만료되었습니다. 다시 결제를 시도해 주세요.");
         localStorage.removeItem("vip_mobile_payment_pending");
         localStorage.removeItem("pendingVipMerchantUid");
       }
-      if (impUidRaw) cleanUrl();
+      if (returnPayId) cleanUrl();
       return;
     }
 
-    const isSuccess = isLikelyPortOneReturnSuccess(params, impUidRaw);
+    const isSuccess = isLikelyPortOneReturnSuccess(params, returnPayId);
 
     if (!isSuccess || !merchantUid) {
       localStorage.removeItem("vip_mobile_payment_pending");
@@ -304,7 +296,7 @@ export default function VipLandingPage() {
 
     localStorage.removeItem("vip_mobile_payment_pending");
     localStorage.removeItem("pendingVipMerchantUid");
-    void completeVipAfterPayment(impUidRaw, merchantUid).finally(() => {
+    void completeVipAfterPayment(returnPayId, merchantUid).finally(() => {
       cleanUrl();
     });
   }, [completeVipAfterPayment, pathname, router]);

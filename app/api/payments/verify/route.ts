@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  parsePortOnePaymentPayload,
+  portoneFetchPaymentJson,
+  portoneLoginWithApiSecret,
+} from "@/lib/payments/portone-rest";
 
-/** VIP 상품 결제 금액(원) — 클라이언트 전달값과 무관하게 서버에서 고정 검증 */
+/** VIP 상품 결제 금액(원) */
 const VIP_PRODUCT_AMOUNT_WON = 29_900;
 
 type IamportTokenJson = {
@@ -37,40 +42,89 @@ async function getIamportAccessToken(): Promise<{ token: string } | { error: str
   const parsed = (await res.json()) as IamportTokenJson;
   const token = parsed.response?.access_token;
   if (!res.ok || parsed.code !== 0 || !token) {
-    return { error: parsed.message || "포트원 결제 토큰 발급에 실패했습니다." };
+    return { error: parsed.message || "포트원(IAMPORT) 결제 토큰 발급에 실패했습니다." };
   }
   return { token };
 }
 
-/** 포트원(IAMPORT) REST 단건 결제 조회로 금액·상태·merchant_uid 위변조 검증 */
-async function verifyIamportVipPayment(params: {
-  imp_uid: string;
-  merchant_uid: string;
-}): Promise<{ ok: true } | { ok: false; message: string }> {
+async function fetchIamportPaymentDetail(
+  impUid: string,
+): Promise<
+  { ok: true; amount: number; status: string; merchant_uid: string } | { ok: false; message: string }
+> {
   const tokenResult = await getIamportAccessToken();
   if ("error" in tokenResult) return { ok: false, message: tokenResult.error };
 
-  const payRes = await fetch(`https://api.iamport.kr/payments/${encodeURIComponent(params.imp_uid)}`, {
+  const payRes = await fetch(`https://api.iamport.kr/payments/${encodeURIComponent(impUid)}`, {
     headers: { Authorization: tokenResult.token },
   });
 
   const payJson = (await payRes.json()) as IamportPaymentJson;
   if (!payRes.ok || payJson.code !== 0 || !payJson.response) {
-    return { ok: false, message: payJson.message || "결제 검증에 실패했습니다." };
+    return { ok: false, message: payJson.message || "아임포트 결제 조회에 실패했습니다." };
   }
 
   const p = payJson.response;
-  if (p.status !== "paid") {
-    return { ok: false, message: "결제 검증에 실패했습니다. 결제가 완료되지 않았습니다." };
-  }
   const paidAmount = typeof p.amount === "number" ? p.amount : Number(p.amount);
-  if (!Number.isFinite(paidAmount) || paidAmount !== VIP_PRODUCT_AMOUNT_WON) {
-    return { ok: false, message: "결제 검증에 실패했습니다. 금액이 일치하지 않습니다." };
-  }
-  if (p.merchant_uid !== params.merchant_uid) {
-    return { ok: false, message: "결제 검증에 실패했습니다. 주문번호가 일치하지 않습니다." };
+  const merchant_uid = typeof p.merchant_uid === "string" ? p.merchant_uid : "";
+  const status = typeof p.status === "string" ? p.status : "";
+  if (!Number.isFinite(paidAmount)) return { ok: false, message: "결제 금액을 확인할 수 없습니다." };
+  return { ok: true, amount: paidAmount, status, merchant_uid };
+}
+
+function isIamportStyleId(id: string): boolean {
+  return id.startsWith("imp_") || id.startsWith("imps_");
+}
+
+async function verifyPaidAmountUniversal(params: {
+  lookupId: string;
+  expectedAmountWon: number;
+  /** VIP·일부 플로우: 아임포트 merchant_uid 또는 포트원 V2 paymentId(=클라이언트 paymentId) 대조 */
+  merchantUidToMatch?: string | null;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { lookupId, expectedAmountWon, merchantUidToMatch } = params;
+
+  if (isIamportStyleId(lookupId)) {
+    const detail = await fetchIamportPaymentDetail(lookupId);
+    if (!detail.ok) return detail;
+    if (detail.status !== "paid") {
+      return { ok: false, message: "결제 검증에 실패했습니다. 결제가 완료되지 않았습니다." };
+    }
+    if (detail.amount !== expectedAmountWon) {
+      return { ok: false, message: "결제 검증에 실패했습니다. 금액이 일치하지 않습니다." };
+    }
+    if (merchantUidToMatch && merchantUidToMatch.trim() !== "" && detail.merchant_uid !== merchantUidToMatch.trim()) {
+      return { ok: false, message: "결제 검증에 실패했습니다. 주문번호가 일치하지 않습니다." };
+    }
+    return { ok: true };
   }
 
+  const secret = process.env.PORTONE_API_SECRET?.trim();
+  if (!secret) {
+    return {
+      ok: false,
+      message:
+        "포트원 V2 결제 식별자(paymentId) 검증을 위해 PORTONE_API_SECRET(포트원 콘솔 → 연동 정보 → API Secret)을 설정해 주세요.",
+    };
+  }
+
+  const login = await portoneLoginWithApiSecret(secret);
+  if ("error" in login) return { ok: false, message: login.error };
+
+  const raw = await portoneFetchPaymentJson(login.accessToken, lookupId);
+  const parsed = parsePortOnePaymentPayload(raw);
+  if (!parsed) {
+    return { ok: false, message: "포트원 결제 조회에 실패했습니다. paymentId가 올바른지 확인해 주세요." };
+  }
+  if (parsed.status !== "PAID") {
+    return { ok: false, message: "결제 검증에 실패했습니다. 결제가 완료되지 않았습니다." };
+  }
+  if (parsed.totalAmount !== expectedAmountWon) {
+    return { ok: false, message: "결제 검증에 실패했습니다. 금액이 일치하지 않습니다." };
+  }
+  if (merchantUidToMatch && merchantUidToMatch.trim() !== "" && parsed.id !== merchantUidToMatch.trim()) {
+    return { ok: false, message: "결제 검증에 실패했습니다. 주문번호(결제 ID)가 일치하지 않습니다." };
+  }
   return { ok: true };
 }
 
@@ -81,30 +135,40 @@ export async function POST(req: Request) {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json();
-    const { paymentType, imp_uid, merchant_uid, wishText, period, nameDisplay, nameInput, userId } = body;
+    const {
+      paymentType,
+      imp_uid,
+      paymentId,
+      merchant_uid,
+      wishText,
+      period,
+      nameDisplay,
+      nameInput,
+      userId,
+      amount: rawAmount,
+    } = body;
 
-    const currentPaymentType = paymentType || (wishText ? "altar" : "unknown");
-
-    if (!imp_uid) {
-      return NextResponse.json({ success: false, message: "필수 데이터(imp_uid)가 누락되었습니다." }, { status: 400 });
-    }
-
-    const impTrim = String(imp_uid).trim();
-    if (!impTrim.startsWith("imp_") && !impTrim.startsWith("imps_")) {
+    const lookupId = String(imp_uid ?? paymentId ?? "")
+      .trim()
+      .replace(/\s+/g, "");
+    if (!lookupId) {
       return NextResponse.json(
-        { success: false, message: "imp_uid는 imp_ 또는 imps_ 로 시작해야 합니다." },
+        { success: false, message: "필수 데이터(imp_uid 또는 paymentId)가 누락되었습니다." },
         { status: 400 },
       );
     }
+
+    const currentPaymentType = paymentType || (wishText ? "altar" : "unknown");
 
     if (currentPaymentType === "vip") {
       if (!merchant_uid || typeof merchant_uid !== "string") {
         return NextResponse.json({ success: false, message: "merchant_uid가 누락되었습니다." }, { status: 400 });
       }
 
-      const verified = await verifyIamportVipPayment({
-        imp_uid,
-        merchant_uid: merchant_uid.trim(),
+      const verified = await verifyPaidAmountUniversal({
+        lookupId,
+        expectedAmountWon: VIP_PRODUCT_AMOUNT_WON,
+        merchantUidToMatch: merchant_uid,
       });
 
       if (!verified.ok) {
@@ -115,6 +179,13 @@ export async function POST(req: Request) {
     }
 
     if (currentPaymentType === "altar") {
+      const expected = typeof rawAmount === "number" ? rawAmount : Number(rawAmount);
+      if (!Number.isFinite(expected) || expected <= 0) {
+        return NextResponse.json({ success: false, message: "결제 금액(amount)이 올바르지 않습니다." }, { status: 400 });
+      }
+      const v = await verifyPaidAmountUniversal({ lookupId, expectedAmountWon: expected });
+      if (!v.ok) return NextResponse.json({ success: false, message: v.message }, { status: 400 });
+
       const { error } = await supabase.from("wishes").insert({
         content: wishText,
         duration: period,
@@ -123,12 +194,22 @@ export async function POST(req: Request) {
       });
       if (error) throw error;
     } else if (currentPaymentType === "lotto") {
+      const expected = 4500;
+      const v = await verifyPaidAmountUniversal({ lookupId, expectedAmountWon: expected });
+      if (!v.ok) return NextResponse.json({ success: false, message: v.message }, { status: 400 });
+
       if (userId) {
         const { error } = await supabase.rpc("add_premium_lotto", { user_id: userId, add_count: 10 });
         if (error) throw error;
       }
     } else if (currentPaymentType === "saju") {
-      console.log("관상/사주 결제 검증 완료:", imp_uid);
+      const expectedFromBody = typeof rawAmount === "number" ? rawAmount : Number(rawAmount);
+      const expected = Number.isFinite(expectedFromBody) && expectedFromBody > 0 ? expectedFromBody : 4900;
+      const v = await verifyPaidAmountUniversal({ lookupId, expectedAmountWon: expected });
+      if (!v.ok) return NextResponse.json({ success: false, message: v.message }, { status: 400 });
+      console.log("관상/사주 결제 검증 완료:", lookupId);
+    } else {
+      return NextResponse.json({ success: false, message: "지원하지 않는 결제 유형입니다." }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, message: "결제 확인 및 처리 완료" });

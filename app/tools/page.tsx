@@ -2,7 +2,7 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@supabase/supabase-js";
@@ -25,12 +25,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import {
-  extractImpUidFromReturnParams,
-  isLikelyPortOneReturnSuccess,
-  isValidIamportImpUid,
-} from "@/lib/payments/imp-uid";
+import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
 import { clearPendingPaymentData, readPendingPaymentData, savePendingPaymentData } from "@/lib/payments/pending-payment-data";
+import {
+  clearPendingPaymentState,
+  readPendingPaymentState,
+  savePendingPaymentState,
+} from "@/lib/payments/pending-payment-state";
+import { extractPaymentReturnId } from "@/lib/payments/return-params";
 import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 import { PaymentMethodSelector, type PayMethodPg } from "@/components/payments/PaymentMethodSelector";
 
@@ -1408,6 +1410,18 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
   const [premiumWishText, setPremiumWishText] = useState("");
   const [countdownNow, setCountdownNow] = useState(Date.now());
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || !isVisible) return;
+    const p = new URLSearchParams(window.location.search);
+    if (!extractPaymentReturnId(p) && p.get("imp_success") !== "true" && p.get("success") !== "true") return;
+    const st = readPendingPaymentState();
+    if (st?.flow !== "altar" || !st.wish) return;
+    setPremiumWishText(st.wish.wishText);
+    setPremiumPeriod((st.wish.period === "10d" ? "10d" : "24h") as PremiumPeriod);
+    setPremiumNameDisplay(st.wish.nameDisplay as PremiumNameDisplay);
+    setPremiumNameInput(st.wish.nameInput || "");
+  }, [isVisible]);
   
   useEffect(() => {
     const refreshMockWishes = () => {
@@ -1788,7 +1802,8 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
       }
       if (!PortOne) { alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!"); return; }
       if (isMobile) {
-        payData.redirectUrl = window.location.origin + "?tab=altar";
+        const toolsOrigin = `${window.location.origin}/tools`;
+        payData.redirectUrl = `${toolsOrigin}?tab=altar`;
         localStorage.setItem("pendingPaymentType", "altar");
         localStorage.setItem("pendingPremiumWish", JSON.stringify({
           wishText: premiumWishText,
@@ -1798,6 +1813,17 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
           amount: amount
         }));
         savePendingPaymentData({ v: 1, tab: "altar", flow: "altar" });
+        savePendingPaymentState({
+          tab: "altar",
+          flow: "altar",
+          wish: {
+            wishText: premiumWishText,
+            period: premiumPeriod,
+            nameDisplay: premiumNameDisplay,
+            nameInput: premiumNameInput,
+            amount,
+          },
+        });
       }
       const response = await PortOne.requestPayment(payData);
       const isSuccess = !response?.code;
@@ -1808,6 +1834,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 imp_uid: response.paymentId,
+                paymentId: response.paymentId,
                 merchant_uid: response.paymentId,
                 amount: amount,
                 wishText: premiumWishText,
@@ -2214,6 +2241,35 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [isNamePremiumUnlocked, setIsNamePremiumUnlocked] = useState(false);
   const [selectedPayMethod, setSelectedPayMethod] = useState<PayMethodPg>("kpn");
 
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || !isVisible) return;
+    const p = new URLSearchParams(window.location.search);
+    if (!extractPaymentReturnId(p) && p.get("imp_success") !== "true" && p.get("success") !== "true") return;
+    const st = readPendingPaymentState();
+    if (st?.flow === "physiognomy" && st.face?.faceImage) {
+      setFaceImage(st.face.faceImage);
+      if (st.face.faceResultData) {
+        setFaceResultData(st.face.faceResultData);
+        setShowFaceResult(true);
+      }
+      setActiveSajuMode("face");
+    }
+    if (st?.flow === "name" && st.name) {
+      const n = st.name;
+      if (n.nameInput) setNameInput(n.nameInput);
+      if (n.nameHanja) setNameHanja(n.nameHanja);
+      if (n.nameBirthDate) setNameBirthDate(n.nameBirthDate);
+      if (n.nameBirthTime) setNameBirthTime(n.nameBirthTime);
+      if (n.nameGender) setNameGender(n.nameGender);
+      if (n.hanjaSelections) setHanjaSelections(n.hanjaSelections);
+      if (n.nameResultData) {
+        setNameResultData(n.nameResultData as typeof nameResultData);
+        setShowNameResult(true);
+      }
+      setActiveSajuMode("name");
+    }
+  }, [isVisible]);
+
   // 🚀 모바일 결제 복귀 시 1:1 데이터 매칭 복구 및 무한 결제 방지 (버그 수정 완료)
   useEffect(() => {
     if (typeof window !== "undefined" && isVisible) {
@@ -2238,7 +2294,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           localStorage.removeItem("pendingFaceData");
           localStorage.removeItem("pendingPaymentType");
           localStorage.removeItem("pendingPaymentAmount");
-        } else {
+        } else if (!(pendingType === "physiognomy" && !lastImpUid)) {
           localStorage.removeItem("pendingFaceData");
         }
       }
@@ -2266,7 +2322,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           localStorage.removeItem("pendingNameData");
           localStorage.removeItem("pendingPaymentType");
           localStorage.removeItem("pendingPaymentAmount");
-        } else {
+        } else if (!(pendingType === "name" && !lastImpUid)) {
           localStorage.removeItem("pendingNameData");
         }
       }
@@ -2396,8 +2452,14 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     localStorage.setItem("pendingPaymentAmount", String(amount));
     localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
     savePendingPaymentData({ v: 1, tab: "saju", flow: "physiognomy" });
+    savePendingPaymentState({
+      tab: "saju",
+      flow: "physiognomy",
+      face: { faceImage: faceImage ?? undefined, faceResultData },
+    });
 
     try {
+      const toolsOrigin = `${window.location.origin}/tools`;
       const response = await PortOne.requestPayment({
         storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
         channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
@@ -2407,7 +2469,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         currency: "KRW",
         payMethod: selectedPayMethod === "kakaopay" ? "EASY_PAY" : selectedPayMethod === "tosspay" ? "EASY_PAY" : "CARD",
         customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
-        redirectUrl: isMobile ? window.location.href : undefined,
+        redirectUrl: isMobile ? `${toolsOrigin}?tab=saju` : undefined,
       });
       if (response?.code) {
         localStorage.removeItem("pendingFaceData");
@@ -2421,6 +2483,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
             body: JSON.stringify({
               paymentType: "saju",
               imp_uid: response.paymentId,
+              paymentId: response.paymentId,
               merchant_uid: response.paymentId,
               amount,
             }),
@@ -2674,8 +2737,22 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         nameInput, nameHanja, nameBirthDate, nameBirthTime, nameGender, hanjaSelections, nameResultData
       }));
       savePendingPaymentData({ v: 1, tab: "saju", flow: "name" });
+      savePendingPaymentState({
+        tab: "saju",
+        flow: "name",
+        name: {
+          nameInput,
+          nameHanja,
+          nameBirthDate,
+          nameBirthTime,
+          nameGender,
+          hanjaSelections,
+          nameResultData,
+        },
+      });
 
       try {
+        const toolsOrigin = `${window.location.origin}/tools`;
         const response = await PortOne.requestPayment({
           storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
           channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
@@ -2685,7 +2762,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           currency: "KRW",
           payMethod: selectedPayMethod === "kakaopay" ? "EASY_PAY" : selectedPayMethod === "tosspay" ? "EASY_PAY" : "CARD",
           customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
-          redirectUrl: isMobile ? window.location.href : undefined,
+          redirectUrl: isMobile ? `${toolsOrigin}?tab=saju` : undefined,
         });
         if (response?.code) {
           localStorage.removeItem("pendingNameData");
@@ -2696,7 +2773,13 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
             const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ paymentType: "saju", imp_uid: response.paymentId, merchant_uid: response.paymentId, amount: amount }),
+              body: JSON.stringify({
+                paymentType: "saju",
+                imp_uid: response.paymentId,
+                paymentId: response.paymentId,
+                merchant_uid: response.paymentId,
+                amount: amount,
+              }),
             });
             const verifyData = await verifyRes.json();
             if (verifyRes.ok && verifyData.success) {
@@ -3673,12 +3756,18 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
       };
 
       if (isMobile) {
-        payData.m_redirect_url = window.location.href;
+        const toolsOrigin = `${window.location.origin}/tools`;
+        payData.m_redirect_url = `${toolsOrigin}?tab=lotto`;
         localStorage.removeItem("pendingPremiumWish");
         localStorage.setItem("pendingPaymentType", "lotto");
         localStorage.setItem("pendingPaymentAmount", String(amount));
         localStorage.setItem("pendingPaymentUserId", user.id);
         savePendingPaymentData({ v: 1, tab: "lotto", flow: "lotto" });
+        savePendingPaymentState({
+          tab: "lotto",
+          flow: "lotto",
+          lotto: { amount, userId: user.id },
+        });
       }
 
       IMP.request_pay(payData, async function (rsp: any) {
@@ -3691,6 +3780,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
               body: JSON.stringify({
                 paymentType: "lotto",
                 imp_uid: rsp.imp_uid,
+                paymentId: rsp.imp_uid,
                 merchant_uid: rsp.merchant_uid,
                 amount: amount,
                 userId: user.id
@@ -4522,23 +4612,40 @@ export default function Home() {
     trackVisitor();
   }, []);
 
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const targetTab = urlParams.get("tab") as TabId;
-    if (targetTab) setActiveTab(targetTab);
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const returnPayId = extractPaymentReturnId(params);
+    const paymentEcho =
+      !!returnPayId ||
+      params.get("imp_success") === "true" ||
+      params.get("success") === "true";
+    const validTabs: TabId[] = ["fortune", "dream", "lotto", "altar", "saju", "mbti", "match"];
+    const tabFromUrl = params.get("tab") as TabId | null;
+    if (tabFromUrl && validTabs.includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    } else if (paymentEcho) {
+      const st = readPendingPaymentState();
+      if (st?.tab && validTabs.includes(st.tab as TabId)) setActiveTab(st.tab as TabId);
+      else {
+        const pendingMeta = readPendingPaymentData();
+        if (pendingMeta?.tab && validTabs.includes(pendingMeta.tab as TabId)) {
+          setActiveTab(pendingMeta.tab as TabId);
+        }
+      }
+    }
   }, []);
 
-  // 🚀 모바일 PG 리다이렉트 복귀 — imp_success·imp_uid·탭 복원(pending_payment_data)·IAMPORT imp_uid 검증
+  // 모바일 PG 리다이렉트 복귀 — paymentId·imp_uid·pending_payment_state
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    const impUid = extractImpUidFromReturnParams(params);
+    const returnPayId = extractPaymentReturnId(params);
     const errorMsg = params.get("message") || params.get("error_msg");
-    const errorCode = params.get("code");
+    const errorCode = params.get("code") || params.get("error_code");
 
     const hasReturnSignal =
-      !!impUid ||
-      !!params.get("paymentId") ||
+      !!returnPayId ||
       params.get("imp_success") === "true" ||
       params.get("success") === "true" ||
       !!errorCode ||
@@ -4546,51 +4653,42 @@ export default function Home() {
 
     if (!hasReturnSignal) return;
 
-    const validTabs: TabId[] = ["fortune", "dream", "lotto", "altar", "saju", "mbti", "match"];
-    const tabFromUrl = urlParams.get("tab") as TabId | null;
-    if (tabFromUrl && validTabs.includes(tabFromUrl)) {
-      setActiveTab(tabFromUrl);
-    } else {
-      const pendingMeta = readPendingPaymentData();
-      if (pendingMeta?.tab) {
-        const t = pendingMeta.tab as TabId;
-        if (validTabs.includes(t)) setActiveTab(t);
-      }
-    }
-
-    const clearReturn = () => {
+    const stripPgQuery = () => {
       clearPendingPaymentData();
       router.replace(pathname);
     };
 
-    const pendingType = localStorage.getItem("pendingPaymentType");
+    const clearAllReturnArtifacts = () => {
+      clearPendingPaymentData();
+      clearPendingPaymentState();
+      router.replace(pathname);
+    };
+
+    const pendingState = readPendingPaymentState();
+    const pendingType = pendingState?.flow ?? localStorage.getItem("pendingPaymentType");
 
     if (localStorage.getItem("vip_mobile_payment_pending") === "1" || pendingType === "vip") {
       localStorage.removeItem("vip_mobile_payment_pending");
       localStorage.removeItem("pendingVipMerchantUid");
       if (pendingType === "vip") localStorage.removeItem("pendingPaymentType");
-      clearReturn();
+      clearAllReturnArtifacts();
       return;
     }
 
-    if (!impUid) {
-      if (params.get("imp_success") === "true") {
-        alert("결제 복귀 오류: URL에 유효한 imp_uid(imp_ / imps_)가 없습니다.");
+    if (!returnPayId) {
+      if (errorCode || errorMsg) {
+        alert(`결제 실패: ${errorMsg || errorCode || "알 수 없는 오류"}`);
+      } else if (params.get("imp_success") === "true" || params.get("success") === "true") {
+        alert("결제 복귀 오류: 결제 식별자(paymentId / imp_uid)가 URL에 없습니다.");
       }
-      clearReturn();
+      stripPgQuery();
       return;
     }
 
-    if (!isValidIamportImpUid(impUid)) {
-      alert("결제 식별 오류: imp_uid는 imp_ 또는 imps_ 로 시작해야 합니다.");
-      clearReturn();
-      return;
-    }
-
-    const isSuccess = isLikelyPortOneReturnSuccess(params, impUid);
+    const isSuccess = isLikelyPortOneReturnSuccess(params, returnPayId);
     if (!isSuccess) {
       alert(`결제 실패: ${errorMsg || "사용자 취소"}`);
-      clearReturn();
+      stripPgQuery();
       return;
     }
 
@@ -4604,41 +4702,46 @@ export default function Home() {
         const verifyData = (await verifyRes.json()) as { success?: boolean; message?: string };
         if (!verifyRes.ok || !verifyData.success) {
           alert(
-            `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || verifyRes.statusText || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
+            `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || verifyRes.statusText || "서버·포트원 설정을 확인해 주세요."}`,
           );
-          clearReturn();
+          stripPgQuery();
           return;
         }
         onOk();
-        clearReturn();
+        clearAllReturnArtifacts();
       } catch (e) {
         console.error("[payment/verify]", e);
         alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
+        stripPgQuery();
       }
     };
 
     void (async () => {
-      const wishRaw = localStorage.getItem("pendingPremiumWish");
-
-      if (pendingType === "altar" && wishRaw) {
-        let wishData: {
-          wishText: string;
-          period: string;
-          nameDisplay: string;
-          nameInput: string;
-          amount: number;
-        };
-        try {
-          wishData = JSON.parse(wishRaw) as typeof wishData;
-        } catch {
-          alert("결제 검증 오류: 제단 소원 데이터가 손상되었습니다.");
-          clearReturn();
-          return;
+      let wishData: {
+        wishText: string;
+        period: string;
+        nameDisplay: string;
+        nameInput: string;
+        amount: number;
+      } | null = null;
+      if (pendingState?.wish) wishData = pendingState.wish;
+      else {
+        const wishRaw = localStorage.getItem("pendingPremiumWish");
+        if (wishRaw) {
+          try {
+            wishData = JSON.parse(wishRaw);
+          } catch {
+            wishData = null;
+          }
         }
+      }
+
+      if (pendingType === "altar" && wishData) {
         await verifyAndAct(
           {
             paymentType: "altar",
-            imp_uid: impUid,
+            imp_uid: returnPayId,
+            paymentId: returnPayId,
             amount: wishData.amount,
             wishText: wishData.wishText,
             period: wishData.period,
@@ -4663,7 +4766,8 @@ export default function Home() {
         await verifyAndAct(
           {
             paymentType: "lotto",
-            imp_uid: impUid,
+            imp_uid: returnPayId,
+            paymentId: returnPayId,
             amount: localStorage.getItem("pendingPaymentAmount"),
             userId: localStorage.getItem("pendingPaymentUserId"),
           },
@@ -4682,12 +4786,13 @@ export default function Home() {
         await verifyAndAct(
           {
             paymentType: "saju",
-            imp_uid: impUid,
+            imp_uid: returnPayId,
+            paymentId: returnPayId,
             amount: localStorage.getItem("pendingPaymentAmount"),
           },
           () => {
             alert("✨ 결제가 완료되었습니다. 결과를 확인하세요!");
-            localStorage.setItem("last_authorized_imp_uid", impUid);
+            localStorage.setItem("last_authorized_imp_uid", returnPayId);
             setActiveTab("saju");
           },
         );
@@ -4697,7 +4802,7 @@ export default function Home() {
       alert(
         "결제 복귀 처리: 저장된 결제 종류와 일치하지 않습니다. 같은 브라우저에서 결제를 완료했는지 확인해 주세요.",
       );
-      clearReturn();
+      stripPgQuery();
     })();
   }, [pathname, router]);
 
