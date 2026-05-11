@@ -1,8 +1,9 @@
+import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script"; // 🚀 포트원 & 구글 애드센스 스크립트 불러오기
-import Analytics from "@/components/Analytics";
+import CustomAnalytics from "@/components/Analytics";
 import { GlobalSiteFooter } from "@/components/layout/GlobalSiteFooter";
 
 const geistSans = Geist({
@@ -67,6 +68,7 @@ export default function RootLayout({
           <div className="flex-1">{children}</div>
           <GlobalSiteFooter />
         </div>
+        <CustomAnalytics />
         <Analytics />
       </body>
     </html>
