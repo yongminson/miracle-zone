@@ -1,0 +1,811 @@
+function AltarTab({ isVisible }: { isVisible: boolean }) {
+  // 🚀 [추가] 촛불 애니메이션 및 사운드 상태 (기존 432Hz BGM과 충돌하지 않음)
+  const [isCandleOn, setIsCandleOn] = useState(false);
+  const bellAudioRef = useRef<HTMLAudioElement | null>(null);
+  const fireAudioRef = useRef<HTMLAudioElement | null>(null);
+  const talismanRef = useRef<HTMLDivElement | null>(null); // 🚀 부적 카드 캡처용
+  const [isPremiumGlow, setIsPremiumGlow] = useState(false); // 🚀 프리미엄 황금빛 공양 효과
+  const [lastWish, setLastWish] = useState(""); // 🚀 방금 등록한 소원 기억하기 (부적용)
+  const [needsInteraction, setNeedsInteraction] = useState(false); // 🚀 모바일 오디오 강제 재생용 터치 대기 상태
+
+  // 🚀 부적 카드 공유 기능
+  const handleAltarShare = async () => {
+    if (!wishText.trim() && wishes.length === 0) return alert("먼저 간절한 소원을 작성해주세요!");
+    await captureAndShareElement(talismanRef.current, {
+      fileName: "miracle-talisman.png",
+      title: "기적의 제단 소원 부적",
+      text: `간절한 소원이 담긴 부적입니다.\n${window.location.origin}`
+    });
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      bellAudioRef.current = new Audio("/bell.mp3");
+      fireAudioRef.current = new Audio("/fire.mp3");
+      if (fireAudioRef.current) {
+        fireAudioRef.current.loop = true;
+        fireAudioRef.current.volume = 0.5;
+      }
+    }
+    return () => {
+      if (fireAudioRef.current) {
+        fireAudioRef.current.pause();
+        fireAudioRef.current.currentTime = 0;
+      }
+    };
+  }, []);
+  const [wishText, setWishText] = useState("");
+  const [wishes, setWishes] = useState<WishRow[]>([]);
+  const [premiumWishes, setPremiumWishes] = useState<PremiumWish[]>([]);
+  const [floatingWishes, setFloatingWishes] = useState<string[]>([]);
+  const [mockWishes, setMockWishes] = useState<string[]>(() => {
+    if (typeof window === "undefined") {
+      return shuffleArray(FLOATING_WISHES_POOL).slice(0, 11);
+    }
+  
+    const saved = localStorage.getItem("altar-mock-wishes");
+    const savedAt = localStorage.getItem("altar-mock-wishes-time");
+  
+    if (saved && savedAt) {
+      const age = Date.now() - Number(savedAt);
+      const twelveHours = 12 * 60 * 60 * 1000;
+  
+      if (age < twelveHours) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // 무시하고 새로 생성
+        }
+      }
+    }
+  
+    const next = shuffleArray(FLOATING_WISHES_POOL).slice(0, 11);
+    localStorage.setItem("altar-mock-wishes", JSON.stringify(next));
+    localStorage.setItem("altar-mock-wishes-time", String(Date.now()));
+    return next;
+  });
+  const [isCooldown, setIsCooldown] = useState(false);
+  const [isSubmittingFreeWish, setIsSubmittingFreeWish] = useState(false);
+  const [showWishToast, setShowWishToast] = useState(false);
+  const [wishToastMessage, setWishToastMessage] = useState("");
+  const [isMuted, setIsMuted] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [selectedPayMethod, setSelectedPayMethod] = useState<PayMethodPg>("kpn");
+  const [premiumPeriod, setPremiumPeriod] = useState<PremiumPeriod>("24h");
+  const [premiumNameDisplay, setPremiumNameDisplay] = useState<PremiumNameDisplay>("anonymous");
+  const [premiumNameInput, setPremiumNameInput] = useState("");
+  const [premiumWishText, setPremiumWishText] = useState("");
+  const [countdownNow, setCountdownNow] = useState(Date.now());
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || !isVisible) return;
+    const p = new URLSearchParams(window.location.search);
+    if (!extractPaymentReturnId(p) && p.get("imp_success") !== "true" && p.get("success") !== "true") return;
+    const st = readPendingPaymentState();
+    if (st?.flow !== "altar" || !st.wish) return;
+    setPremiumWishText(st.wish.wishText);
+    setPremiumPeriod((st.wish.period === "10d" ? "10d" : "24h") as PremiumPeriod);
+    setPremiumNameDisplay(st.wish.nameDisplay as PremiumNameDisplay);
+    setPremiumNameInput(st.wish.nameInput || "");
+  }, [isVisible]);
+  
+  useEffect(() => {
+    const refreshMockWishes = () => {
+      const next = shuffleArray(FLOATING_WISHES_POOL).slice(0, 11);
+      setMockWishes(next);
+      localStorage.setItem("altar-mock-wishes", JSON.stringify(next));
+      localStorage.setItem("altar-mock-wishes-time", String(Date.now()));
+    };
+  
+    const id = setInterval(refreshMockWishes, 12 * 60 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+  
+  useEffect(() => {
+    if (!isVisible) {
+      audioRef.current?.pause();
+      return;
+    }
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = isMuted ? 0 : 0.25;
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        // 🚀 스마트폰이 자동재생을 막았다면? 화면 터치 시 즉시 재생되도록 우회!
+        const playOnInteract = () => {
+          audio.play().catch(()=>{});
+          document.removeEventListener("click", playOnInteract);
+          document.removeEventListener("touchstart", playOnInteract);
+        };
+        document.addEventListener("click", playOnInteract);
+        document.addEventListener("touchstart", playOnInteract);
+      });
+    }
+    return () => {
+      audio.pause();
+    };
+  }, [isVisible, isMuted]);
+  
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+  const filterFreeWishes = (list: WishRow[]) => {
+    const cutoff = Date.now() - ONE_HOUR_MS;
+    return list.filter((w) => {
+      const at = w.created_at ? new Date(w.created_at).getTime() : 0;
+      return at >= cutoff;
+    });
+  };
+
+  const filterPremiumWishes = (list: PremiumWish[]) => {
+    return list.filter((pw) => {
+      const hours = pw.period === "24h" ? 24 : 240;
+      const cutoff = pw.createdAt + hours * 60 * 60 * 1000;
+      return Date.now() < cutoff;
+    });
+  };
+
+  const getPremiumRemainingMs = (pw: PremiumWish) => {
+    const hours = pw.period === "24h" ? 24 : 240;
+    const end = pw.createdAt + hours * 60 * 60 * 1000;
+    return Math.max(0, end - Date.now());
+  };
+
+  const formatCountdown = (ms: number) => {
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
+  useEffect(() => {
+    const id = setInterval(() => setCountdownNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  
+  useEffect(() => {
+    setPremiumWishes((prev) => filterPremiumWishes(prev));
+  }, [countdownNow]);
+  
+  const fetchWishes = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from("wishes").select("*").order("created_at", { ascending: false }).limit(100);
+      if (error) {
+        console.error("데이터 불러오기 실패:", error);
+        return;
+      }
+      const rows = (data || []) as WishDbRow[];
+      const now = Date.now();
+      const filtered = rows.filter((wish) => {
+        const wishTime = new Date(wish.created_at || 0).getTime();
+        if (wish.duration === "10d" && now - wishTime < 10 * 24 * 60 * 60 * 1000) return true;
+        if (wish.duration === "24h" && now - wishTime < 24 * 60 * 60 * 1000) return true;
+        if ((!wish.duration || wish.duration === "1h") && now - wishTime < 60 * 60 * 1000) return true;
+        return false;
+      });
+      const free: WishRow[] = [];
+      const premium: PremiumWish[] = [];
+      for (const row of filtered) {
+        const at = row.created_at ? new Date(row.created_at).getTime() : 0;
+        if (row.duration === "10d" || row.duration === "24h") {
+          const period: PremiumPeriod = row.duration === "10d" ? "10d" : "24h";
+          const periodLabel = period === "24h" ? "24시간" : "특별기원";
+        
+          let nameText = "익명";
+          if (row.display_mode === "real" && row.display_name?.trim()) {
+            nameText = row.display_name.trim();
+          } else if (row.display_mode === "partial" && row.display_name?.trim()) {
+            const raw = row.display_name.trim();
+            if (raw.length >= 2) {
+              nameText =
+                raw[0] +
+                "*".repeat(Math.max(1, raw.length - 2)) +
+                raw[raw.length - 1];
+            } else {
+              nameText = raw;
+            }
+          }
+        
+          const badge = `[✨ ${nameText} 님의 ${periodLabel} 기원]`;
+          premium.push({
+            id: row.id,
+            content: row.content,
+            badge,
+            period,
+            createdAt: at,
+          });
+        } else {
+          free.push({
+            id: row.id,
+            content: row.content,
+            created_at: row.created_at,
+          });
+        }
+      }
+      setWishes(free);
+      setPremiumWishes((prev) => {
+        const localOnly = prev.filter((p) => String(p.id).startsWith("prem-"));
+        // 🚀 DB에서 가져온 진짜 소원과, 화면에 먼저 띄운 가짜 소원이 겹치면 가짜를 지워버립니다 (모바일 중복 버그 완벽 해결!)
+        const realContents = premium.map(p => p.content);
+        const filteredLocal = localOnly.filter(l => !realContents.includes(l.content));
+        return [...premium, ...filteredLocal];
+      });
+    } catch (err) {
+      console.error("데이터 불러오기 실패:", err);
+    }
+  }, []);
+  
+  useEffect(() => {
+    fetchWishes();
+  }, [fetchWishes]);
+
+  // 🚀 모바일 프리미엄 결제 성공 시 즉시 애니메이션 팡! & 리스트 강제 새로고침
+  useEffect(() => {
+    const handlePremiumSuccess = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const wishData = customEvent.detail;
+      
+      if (wishData) {
+        setLastWish(wishData.wishText);
+        // 🚀 DB 기다리지 않고 화면에 즉시 띄움 (버그 완벽 해결)
+        const newPremiumWish: PremiumWish = {
+          id: `prem-opt-${Date.now()}`,
+          content: wishData.wishText,
+          badge: `[✨ ${wishData.nameDisplay === "anonymous" ? "익명" : wishData.nameInput || "익명"} 님의 ${wishData.period === "24h" ? "24시간" : "특별기원"}]`,
+          period: wishData.period,
+          createdAt: Date.now()
+        };
+        setPremiumWishes(prev => [newPremiumWish, ...prev]);
+      }
+      
+      fetchWishes(); // DB 동기화
+      setIsCandleOn(true);
+      setIsPremiumGlow(true);
+      
+      // 🚀 모바일 오디오 강제 재생 돌파 (실패 시 터치 유도 화면 띄움)
+      try {
+        const p1 = bellAudioRef.current?.play();
+        const p2 = fireAudioRef.current?.play();
+        const p3 = audioRef.current?.play();
+        Promise.all([p1, p2, p3]).catch(() => setNeedsInteraction(true));
+      } catch (err) {
+        setNeedsInteraction(true);
+      }
+      setTimeout(() => { setIsCandleOn(false); setIsPremiumGlow(false); if(fireAudioRef.current) fireAudioRef.current.pause(); }, 6000);
+    };
+
+    window.addEventListener("premiumAltarSuccess", handlePremiumSuccess as EventListener);
+    return () => window.removeEventListener("premiumAltarSuccess", handlePremiumSuccess as EventListener);
+  }, [fetchWishes]);
+  
+  useEffect(() => {
+    const freeFiltered = filterFreeWishes(wishes);
+    setFloatingWishes([...freeFiltered.map((w) => w.content), ...mockWishes].slice(-25));
+  }, [wishes, mockWishes]);
+  
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const channel = supabase
+      .channel("wishes-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "wishes" },
+        (payload) => {
+          const row = payload.new as { id: string; content: string; created_at?: string };
+          if (!row?.content) return;
+      
+          const opt = lastOptimisticRef.current;
+          if (opt && opt.text === row.content && Date.now() - opt.at < 5000) {
+            lastOptimisticRef.current = null;
+            return;
+          }
+          setWishes((prev) => filterFreeWishes([row as WishRow, ...prev]));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isVisible]);
+  
+  const activeWishCount = floatingWishes.length + filterPremiumWishes(premiumWishes).length;
+  const activePremiumCount = filterPremiumWishes(premiumWishes).length;
+  
+  const handleMuteToggle = () => {
+        const audio = audioRef.current;
+        if (!audio) return;
+        const nextMuted = !isMuted;
+        audio.volume = nextMuted ? 0 : 0.25;
+        if (bellAudioRef.current) bellAudioRef.current.muted = nextMuted;
+        if (fireAudioRef.current) fireAudioRef.current.muted = nextMuted;
+        setIsMuted(nextMuted);
+      };
+
+  const lastOptimisticRef = useRef<{ text: string; at: number } | null>(null);
+  
+  const handleSubmitFree = async () => {
+    const text = wishText.trim();
+    if (!text || isCooldown || isSubmittingFreeWish) return;
+  
+    supabase.rpc('increment_tab_click', { target_tab_id: 'altar' }).then(({ error }) => { if(error) console.error('제단 에러:', error) });
+    setIsSubmittingFreeWish(true);
+  
+    try {
+      await new Promise((r) => setTimeout(r, 1000));
+      const optId = `opt-${Date.now()}`;
+      const nowIso = new Date().toISOString();
+  
+      setWishes((prev) =>
+        filterFreeWishes([{ id: optId, content: text, created_at: nowIso }, ...prev])
+      );
+      setLastWish(text); // 🚀 부적 카드를 위해 방금 적은 소원 기억
+      setWishText("");
+      lastOptimisticRef.current = { text, at: Date.now() };
+  
+      const { error } = await supabase.from("wishes").insert({ content: text });
+      if (error) {
+        console.error("Supabase Insert Error:", error);
+        setWishes((prev) => prev.filter((w) => w.id !== optId));
+        alert("소원 등록에 실패했습니다. 다시 시도해 주세요.");
+        return;
+      }
+  
+      setIsCooldown(true);
+      setTimeout(() => setIsCooldown(false), 5000);
+
+      // 🚀 [수정완료] 무료 소원 시각/청각 효과 트리거
+      setIsCandleOn(true);
+      if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(e => console.log(e)); }
+      if (fireAudioRef.current) { fireAudioRef.current.play().catch(e => console.log(e)); }
+      setTimeout(() => { 
+      setIsCandleOn(false); 
+      if (fireAudioRef.current) fireAudioRef.current.pause(); // 🔥 모닥불 끄기
+      }, 5000);
+
+      alert("소원이 기적의 제단에 올려졌습니다. (1시간 유지)");
+      } finally {
+      setIsSubmittingFreeWish(false);
+    }
+  };
+  
+  const handleOpenPremiumModal = () => {
+    setPremiumWishText(wishText.trim());
+    setShowPremiumModal(true);
+  };
+  
+  const getPremiumBadge = (): string => {
+    const periodLabel = premiumPeriod === "24h" ? "24시간" : "특별기원";
+    if (premiumNameDisplay === "anonymous") {
+      return `[✨ 익명 님의 ${periodLabel} 기원]`;
+    }
+    const name = premiumNameInput.trim();
+    if (premiumNameDisplay === "real") {
+      return name ? `[✨ ${name} 님의 ${periodLabel} 기원]` : `[✨ 익명 님의 ${periodLabel} 기원]`;
+    }
+    if (premiumNameDisplay === "partial" && name.length >= 2) {
+      const masked = name[0] + "*".repeat(Math.max(1, name.length - 2)) + name[name.length - 1];
+      return `[✨ ${masked} 님의 ${periodLabel} 기원]`;
+    }
+    return `[✨ 익명 님의 ${periodLabel} 기원]`;
+  };
+  
+  // 🚀 프리미엄 결제창 — 포트원 응답 가드 → PC만 즉시 서버 검증 → 성공 시에만 UI 반영
+  const handlePremiumConfirm = async () => {
+    if (!premiumWishText.trim()) return;
+
+    if (typeof window !== "undefined") {
+      const amount = premiumPeriod === "24h" ? 1900 : 6900;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      // 🚀 1. 운영자 절대 프리패스 (가짜 결제 ID 안 쓰고, 바로 DB에 직행!)
+      if (localStorage.getItem("MASTER_ADMIN") === "true") {
+        alert("✨ [운영자 프리패스] 결제 없이 즉시 프리미엄 소원을 제단에 올립니다!");
+        
+        setLastWish(premiumWishText); // 🚀 부적 카드를 위해 기억
+        const newPremiumWish: PremiumWish = {
+          id: `prem-opt-${Date.now()}`,
+          content: premiumWishText,
+          badge: `[✨ ${premiumNameDisplay === "anonymous" ? "익명" : premiumNameInput || "익명"} 님의 ${premiumPeriod === "24h" ? "24시간" : "특별기원"}]`,
+          period: premiumPeriod,
+          createdAt: Date.now()
+        };
+        setPremiumWishes(prev => [newPremiumWish, ...prev]);
+
+        // 💡 백엔드 결제 검증 API를 건너뛰고 프론트에서 즉시 DB 저장
+        supabase.from("wishes").insert({
+          content: premiumWishText,
+          duration: premiumPeriod,
+          display_mode: premiumNameDisplay,
+          display_name: premiumNameInput
+        }).then(({ error }) => {
+          if (error) {
+             alert("🚨 제단 등록 실패: " + error.message);
+             } else {
+               // 🚀 [수정완료] 프리미엄 전용 시각/청각 효과 트리거
+              setIsCandleOn(true);
+              setIsPremiumGlow(true);
+              if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(e => console.log(e)); }
+              if (fireAudioRef.current) { fireAudioRef.current.play().catch(e => console.log(e)); }
+              setTimeout(() => { 
+                setIsCandleOn(false); 
+                setIsPremiumGlow(false); 
+                if (fireAudioRef.current) fireAudioRef.current.pause(); // 🔥 모닥불 끄기
+              }, 5000);
+            
+             alert("✨ 제단에 소원이 성공적으로 올라갔습니다!");
+             setShowPremiumModal(false);
+            setPremiumWishText("");
+            setPremiumNameInput("");
+            if (typeof fetchWishes === 'function') fetchWishes(); 
+          }
+        });
+        
+        return; // 일반 결제 로직으로 넘어가지 않게 완벽 차단!
+      }
+
+      // 2. 일반 유저 결제 로직 시작
+      const name = premiumPeriod === "24h" ? "명운 제단 (24시간)" : "명운 제단 (10일)";
+      
+      const payData: any = {
+        storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
+        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
+        paymentId: `mid${Date.now()}${Math.random().toString(36).substring(2, 8)}`,
+        orderName: name,
+        totalAmount: amount,
+        currency: "KRW",
+        payMethod: selectedPayMethod === "kakaopay" ? "EASY_PAY" : selectedPayMethod === "tosspay" ? "EASY_PAY" : "CARD",
+        customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
+      };
+
+      let PortOne = (window as any).PortOne;
+      if (!PortOne) {
+        for (let i = 0; i < 10; i++) {
+          await new Promise(r => setTimeout(r, 500));
+          PortOne = (window as any).PortOne;
+          if (PortOne) break;
+        }
+      }
+      if (!PortOne) { alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!"); return; }
+      if (isMobile) {
+        const toolsOrigin = `${window.location.origin}/tools`;
+        payData.redirectUrl = `${toolsOrigin}?tab=altar`;
+        localStorage.setItem("pendingPaymentType", "altar");
+        localStorage.setItem("pendingPremiumWish", JSON.stringify({
+          wishText: premiumWishText,
+          period: premiumPeriod,
+          nameDisplay: premiumNameDisplay,
+          nameInput: premiumNameInput,
+          amount: amount
+        }));
+        savePendingPaymentData({ v: 1, tab: "altar", flow: "altar" });
+        savePendingPaymentState({
+          tab: "altar",
+          flow: "altar",
+          wish: {
+            wishText: premiumWishText,
+            period: premiumPeriod,
+            nameDisplay: premiumNameDisplay,
+            nameInput: premiumNameInput,
+            amount,
+          },
+        });
+      }
+      const response = await PortOne.requestPayment(payData);
+      const portOneFail = getPortOnePaymentFailureReason(response, { isMobile });
+      if (portOneFail) {
+        alert("결제가 취소되었습니다.");
+        localStorage.removeItem("pendingPaymentType");
+        localStorage.removeItem("pendingPremiumWish");
+        clearPendingPaymentData();
+        clearPendingPaymentState();
+        return;
+      }
+      if (isMobile) {
+        return;
+      }
+      try {
+            const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                imp_uid: (response as { paymentId: string }).paymentId,
+                paymentId: (response as { paymentId: string }).paymentId,
+                merchant_uid: (response as { paymentId: string }).paymentId,
+                amount: amount,
+                wishText: premiumWishText,
+                period: premiumPeriod,
+                nameDisplay: premiumNameDisplay,
+                nameInput: premiumNameInput,
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+            if (verifyRes.ok && verifyData.success) {
+                            // 🚀 [추가] PC 환경에서도 결제 즉시 제단에 소원이 짠! 하고 나타나도록 강제 업데이트
+                            setLastWish(premiumWishText);
+                            const newPremiumWish: PremiumWish = {
+                              id: `prem-opt-${Date.now()}`,
+                              content: premiumWishText,
+                              badge: `[✨ ${premiumNameDisplay === "anonymous" ? "익명" : premiumNameInput || "익명"} 님의 ${premiumPeriod === "24h" ? "24시간" : "특별기원"}]`,
+                              period: premiumPeriod,
+                              createdAt: Date.now()
+                            };
+                            setPremiumWishes(prev => [newPremiumWish, ...prev]);
+
+                            // 🚀 [수정완료] 프리미엄 전용 시각/청각 효과 트리거
+                            setIsCandleOn(true);
+                            setIsPremiumGlow(true);
+                            if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(e => console.log(e)); }
+                            if (fireAudioRef.current) { fireAudioRef.current.play().catch(e => console.log(e)); }
+                            setTimeout(() => { 
+                              setIsCandleOn(false); 
+                              setIsPremiumGlow(false); 
+                              if (fireAudioRef.current) fireAudioRef.current.pause(); // 🔥 모닥불 끄기
+                            }, 5000);
+
+ alert("✨ 결제가 성공적으로 완료되었으며 제단에 소원이 올라갔습니다!");
+ setShowPremiumModal(false);
+              setPremiumWishText("");
+              setPremiumNameInput("");
+              if (typeof fetchWishes === 'function') fetchWishes(); 
+            } else {
+              alert(
+                `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
+              );
+            }
+      } catch (error) {
+        console.error("제단 결제 검증:", error);
+        alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
+        setShowPremiumModal(false);
+      }
+    }
+  };
+
+  const handlePremiumCancel = () => {
+    setShowPremiumModal(false);
+    setPremiumWishText("");
+    setPremiumNameInput("");
+  };
+  
+  return (
+    <div
+      role="tabpanel"
+      aria-hidden={!isVisible}
+      className={`
+        absolute inset-0 flex flex-col bg-transparent
+        transition-opacity duration-500 ease-out
+        ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
+      `}
+    >
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <video src="/초.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover" />
+        {/* 🚀 촛불이 켜졌을 때 배경이 밝아지는 시각 효과 */}
+        <div className="absolute inset-0 transition-colors duration-1000" style={{ backgroundColor: isCandleOn ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.5)' }} />
+        <div className={`absolute inset-0 bg-gradient-to-t from-amber-500/30 to-transparent transition-opacity duration-1000 ${isCandleOn ? "opacity-100" : "opacity-0"}`} />
+      </div>
+
+      <div className="relative z-10 w-full h-full flex flex-col">
+        <audio ref={audioRef} src="/432Hz_Candle_BGM.wav" loop />
+
+        {showWishToast && (
+          <div className="fixed left-1/2 top-24 z-[70] -translate-x-1/2 rounded-xl border border-yellow-500/40 bg-slate-900/90 px-5 py-3 text-sm font-medium text-yellow-300 shadow-lg shadow-yellow-500/20 backdrop-blur-md">
+            {wishToastMessage}
+          </div>
+        )}
+
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+          {/* 🚀 프리미엄 소원: 화면 아래에서 위로 올라가는 애니메이션 */}
+          <style>{`
+            @keyframes float-up-premium {
+              0% { top: 110%; opacity: 0; transform: translateX(-50%) scale(0.9); }
+              10% { opacity: 1; transform: translateX(-50%) scale(1); }
+              90% { opacity: 1; transform: translateX(-50%) scale(1); }
+              100% { top: -20%; opacity: 0; transform: translateX(-50%) scale(0.9); }
+            }
+          `}</style>
+          
+          {(() => {
+            const premiumFiltered = filterPremiumWishes(premiumWishes);
+            return (
+              <>
+                {floatingWishes.map((wish, i) => (
+                  <div
+                    key={`wish-${i}`}
+                    className="absolute"
+                    style={{
+                      /* 화면 양끝 15%~85% 사이에서만 나타나도록 제한 (짤림 방지) */
+                      left: `${15 + ((i * 17 + 5) % 70)}%`,
+                      top: `${30 + (i * 11 % 41)}%`,
+                      transform: "translateX(-50%)",
+                      animation: `float-wish-center ${10 + (i % 9)}s ease-out infinite`,
+                      animationDelay: `${(i * 0.7) % 8}s`,
+                      width: "max-content",
+                      maxWidth: "85vw", /* 모바일/PC 모두 화면 폭의 85%를 넘지 않음 */
+                    }}
+                  >
+                    <p style={{ whiteSpace: "pre-wrap", wordBreak: "keep-all", textAlign: "center" }} className="text-sm font-medium text-white/60 px-3">
+                      {wish}
+                    </p>
+                  </div>
+                ))}
+                
+                {/* 🚀 프리미엄 소원 렌더링 (제한 영구 해제: 결제한 모든 소원 노출) */}
+                {premiumFiltered.map((pw, i) => {
+                  const idLength = String(pw.id).length;
+                  const isTenDays = pw.period === "10d";
+                  
+                  const leftPct = 15 + ((i * 25 + idLength * 7) % 70); // 양끝 짤림 방지
+                  const duration = isTenDays ? 25 + (i % 10) : 20 + (i % 8); // 속도 다양화
+                  // 🚀 새로 올라온 소원은 즉시 등장, 나머지는 겹치지 않게 화면 전체에 넓게 퍼뜨림
+                  const delay = i === 0 ? "0s" : `-${(i * 7.3) % 30}s`; 
+                  const remaining = getPremiumRemainingMs(pw);
+
+                  return (
+                    <div
+                      key={pw.id}
+                      className="absolute"
+                      style={{
+                        left: `${leftPct}%`,
+                        animation: `float-up-premium ${duration}s linear infinite`,
+                        animationDelay: delay,
+                        width: "max-content",
+                        maxWidth: "90vw",
+                      }}
+                    >
+                      <div className="flex flex-col items-center justify-center bg-black/30 backdrop-blur-sm px-4 py-3 rounded-2xl border border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.15)]">
+                        <p className={
+                            isTenDays
+                              ? "text-base sm:text-xl font-extrabold text-yellow-200 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)] text-center break-keep leading-snug whitespace-pre-wrap"
+                              : "text-sm sm:text-lg font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] text-center break-keep leading-snug whitespace-pre-wrap"
+                          }
+                        >
+                          {pw.badge}<br/>{pw.content}
+                        </p>
+                        <p className={isTenDays ? "mt-1.5 text-xs font-medium text-amber-200/90" : "mt-1.5 text-[11px] text-yellow-400/80"}>
+                          남은 시간: {formatCountdown(remaining)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            );
+          })()}
+        </div>
+
+        {/* 🚀 초소형 압축 입력창 영역 (화면 하단 밀착 & 가로 배치 강제) */}
+        <div className="relative z-10 flex w-full max-w-md mx-auto flex-col items-center justify-end px-4 pb-2 mt-auto shrink-0">
+          <div className="w-full rounded-xl border border-white/20 bg-black/60 p-3 backdrop-blur-md shadow-xl">
+            <textarea
+              value={wishText}
+              onChange={(e) => setWishText(e.target.value)}
+              placeholder="소원을 적어주세요..."
+              rows={1}
+              className="w-full resize-none rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-amber-50 placeholder-amber-200/60 focus:border-yellow-500/60 focus:outline-none focus:ring-1 focus:ring-yellow-500/40"
+            />
+            <div className="mt-1 flex items-center justify-between text-[10px] px-1">
+              <span className="text-amber-100/70">전체 소원 {activeWishCount}개</span>
+              <span className="text-yellow-300/80">프리미엄 {activePremiumCount}개</span>
+            </div>
+            
+            {/* 🚀 무조건 가로 2칸으로 고정하는 grid 적용 */}
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button type="button" onClick={handleSubmitFree} disabled={isCooldown || isSubmittingFreeWish} className="w-full rounded-lg bg-gradient-to-r from-yellow-500 to-amber-600 px-1 py-2 text-xs font-bold text-slate-900 shadow-md shadow-yellow-500/25 transition-all hover:active:scale-95 disabled:opacity-50 break-keep">
+                {isSubmittingFreeWish ? "진행중.." : isCooldown ? "5초 대기" : "일반 소원 띄우기"}
+              </button>
+              <button type="button" onClick={handleOpenPremiumModal} className="w-full rounded-lg bg-gradient-to-r from-amber-500 to-rose-600 px-1 py-2 text-xs font-bold text-white shadow-md shadow-rose-500/25 transition-all hover:active:scale-95 break-keep">
+                ✨ 프리미엄 소원 띄우기
+              </button>
+            </div>
+            
+            <button type="button" onClick={handleAltarShare} className="mt-2 w-full rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition-all active:scale-95 shadow-inner flex items-center justify-center gap-1.5">
+              🔗 내 소원 부적 카드로 공유하기
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleMuteToggle}
+          className="fixed bottom-24 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500/20 text-yellow-400 transition-colors hover:bg-yellow-500/30 focus:outline-none"
+        >
+          {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        </button>
+
+        {showPremiumModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => handlePremiumCancel()}>
+            <div className="w-full max-w-md rounded-2xl border-2 border-yellow-500/50 bg-slate-900/90 p-5 shadow-2xl shadow-yellow-500/10 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="mb-4 text-center text-base font-semibold text-yellow-400">✨ 프리미엄 소원</h3>
+              <div className="mb-3">
+                <textarea value={premiumWishText} onChange={(e) => setPremiumWishText(e.target.value)} placeholder="소원을 적어주세요..." rows={2} className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 focus:border-yellow-500/50 focus:outline-none" />
+              </div>
+              <div className="mb-3">
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                    <input type="radio" checked={premiumPeriod === "24h"} onChange={() => setPremiumPeriod("24h")} className="accent-yellow-500" />
+                    <span className="text-sm text-white/90">24시간 고정 (1,900원)</span>
+                  </label>
+                  <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                    <input type="radio" checked={premiumPeriod === "10d"} onChange={() => setPremiumPeriod("10d")} className="accent-yellow-500" />
+                    <span className="text-sm text-white/90">10일 고정 (6,900원)</span>
+                  </label>
+                </div>
+              </div>
+              <div className="mb-4">
+                <div className="flex gap-2 mb-2">
+                  <button type="button" onClick={() => setPremiumNameDisplay("anonymous")} className={`flex-1 rounded-lg py-1.5 text-xs ${premiumNameDisplay === "anonymous" ? "bg-yellow-500/30 text-yellow-400" : "bg-white/5 text-white/80"}`}>익명</button>
+                  <button type="button" onClick={() => setPremiumNameDisplay("real")} className={`flex-1 rounded-lg py-1.5 text-xs ${premiumNameDisplay === "real" ? "bg-yellow-500/30 text-yellow-400" : "bg-white/5 text-white/80"}`}>실명</button>
+                  <button type="button" onClick={() => setPremiumNameDisplay("partial")} className={`flex-1 rounded-lg py-1.5 text-xs ${premiumNameDisplay === "partial" ? "bg-yellow-500/30 text-yellow-400" : "bg-white/5 text-white/80"}`}>부분노출</button>
+                </div>
+                {(premiumNameDisplay === "real" || premiumNameDisplay === "partial") && (
+                  <input type="text" value={premiumNameInput} onChange={(e) => setPremiumNameInput(e.target.value)} placeholder={premiumNameDisplay === "partial" ? "예: 홍길동 → 홍*동" : "이름 입력"} className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 focus:border-yellow-500/50 focus:outline-none" />
+                )}
+              </div>
+              <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />
+              <div className="flex gap-2">
+                <button type="button" onClick={handlePremiumCancel} className="flex-1 rounded-xl border border-white/20 bg-white/5 py-3 text-sm font-medium text-white/90">취소</button>
+                <button type="button" onClick={handlePremiumConfirm} disabled={!premiumWishText.trim()} className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3 text-sm font-semibold text-slate-900 disabled:opacity-50">결제하고 띄우기</button>
+              </div>
+            </div>
+          </div>
+        )}
+        <FooterPolicy tabId="altar" />
+
+{/* 🚀 대표님 오더: 깔끔하고 파워풀한 소원 집중형 부적 UI */}
+<div className="absolute left-[-9999px] top-[-9999px]">
+  <div ref={talismanRef} className="relative w-[400px] h-[700px] flex flex-col items-center justify-center bg-black p-10 text-center shadow-2xl" style={{ backgroundImage: "url('/talisman-bg.png')", backgroundSize: "cover", backgroundPosition: "center" }}>
+    
+    {/* 중앙 소원 글귀 영역 (테두리와 기존 한자 싹 빼고 텍스트만 강렬하게) */}
+    <div className="relative z-10 flex-grow flex items-center justify-center w-full">
+      <p className="text-[36px] font-black text-[#5e1919] leading-loose break-keep whitespace-pre-wrap font-serif" style={{ textShadow: "1px 1px 4px rgba(255,255,255,0.8)" }}>
+        {lastWish || wishText || "간절한 소원이\n반드시 이루어집니다"}
+      </p>
+    </div>
+
+    {/* 하단 명운 로고 영역 (그대로 유지하되 톤 앤 매너 조절) */}
+    <div className="relative z-10 mb-4 w-full text-[#5e1919] font-black tracking-widest flex justify-between items-center px-2 opacity-90">
+      <span className="text-sm">명운(命運)</span>
+      <span className="text-sm">기적의 제단</span>
+    </div>
+  </div>
+</div>
+
+</div>
+
+{/* 🚀 모바일 오디오 재생 우회용 터치 오버레이 (결제 직후 스마트폰이 소리를 막았을 때 등장) */}
+{needsInteraction && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer" onClick={() => {
+    setNeedsInteraction(false);
+    bellAudioRef.current?.play().catch(()=>{});
+    fireAudioRef.current?.play().catch(()=>{});
+    audioRef.current?.play().catch(()=>{});
+  }}>
+    <div className="text-center animate-bounce px-6">
+      <div className="text-7xl mb-4">✨</div>
+      <p className="text-2xl font-extrabold text-yellow-400">결제가 완료되었습니다!</p>
+      <p className="text-sm font-medium text-white/80 mt-4 bg-white/10 py-3 px-5 rounded-full border border-white/20 shadow-lg inline-block">
+        화면을 가볍게 터치하여 기적의 제단에 입장하세요 👇
+      </p>
+    </div>
+  </div>
+)}
+
+{/* 🚀 프리미엄 전용 압도적 황금빛 기적 효과 (최상위 레이어) */}
+<div className={`fixed inset-0 z-40 flex items-center justify-center pointer-events-none transition-opacity duration-1000 ${isPremiumGlow ? "opacity-100" : "opacity-0"}`}>
+  <div className="absolute inset-0 bg-yellow-500/40 mix-blend-color-dodge animate-pulse" />
+  <div className="absolute w-[150vw] h-[150vw] sm:w-[800px] sm:h-[800px] bg-[radial-gradient(circle,rgba(253,224,71,0.8)_0%,transparent_60%)] animate-[spin_10s_linear_infinite]" />
+  <div className="relative z-50 text-center animate-[fortune-twinkle_1.5s_ease-in-out_infinite]">
+    <p className="text-2xl sm:text-4xl font-extrabold text-white drop-shadow-[0_0_20px_rgba(250,204,21,1)] tracking-widest mb-2">
+      ✨ 기적의 문이 열립니다 ✨
+    </p>
+    <p className="text-yellow-200 text-sm sm:text-base font-bold drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]">
+      우주의 가장 강력한 기운이 소원과 함께합니다
+    </p>
+  </div>
+</div>
+
+</div>
+  );
+}
