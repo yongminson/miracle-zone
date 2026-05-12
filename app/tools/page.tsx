@@ -415,6 +415,7 @@ function getKstDateKey() {
 }
 
 function FortuneTab({ isVisible }: { isVisible: boolean }) {
+  const [name, setName] = useState("");
   const [gender, setGender] = useState<"male" | "female">("male");
   const [birthDate, setBirthDate] = useState("");
   const [calendarType, setCalendarType] = useState<"solar" | "lunar" | "lunar-leap">("solar");
@@ -434,7 +435,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
 
   const getCacheKey = () => {
     const today = new Date().toDateString();
-    return `${FORTUNE_CACHE_PREFIX}${today}-${gender}-${birthDate}-${calendarType}-${birthTime}`;
+    return `${FORTUNE_CACHE_PREFIX}${today}-${name}-${gender}-${birthDate}-${calendarType}-${birthTime}`;
   };
 
   const getPremiumCacheKey = () => {
@@ -519,6 +520,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     setIsPremiumLoading(false);
     setPremiumLoadingStep(0);
     setActiveSubTab(0);
+    setName("");
     setGender("male");
     setBirthDate("");
     setCalendarType("solar");
@@ -734,6 +736,18 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
             </h2>
 
             <div className="space-y-5">
+              <div>
+                <label className="mb-2 block text-sm text-yellow-400/80">이름</label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  placeholder="이름을 입력하세요"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full rounded-xl border border-white/20 bg-slate-800/80 shadow-inner px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+                />
+              </div>
+
               <div>
                 <label className="mb-2 block text-sm text-yellow-400/80">성별</label>
                 <div className="flex gap-4">
