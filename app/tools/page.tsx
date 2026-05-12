@@ -2993,6 +2993,67 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                       </div>
                     </div>
 
+                    {/* 관상 유형명 카드 */}
+                    {faceResultData?.faceType && (
+                      <div className="rounded-2xl border-2 border-yellow-400/60 bg-gradient-to-br from-yellow-500/10 to-amber-600/10 p-5 text-center shadow-lg">
+                        <p className="text-xs text-yellow-400/70 mb-1">관상 유형</p>
+                        <h4 className="text-2xl font-bold text-yellow-300 mb-1">「{faceResultData.faceType}」</h4>
+                        <p className="text-sm text-white/70">{faceResultData.faceTypeDesc}</p>
+                      </div>
+                    )}
+
+                    {/* 운별 점수 */}
+                    {faceResultData?.scores && (
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                        <h4 className="text-sm font-bold text-white/70 mb-3 text-center">📊 운별 점수</h4>
+                        <div className="space-y-2">
+                          {[
+                            { label: "재물운", key: "wealth", color: "bg-yellow-400" },
+                            { label: "애정운", key: "love", color: "bg-pink-400" },
+                            { label: "건강운", key: "health", color: "bg-green-400" },
+                            { label: "사회운", key: "social", color: "bg-blue-400" },
+                          ].map(({ label, key, color }) => {
+                            const score = faceResultData.scores[key] ?? 0;
+                            return (
+                              <div key={key} className="flex items-center gap-3">
+                                <span className="w-14 text-xs text-white/60 shrink-0">{label}</span>
+                                <div className="flex-1 h-2 rounded-full bg-white/10">
+                                  <div
+                                    className={`h-2 rounded-full ${color}`}
+                                    style={{ width: `${score}%` }}
+                                  />
+                                </div>
+                                <span className="w-10 text-xs text-right text-white/80 font-mono">{score}점</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 성격 키워드 */}
+                    {faceResultData?.keywords?.length > 0 && (
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        {faceResultData.keywords.map((kw: string, i: number) => (
+                          <span key={i} className="rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs text-yellow-300">
+                            #{kw}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 천직 직업 */}
+                    {faceResultData?.careers?.length > 0 && (
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <h4 className="text-sm font-bold text-white/70 mb-2">💼 천직 (적성 직업)</h4>
+                        <div className="space-y-1">
+                          {faceResultData.careers.map((career: string, i: number) => (
+                            <p key={i} className="text-sm text-white/80">{i + 1}. {career}</p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="rounded-2xl border-2 border-yellow-500/50 bg-[#16120d]/90 p-5 shadow-lg">
                       <h4 className="mb-4 text-center text-base font-bold text-yellow-300 border-b border-yellow-500/30 pb-2">
                         📜 마의상법 정통 관상 풀이

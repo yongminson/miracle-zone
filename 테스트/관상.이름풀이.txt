@@ -1,0 +1,1335 @@
+function SajuTab({ isVisible }: { isVisible: boolean }) {
+  const [activeSajuMode, setActiveSajuMode] = useState<"face" | "name">("face");
+  
+  const [faceName, setFaceName] = useState("");
+  const [faceBirthDate, setFaceBirthDate] = useState("");
+  const [faceImage, setFaceImage] = useState<string | null>(null);
+  const [faceImageFile, setFaceImageFile] = useState<File | null>(null);
+  const [faceFileName, setFaceFileName] = useState("");
+  const [isFaceScanning, setIsFaceScanning] = useState(false);
+  const [showFaceResult, setShowFaceResult] = useState(false);
+  const [faceResultData, setFaceResultData] = useState<any>(null);
+  const [showPhysiognomyPaymentModal, setShowPhysiognomyPaymentModal] = useState(false);
+  const [isPhysiognomyPremiumUnlocked, setIsPhysiognomyPremiumUnlocked] = useState(false);
+  const faceShareResultRef = useRef<HTMLDivElement | null>(null);
+  const nameShareResultRef = useRef<HTMLDivElement | null>(null);
+
+  const [nameGender, setNameGender] = useState<"male" | "female">("male");
+  const [nameBirthDate, setNameBirthDate] = useState("");
+  const [nameBirthTime, setNameBirthTime] = useState("unknown");
+  const [nameInput, setNameInput] = useState("");
+  const [nameHanja, setNameHanja] = useState("");
+  const [showHanjaModal, setShowHanjaModal] = useState(false);
+  const [hanjaModalData, setHanjaModalData] = useState<{ char: string; options: string[] }[]>([]);
+  const [hanjaModalTargetChar, setHanjaModalTargetChar] = useState<string | null>(null);
+  const [hanjaModalTargetIndex, setHanjaModalTargetIndex] = useState(0);
+  const [hanjaModalResults, setHanjaModalResults] = useState<{ hanja: string; meaning: string }[]>([]);
+  const [hanjaModalLoading, setHanjaModalLoading] = useState(false);
+  const [hanjaSelections, setHanjaSelections] = useState<string[]>([]);
+  const [showNameResult, setShowNameResult] = useState(false);
+  const [isNameLoading, setIsNameLoading] = useState(false);
+  const [nameLoadingStep, setNameLoadingStep] = useState(0);
+  const [nameResultData, setNameResultData] = useState<{
+    freeSummary: string;
+    freeWeakness?: string;
+    premiumReport: {
+      basisBox?: { pronunciation: string; resource: string; sajuRelation: string };
+      coreEnergy: string;
+      nameFlow: string;
+      sajuFit: string;
+      lifeCycle: string;
+    };
+  } | null>(null);
+  const [showNamePaymentModal, setShowNamePaymentModal] = useState(false);
+  const [isNamePremiumUnlocked, setIsNamePremiumUnlocked] = useState(false);
+  const [selectedPayMethod, setSelectedPayMethod] = useState<PayMethodPg>("kpn");
+
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || !isVisible) return;
+    const p = new URLSearchParams(window.location.search);
+    if (!extractPaymentReturnId(p) && p.get("imp_success") !== "true" && p.get("success") !== "true") return;
+    const st = readPendingPaymentState();
+    if (st?.flow === "physiognomy" && st.face?.faceImage) {
+      setFaceImage(st.face.faceImage);
+      if (st.face.faceResultData) {
+        setFaceResultData(st.face.faceResultData);
+        setShowFaceResult(true);
+      }
+      setActiveSajuMode("face");
+    }
+    if (st?.flow === "name" && st.name) {
+      const n = st.name;
+      if (n.nameInput) setNameInput(n.nameInput);
+      if (n.nameHanja) setNameHanja(n.nameHanja);
+      if (n.nameBirthDate) setNameBirthDate(n.nameBirthDate);
+      if (n.nameBirthTime) setNameBirthTime(n.nameBirthTime);
+      if (n.nameGender) setNameGender(n.nameGender);
+      if (n.hanjaSelections) setHanjaSelections(n.hanjaSelections);
+      if (n.nameResultData) {
+        setNameResultData(n.nameResultData as typeof nameResultData);
+        setShowNameResult(true);
+      }
+      setActiveSajuMode("name");
+    }
+  }, [isVisible]);
+
+  // 🚀 모바일 결제 복귀 시 1:1 데이터 매칭 복구 및 무한 결제 방지 (버그 수정 완료)
+  useEffect(() => {
+    if (typeof window !== "undefined" && isVisible) {
+      const lastImpUid = localStorage.getItem("last_authorized_imp_uid");
+      const pendingType = localStorage.getItem("pendingPaymentType");
+
+      // 1️⃣ 관상 데이터 복구 — 결제 성공 imp_uid 있을 때만 잠금 해제 (다른 결제 플로우의 pendingPaymentType 오염 방지)
+      const faceSaved = localStorage.getItem("pendingFaceData");
+      if (faceSaved) {
+        if (pendingType === "physiognomy" && lastImpUid) {
+          try {
+            const parsed = JSON.parse(faceSaved);
+            if (parsed.faceImage) setFaceImage(parsed.faceImage);
+            if (parsed.faceResultData) {
+              setFaceResultData(parsed.faceResultData);
+              setShowFaceResult(true);
+              setIsPhysiognomyPremiumUnlocked(true);
+            }
+          } catch(e) {}
+          setActiveSajuMode("face");
+          localStorage.removeItem("last_authorized_imp_uid");
+          localStorage.removeItem("pendingFaceData");
+          localStorage.removeItem("pendingPaymentType");
+          localStorage.removeItem("pendingPaymentAmount");
+        } else if (!(pendingType === "physiognomy" && !lastImpUid)) {
+          localStorage.removeItem("pendingFaceData");
+        }
+      }
+
+      // 2️⃣ 이름풀이 데이터 복구 — 결제 성공 imp_uid 있을 때만 잠금 해제
+      const nameSaved = localStorage.getItem("pendingNameData");
+      if (nameSaved) {
+        if (pendingType === "name" && lastImpUid) {
+          try {
+            const parsed = JSON.parse(nameSaved);
+            if (parsed.nameInput) setNameInput(parsed.nameInput);
+            if (parsed.nameHanja) setNameHanja(parsed.nameHanja);
+            if (parsed.nameBirthDate) setNameBirthDate(parsed.nameBirthDate);
+            if (parsed.nameBirthTime) setNameBirthTime(parsed.nameBirthTime);
+            if (parsed.nameGender) setNameGender(parsed.nameGender);
+            if (parsed.hanjaSelections) setHanjaSelections(parsed.hanjaSelections);
+            if (parsed.nameResultData) {
+              setNameResultData(parsed.nameResultData);
+              setShowNameResult(true);
+              setIsNamePremiumUnlocked(true);
+            }
+          } catch(e) {}
+          setActiveSajuMode("name");
+          localStorage.removeItem("last_authorized_imp_uid");
+          localStorage.removeItem("pendingNameData");
+          localStorage.removeItem("pendingPaymentType");
+          localStorage.removeItem("pendingPaymentAmount");
+        } else if (!(pendingType === "name" && !lastImpUid)) {
+          localStorage.removeItem("pendingNameData");
+        }
+      }
+    }
+  }, [isVisible]);
+  // 💡 기존에 혼자서 자물쇠를 잠가버리던 오작동 감시자(useEffect 2개)는 완전히 삭제했습니다!
+
+  const handleFaceUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file?.type.startsWith("image/")) {
+      setIsPhysiognomyPremiumUnlocked(false); // 💡 사진을 새로 올릴 때만 잠금!
+      setFaceImageFile(file);
+      setFaceFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = () => setFaceImage(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFaceDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file?.type.startsWith("image/")) {
+      setIsPhysiognomyPremiumUnlocked(false); // 💡 사진을 새로 올릴 때만 잠금!
+      setFaceImageFile(file);
+      setFaceFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = () => setFaceImage(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFaceAnalyze = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!faceImage) {
+      alert("사진을 업로드해 주세요.");
+      return;
+    }
+
+    supabase.rpc('increment_tab_click', { target_tab_id: 'saju' }).then(({ error }) => { if(error) console.error('사주 에러:', error) });
+    setIsFaceScanning(true);
+    setShowFaceResult(false);
+    setFaceResultData(null);
+    const minScanMs = 3500;
+    const startTime = Date.now();
+
+    try {
+      const generateHash = (str: string) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = ((hash << 5) - hash) + str.charCodeAt(i);
+          hash = hash & hash;
+        }
+        return hash.toString();
+      };
+
+      const imageHash = generateHash(faceImage);
+      const cachedData = localStorage.getItem(`faceCache_v3_${imageHash}`);
+
+      let data;
+
+      if (cachedData) {
+        data = JSON.parse(cachedData);
+      } else {
+        const response = await fetch("/api/physiognomy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64: faceImage }),
+        });
+        data = await response.json();
+
+        if (!data.error) {
+          localStorage.setItem(`faceCache_v3_${imageHash}`, JSON.stringify(data));
+        }
+      }
+
+      if (data.error) {
+        setIsFaceScanning(false);
+        alert("분석 중 오류가 발생했습니다. 얼굴이 잘 보이게 사진을 다시 찍어주세요.");
+        setFaceImage(null);
+        setFaceImageFile(null);
+        setFaceFileName("");
+        setShowFaceResult(false);
+        setFaceResultData(null);
+        return;
+      }
+
+      const elapsed = Date.now() - startTime;
+      if (elapsed < minScanMs) {
+        await new Promise((resolve) => setTimeout(resolve, minScanMs - elapsed));
+      }
+
+      setFaceResultData(data);
+      setShowFaceResult(true);
+    } catch (error) {
+      console.error(error);
+      alert("분석 중 오류가 발생했습니다. 얼굴이 잘 보이게 사진을 다시 찍어주세요.");
+    } finally {
+      setIsFaceScanning(false);
+    }
+  };
+
+  const handleFacePremium = () => {
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      alert("✨ [운영자 프리패스] 결제 없이 즉시 심층 관상 리포트를 확인합니다!");
+      setIsPhysiognomyPremiumUnlocked(true);
+    } else {
+      setShowPhysiognomyPaymentModal(true);
+    }
+  };
+
+  // 🚀 관상 심층 리포트 프리미엄 결제 연동 (4,900원)
+  const handlePhysiognomyPaymentConfirm = async () => {
+    let PortOne = (window as any).PortOne;
+    if (!PortOne) {
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        PortOne = (window as any).PortOne;
+        if (PortOne) break;
+      }
+    }
+    if (!PortOne) { alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!"); return; }
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const amount = 4900;
+
+    localStorage.setItem("pendingPaymentType", "physiognomy");
+    localStorage.setItem("pendingPaymentAmount", String(amount));
+    localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
+    savePendingPaymentData({ v: 1, tab: "saju", flow: "physiognomy" });
+    savePendingPaymentState({
+      tab: "saju",
+      flow: "physiognomy",
+      face: { faceImage: faceImage ?? undefined, faceResultData },
+    });
+
+    try {
+      const toolsOrigin = `${window.location.origin}/tools`;
+      const response = await PortOne.requestPayment({
+        storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
+        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
+        paymentId: `face${Date.now()}`,
+        orderName: "심층 관상 분석",
+        totalAmount: amount,
+        currency: "KRW",
+        payMethod: selectedPayMethod === "kakaopay" ? "EASY_PAY" : selectedPayMethod === "tosspay" ? "EASY_PAY" : "CARD",
+        customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
+        redirectUrl: isMobile ? `${toolsOrigin}?tab=saju` : undefined,
+      });
+      const portOneFail = getPortOnePaymentFailureReason(response, { isMobile });
+      if (portOneFail) {
+        alert("결제가 취소되었습니다.");
+        localStorage.removeItem("pendingFaceData");
+        localStorage.removeItem("pendingPaymentType");
+        localStorage.removeItem("pendingPaymentAmount");
+        clearPendingPaymentData();
+        clearPendingPaymentState();
+        return;
+      }
+      if (isMobile) {
+        return;
+      }
+      try {
+        const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paymentType: "saju",
+            imp_uid: (response as { paymentId: string }).paymentId,
+            paymentId: (response as { paymentId: string }).paymentId,
+            merchant_uid: (response as { paymentId: string }).paymentId,
+            amount,
+          }),
+        });
+        const verifyData = (await verifyRes.json()) as { success?: boolean; message?: string };
+        if (verifyRes.ok && verifyData.success) {
+          setIsPhysiognomyPremiumUnlocked(true);
+          setShowPhysiognomyPaymentModal(false);
+        } else {
+          alert(
+            `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
+          );
+        }
+      } catch {
+        alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
+      }
+    } catch(e) {
+      localStorage.removeItem("pendingFaceData");
+      localStorage.removeItem("pendingPaymentType");
+      localStorage.removeItem("pendingPaymentAmount");
+    }
+  };
+
+  const handleFaceShare = async () => {
+    await captureAndShareElement(faceShareResultRef.current, {
+      fileName: "physiognomy-result.png",
+      title: "관상 분석 결과",
+      text: `관상 분석 결과 이미지입니다.\n자세히 보기: ${window.location.origin}`,
+    });
+  };
+
+  const handleNameShare = async () => {
+    await captureAndShareElement(nameShareResultRef.current, {
+      fileName: "name-result.png",
+      title: "이름 풀이 결과",
+      text: `이름 풀이 결과 이미지입니다.\n자세히 보기: ${window.location.origin}`,
+    });
+  };
+
+  const handleFaceLinkShare = async () => {
+    const shareUrl = window.location.href;
+    const text = `관상 분석 결과 보러가기\n${shareUrl}`;
+  
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "관상 분석 결과",
+          text,
+          url: shareUrl,
+        });
+        return;
+      } catch {}
+    }
+  
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 복사되었습니다.");
+    } catch {
+      alert("링크 공유를 지원하지 않는 환경입니다.");
+    }
+  };
+  
+  const handleNameLinkShare = async () => {
+    const shareUrl = window.location.href;
+    const hanjaText = nameHanja ? ` (${nameHanja})` : "";
+    const text = `이름 풀이 결과 보러가기\n${nameInput}${hanjaText}\n${shareUrl}`;
+  
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "이름 풀이 결과",
+          text,
+          url: shareUrl,
+        });
+        return;
+      } catch {}
+    }
+  
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 복사되었습니다.");
+    } catch {
+      alert("링크 공유를 지원하지 않는 환경입니다.");
+    }
+  };
+
+  const handleFaceReset = () => {
+    setFaceName("");
+    setFaceBirthDate("");
+    setFaceImage(null);
+    setFaceImageFile(null);
+    setFaceFileName("");
+    setIsFaceScanning(false);
+    setShowFaceResult(false);
+    setFaceResultData(null);
+    setShowPhysiognomyPaymentModal(false);
+    setIsPhysiognomyPremiumUnlocked(false);
+  };
+
+  const handleHanjaForChar = async (charIndex: number) => {
+    const char = nameInput[charIndex];
+    if (!char) return;
+    setHanjaModalTargetChar(char);
+    setHanjaModalTargetIndex(charIndex);
+    setHanjaModalResults([]);
+    setHanjaModalLoading(true);
+    setShowHanjaModal(true);
+
+    try {
+      const res = await fetch("/api/hanja", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ char }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "한자 검색 중 오류가 발생했습니다.");
+      setHanjaModalResults(data.results ?? []);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "한자 검색 중 오류가 발생했습니다.");
+      setShowHanjaModal(false);
+    } finally {
+      setHanjaModalLoading(false);
+    }
+  };
+
+  const handleHanjaSelect = (charIndex: number, hanja: string) => {
+    const newSelections = [...hanjaSelections];
+    while (newSelections.length <= charIndex) newSelections.push("");
+    newSelections[charIndex] = hanja;
+    setHanjaSelections(newSelections);
+    setNameHanja(newSelections.join(""));
+    setShowHanjaModal(false);
+  };
+
+  const handleHanjaSelectFromModal = (hanja: string) => {
+    handleHanjaSelect(hanjaModalTargetIndex, hanja);
+  };
+
+  const handleHanjaModalConfirm = () => {
+    const full = hanjaSelections.every((s) => s);
+    if (full) {
+      setNameHanja(hanjaSelections.join(""));
+      setShowHanjaModal(false);
+    }
+  };
+
+  const getNameCacheKey = () => {
+    const today = new Date().toDateString();
+    return `${NAME_CACHE_PREFIX}v5-${today}-${nameInput}-${nameBirthDate}-${nameBirthTime}-${nameGender}`;
+  };
+
+  const handleNameAnalyze = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nameInput.trim()) {
+      alert("이름을 입력해 주세요.");
+      return;
+    }
+
+    if (!nameBirthDate) {
+      alert("정확한 사주 매칭을 위해 생년월일을 입력해 주세요.");
+      return;
+    }
+
+    supabase.rpc('increment_tab_click', { target_tab_id: 'saju' }).then(({ error }) => { if(error) console.error('사주 에러:', error) });
+    setIsNameLoading(true);
+    setShowNameResult(false);
+    setNameResultData(null);
+    setNameLoadingStep(0);
+    const loadingTimer = window.setInterval(() => {
+      setNameLoadingStep((prev) => (prev >= 3 ? 3 : prev + 1));
+    }, 1200);
+    const cacheKey = getNameCacheKey();
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          if (data.freeSummary && data.premiumReport) {
+            const minLoadingMs = 1500;
+            await new Promise((r) => setTimeout(r, minLoadingMs));
+            setNameResultData(data);
+            setShowNameResult(true);
+            setIsNameLoading(false);
+            return;
+          }
+        } catch {
+          localStorage.removeItem(cacheKey);
+        }
+      }
+    }
+
+    try {
+      const res = await fetch("/api/name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: nameInput,
+          hanja: nameHanja || undefined,
+          birthDate: nameBirthDate,
+          birthTime: nameBirthTime,
+          gender: nameGender,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "이름 풀이 중 오류가 발생했습니다.");
+      if (typeof window !== "undefined") {
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+      }
+      setNameResultData(data);
+      setShowNameResult(true);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "이름 풀이 중 오류가 발생했습니다.");
+    } finally {
+      window.clearInterval(loadingTimer);
+      setIsNameLoading(false);
+    }
+  };
+
+  const handleNamePremium = () => {
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      alert("✨ [운영자 프리패스] 결제 없이 즉시 심층 이름 풀이 리포트를 확인합니다!");
+      setIsNamePremiumUnlocked(true);
+    } else {
+      setShowNamePaymentModal(true);
+    }
+  };
+
+  // 🚀 이름 풀이 프리미엄 결제 연동 (4,900원)
+  const handleNamePaymentConfirm = async () => {
+    if (typeof window !== "undefined") {
+      let PortOne = (window as any).PortOne;
+      if (!PortOne) {
+        for (let i = 0; i < 10; i++) {
+          await new Promise(r => setTimeout(r, 500));
+          PortOne = (window as any).PortOne;
+          if (PortOne) break;
+        }
+      }
+      if (!PortOne) return alert("🚨 결제 시스템 로딩 실패.");
+
+      const amount = 4900;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      localStorage.setItem("pendingPaymentType", "name");
+      localStorage.setItem("pendingPaymentAmount", String(amount));
+      localStorage.setItem("pendingNameData", JSON.stringify({
+        nameInput, nameHanja, nameBirthDate, nameBirthTime, nameGender, hanjaSelections, nameResultData
+      }));
+      savePendingPaymentData({ v: 1, tab: "saju", flow: "name" });
+      savePendingPaymentState({
+        tab: "saju",
+        flow: "name",
+        name: {
+          nameInput,
+          nameHanja,
+          nameBirthDate,
+          nameBirthTime,
+          nameGender,
+          hanjaSelections,
+          nameResultData,
+        },
+      });
+
+      try {
+        const toolsOrigin = `${window.location.origin}/tools`;
+        const response = await PortOne.requestPayment({
+          storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
+          channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
+          paymentId: `mid${Date.now()}${Math.random().toString(36).substring(2, 8)}`,
+          orderName: "심층 이름 풀이 리포트",
+          totalAmount: amount,
+          currency: "KRW",
+          payMethod: selectedPayMethod === "kakaopay" ? "EASY_PAY" : selectedPayMethod === "tosspay" ? "EASY_PAY" : "CARD",
+          customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
+          redirectUrl: isMobile ? `${toolsOrigin}?tab=saju` : undefined,
+        });
+        const portOneFailName = getPortOnePaymentFailureReason(response, { isMobile });
+        if (portOneFailName) {
+          alert("결제가 취소되었습니다.");
+          localStorage.removeItem("pendingNameData");
+          localStorage.removeItem("pendingPaymentType");
+          localStorage.removeItem("pendingPaymentAmount");
+          clearPendingPaymentData();
+          clearPendingPaymentState();
+          return;
+        }
+        if (isMobile) {
+          return;
+        }
+        try {
+          const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              paymentType: "saju",
+              imp_uid: (response as { paymentId: string }).paymentId,
+              paymentId: (response as { paymentId: string }).paymentId,
+              merchant_uid: (response as { paymentId: string }).paymentId,
+              amount: amount,
+            }),
+          });
+          const verifyData = await verifyRes.json();
+          if (verifyRes.ok && verifyData.success) {
+            setShowNamePaymentModal(false);
+            setIsNamePremiumUnlocked(true);
+          } else {
+            alert(
+              `결제 검증 오류: ${(verifyData.message && String(verifyData.message).trim()) || "서버 키·IAMPORT 설정을 확인해 주세요."}`,
+            );
+          }
+        } catch {
+          alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
+        }
+      } catch(e) {
+        localStorage.removeItem("pendingNameData");
+        localStorage.removeItem("pendingPaymentType");
+        localStorage.removeItem("pendingPaymentAmount");
+      }
+    }
+  };
+
+  const formatHighlight = (text?: string) => {
+    if (!text) return null;
+    const parts = text.split(/(【.*?】)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('【') && part.endsWith('】')) {
+        return (
+          <strong key={i} className="text-yellow-200 bg-yellow-500/20 border-b border-yellow-500/40 px-1 py-0.5 mx-0.5 font-semibold">
+            {part.slice(1, -1)}
+          </strong>
+        );
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  const handleNameReset = () => {
+    setNameGender("male");
+    setNameBirthDate("");
+    setNameBirthTime("unknown");
+    setNameInput("");
+    setNameHanja("");
+    setShowHanjaModal(false);
+    setHanjaModalData([]);
+    setHanjaSelections([]);
+    setShowNameResult(false);
+    setNameResultData(null);
+    setShowNamePaymentModal(false);
+    setIsNamePremiumUnlocked(false);
+  };
+
+  return (
+    <div
+      role="tabpanel"
+      aria-hidden={!isVisible}
+      className={`
+        absolute inset-0 flex flex-col overflow-y-auto
+        transition-opacity duration-500 ease-out
+        ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
+      `}
+    >
+      <div className="fixed inset-0 z-0 pointer-events-none bg-slate-950">
+        <div className="absolute inset-0 bg-cover bg-center opacity-60 mix-blend-screen" style={{ backgroundImage: "url('/bg_face_name.png')" }} />
+        <div className="absolute inset-0 bg-black/50" />
+      </div>
+
+      <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 py-8">
+        
+        <div className="flex gap-2 rounded-xl bg-slate-800/60 p-1">
+          {/* 🚀 [비밀 버튼] 사주 탭 진입을 "S"로 인식 */}
+          <button
+            type="button"
+            onClick={() => { setActiveSajuMode("face"); pushSecret("S"); }}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+              activeSajuMode === "face"
+                ? "bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/50"
+                : "text-white/70 hover:text-white/90"
+            }`}
+          >
+            <Camera className="h-4 w-4" />
+            관상 분석
+          </button>
+          {/* 🚀 [비밀 버튼] 이름 탭 진입을 "S"로 인식 */}
+          <button
+            type="button"
+            onClick={() => { setActiveSajuMode("name"); pushSecret("S"); }}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+              activeSajuMode === "name"
+                ? "bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-500/50"
+                : "text-white/70 hover:text-white/90"
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            이름 풀이
+          </button>
+        </div>
+
+        {activeSajuMode === "face" && (
+          <div ref={faceShareResultRef} className="w-full max-w-md space-y-6">
+            {!showFaceResult ? (
+              <>
+                <div className="mb-4 text-center border-b border-white/10 pb-4">
+                  <h2 className="text-xl font-bold text-yellow-400">당신의 타고난 천운(天運)을 얼굴에서 읽어냅니다.</h2>
+                  <p className="text-xs text-white/70 mt-1">마의상법(麻衣相法)에 기초한 정밀 관상 스캐닝</p>
+                </div>
+
+                <div className="mb-5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 py-2.5 px-2 text-center shadow-inner">
+                  <p className="text-xs sm:text-sm text-yellow-300 font-medium tracking-tight break-keep">
+                    💡 정확도 UP : <strong className="text-yellow-400">밝은 곳에서 이마가 보이는 정면 무표정 사진</strong> 권장
+                  </p>
+                </div>
+
+                <form onSubmit={handleFaceAnalyze} className="space-y-5">
+                  <div className="relative">
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleFaceDrop}
+                      className={`
+                        flex min-h-[280px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed
+                        border-yellow-500/30 bg-white/5 p-6 backdrop-blur-sm transition-colors hover:border-yellow-500/50
+                        ${isFaceScanning ? "pointer-events-none" : "cursor-pointer"}
+                      `}
+                    >
+                      {faceImage ? (
+                        <img src={faceImage} alt="업로드된 사진" className="max-h-[250px] max-w-full rounded-lg object-contain" />
+                      ) : (
+                        <>
+                          <Camera className="h-12 w-12 text-yellow-400/60" />
+                          <p className="text-sm text-white/70">클릭하거나 사진을 드래그하세요</p>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFaceUpload}
+                        className="absolute inset-0 cursor-pointer opacity-0"
+                        disabled={isFaceScanning}
+                      />
+                    </div>
+                    {isFaceScanning && (
+                      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-black/80 overflow-hidden">
+                        <style>{`
+                          @keyframes scanMove { 0% { top: 10%; } 50% { top: 90%; } 100% { top: 10%; } }
+                        `}</style>
+                        <div className="absolute inset-0 bg-[linear-gradient(rgba(234,179,8,0.2)_1px,transparent_1px),linear-gradient(90deg,rgba(234,179,8,0.2)_1px,transparent_1px)] bg-[size:20px_20px] mix-blend-overlay"></div>
+                        <div className="absolute top-0 left-0 w-full h-full border-[4px] border-yellow-500/50 rounded-xl animate-pulse"></div>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 border border-yellow-400/80 rounded-full flex items-center justify-center">
+                          <div className="w-1 h-1 bg-yellow-400 rounded-full animate-ping"></div>
+                        </div>
+                        <div className="absolute left-0 w-full h-[3px] bg-yellow-400 shadow-[0_0_20px_5px_rgba(234,179,8,0.9)] opacity-90" 
+                             style={{ animation: 'scanMove 2s ease-in-out infinite' }}></div>
+                        
+                        <p className="relative z-10 mt-20 px-4 py-1.5 rounded-full bg-black/80 text-xs font-bold text-yellow-400 tracking-widest border border-yellow-500/30 shadow-lg">
+                          정밀 안면 골격 스캐닝 중...
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-3 text-sm font-medium text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!faceImage || isFaceScanning}
+                  >
+                    전문가 심층 관상 분석하기
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div className="space-y-6">
+                <h3 className="mb-2 text-center text-lg font-semibold text-yellow-400">
+                  당신의 타고난 관상 분석 리포트
+                </h3>
+
+                {isPhysiognomyPremiumUnlocked ? (
+                  <div className="space-y-6 animate-fade-in-up">
+                    <div className="flex justify-center mb-4">
+                      <div className="relative p-1 rounded-full bg-gradient-to-br from-yellow-400 to-amber-600 shadow-[0_0_20px_rgba(234,179,8,0.3)]">
+                        <img src={faceImage || ""} alt="분석 사진" className="w-28 h-28 rounded-full object-cover border-4 border-black" />
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border-2 border-yellow-500/50 bg-[#16120d]/90 p-5 shadow-lg">
+                      <h4 className="mb-4 text-center text-base font-bold text-yellow-300 border-b border-yellow-500/30 pb-2">
+                        📜 마의상법 정통 관상 풀이
+                      </h4>
+                      <div className="space-y-4">
+                        {[
+                          { id: "forehead", title: "이마 (초년운·지적 능력)", icon: "🧠" },
+                          { id: "eyes", title: "눈 (애정운·정신력)", icon: "👁️" },
+                          { id: "nose", title: "코 (재물운·의지력)", icon: "👃" },
+                          { id: "mouth", title: "입 (말년운·언변)", icon: "👄" },
+                          { id: "overall", title: "전체적 균형", icon: "⚖️" },
+                        ].map((item) => (
+                          <div key={item.id} className="border-b border-white/5 pb-3 last:border-0 last:pb-0">
+                            <span className="text-sm font-bold text-yellow-400 flex items-center gap-1 mb-1">{item.icon} {item.title}</span>
+                            <p className="text-sm text-white/90 leading-relaxed">{(faceResultData?.premiumReport as any)?.[item.id] || "분석 결과를 불러올 수 없습니다."}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border-2 border-amber-500/50 bg-[#16120d]/90 p-5 shadow-lg">
+                      <h4 className="mb-4 text-center text-base font-bold text-amber-400 border-b border-amber-500/30 pb-2">
+                        ✨ 심층 인상 및 주의점 (팩트폭력)
+                      </h4>
+                      <div className="space-y-4">
+                        {[
+                          { id: "firstImpression", title: "첫인상 강점", icon: "✨" },
+                          { id: "interpersonal", title: "인간관계 성향", icon: "🤝" },
+                          { id: "charisma", title: "신뢰감 및 카리스마", icon: "👔" },
+                          { id: "romance", title: "이성에게 비치는 매력", icon: "💘" },
+                          { id: "warningPoint", title: "관상학적 주의점 및 팩트폭력", icon: "⚠️" },
+                        ].map((item) => (
+                          <div key={item.id} className="border-b border-white/5 pb-3 last:border-0 last:pb-0">
+                            <span className="text-sm font-bold text-amber-400 flex items-center gap-1 mb-1">{item.icon} {item.title}</span>
+                            <p className="text-sm text-white/90 leading-relaxed">{(faceResultData?.premiumReport as any)?.[item.id] || "분석 결과를 불러올 수 없습니다."}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-5 mt-4">
+                    <div className="flex justify-center mb-2">
+                      <img src={faceImage || ""} alt="분석된 사진" className="max-h-32 rounded-lg border border-yellow-500/30 object-contain shadow-lg" />
+                    </div>
+                    
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-md text-center">
+                      <p className="text-sm leading-relaxed text-white/90 font-medium">
+                        {faceResultData?.freeSummary}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                      <h4 className="text-sm font-bold text-emerald-400 mb-3 flex items-center gap-2">
+                        <span>👁️</span> AI 스캐닝 관찰 결과
+                      </h4>
+                      <div className="space-y-2 text-xs">
+                        <p className="text-white/80">
+                          <strong className="text-white/60 mr-2">확실한 특징:</strong> 
+                          {faceResultData?.observation?.visible?.join(", ") || "특징을 추출했습니다."}
+                        </p>
+                        {faceResultData?.observation?.uncertain?.length > 0 && (
+                          <p className="text-rose-400/80">
+                            <strong className="text-white/60 mr-2">불확실한 특징:</strong> 
+                            {faceResultData?.observation?.uncertain?.join(", ")}
+                          </p>
+                        )}
+                        <p className="mt-2 text-emerald-300 pt-2 border-t border-emerald-500/10">
+                          💡 <strong>품질 체크:</strong> {faceResultData?.retakeGuide}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-8 space-y-3 relative">
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent rounded-xl">
+                        <p className="text-white font-bold mb-4 drop-shadow-md">전문가 수준의 10가지 심층 풀이가 준비되었습니다.</p>
+                        <button 
+                          onClick={(e) => { e.preventDefault(); handleFacePremium(); }}
+                          className="animate-bounce px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-extrabold rounded-full shadow-[0_0_20px_rgba(234,179,8,0.5)]"
+                        >
+                          🔒 프리미엄 심층 분석 열기
+                        </button>
+                      </div>
+
+                      {[
+                        { id: "forehead", title: "이마 (초년운·지적 능력)" },
+                        { id: "eyes", title: "눈 (애정운·정신력)" },
+                        { id: "nose", title: "코 (재물운·의지력)" }
+                      ].map((item) => (
+                        <div key={item.id} className="rounded-xl border border-white/5 bg-slate-800/40 px-4 py-3 opacity-60">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-yellow-400/90">{item.title}</span>
+                            <span className="text-xs text-amber-500">🔒 잠금</span>
+                          </div>
+                          <p className="text-sm text-white/30 blur-sm select-none">
+                            이마가 넓고 반듯하여 초년 운이 매우 강하게 들어오는 상입니다. 학업과 명예가 따릅니다.
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6 mb-4 rounded-lg bg-white/5 p-4 text-center border border-white/10 shadow-inner opacity-80">
+                  <p className="text-[11px] leading-relaxed text-white/50 break-keep">
+                    ※ 본 분석은 사진의 조명, 각도, 표정에 따라 결과가 일부 달라질 수 있습니다.<br/>
+                    정통 상학 데이터를 기반으로 한 <strong>엔터테인먼트 콘텐츠</strong>이므로 참고용으로만 활용해 주시기 바랍니다.
+                  </p>
+                </div>
+
+                <div className="mt-8 space-y-3">
+                  {isPhysiognomyPremiumUnlocked ? (
+  <div className="grid grid-cols-2 gap-3">
+    <button
+      type="button"
+      onClick={handleFaceLinkShare}
+      className="w-full rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 active:scale-95"
+    >
+      🔗 링크 공유
+    </button>
+    <button
+      type="button"
+      onClick={handleFaceShare}
+      className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20 active:scale-95"
+    >
+      🖼️ 이미지 공유
+    </button>
+  </div>
+) : null}
+                  <button
+                    type="button"
+                    onClick={handleFaceReset}
+                    className="w-full rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-white/80 transition-all hover:bg-white/10 active:scale-95"
+                  >
+                    ↺ 다시 하기 (처음으로)
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {showPhysiognomyPaymentModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={(e) => e.target === e.currentTarget && setShowPhysiognomyPaymentModal(false)}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border-2 border-yellow-500/50 bg-slate-900/90 p-6 shadow-2xl shadow-yellow-500/10 backdrop-blur-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="mb-4 text-center text-lg font-semibold text-yellow-400">
+                ✨ 당신의 타고난 운명을 밝히는 심층 관상 리포트 잠금 해제 (4,900원)
+              </h3>
+              <p className="mb-6 text-center text-sm text-white/70">
+                이마·눈·코·입·전체 균형에 대한 전문가 관상학자의 심층 분석을 확인하세요.
+              </p>
+              <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPhysiognomyPaymentModal(false)}
+                  className="flex-1 rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePhysiognomyPaymentConfirm}
+                  className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+                >
+                  결제하고 리포트 열기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeSajuMode === "name" && (
+          <div ref={nameShareResultRef} className="w-full max-w-md space-y-6">
+            {!showNameResult ? (
+              isNameLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-6">
+                  <div className="relative">
+                    <div className="h-16 w-16 animate-[fortune-spin_1.2s_linear_infinite] rounded-full border-2 border-yellow-500/30 border-t-yellow-400" />
+                    <div className="absolute inset-2 rounded-full border border-yellow-500/20" />
+                  </div>
+                  <div className="w-full max-w-sm space-y-4 text-center">
+                    <p className="text-lg font-semibold text-yellow-400">
+                      전문가 심층 성명학 리포트 생성 중
+                    </p>
+                    <div className="space-y-2 rounded-2xl border border-yellow-500/20 bg-white/5 p-4 backdrop-blur-md">
+                      {[
+                        "음령 및 자원오행 데이터 추출 중...",
+                        "사주 원국(명식) 대조 분석 중...",
+                        "이름의 파동과 기운 흐름 계산 중...",
+                        "심층 리포트 및 핵심 포인트 요약 중...",
+                      ].map((label, index) => {
+                        const done = nameLoadingStep > index;
+                        const active = nameLoadingStep === index;
+                        return (
+                          <div
+                            key={label}
+                            className={`flex items-center justify-between rounded-xl px-3 py-2 text-sm ${
+                              done ? "bg-yellow-500/15 text-yellow-300" : active ? "bg-white/10 text-white" : "bg-transparent text-white/50"
+                            }`}
+                          >
+                            <span>{label}</span>
+                            <span>{done ? "완료" : active ? "진행중" : "대기"}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+              <form onSubmit={handleNameAnalyze} className="space-y-5">
+                <div>
+                  <label className="mb-2 block text-sm text-yellow-400/80">성별</label>
+                  <div className="flex gap-4">
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="radio"
+                        name="nameGender"
+                        checked={nameGender === "male"}
+                        onChange={() => setNameGender("male")}
+                        className="accent-yellow-500"
+                      />
+                      <span className="text-white/90">남</span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="radio"
+                        name="nameGender"
+                        checked={nameGender === "female"}
+                        onChange={() => setNameGender("female")}
+                        className="accent-yellow-500"
+                      />
+                      <span className="text-white/90">여</span>
+                    </label>
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm text-yellow-400/80">생년월일</label>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    placeholder="예: 19801013"
+                    value={nameBirthDate}
+                    onChange={(e) => {
+                      setIsNamePremiumUnlocked(false); // 💡 숫자를 수정할 때만 잠금!
+                      let val = e.target.value.replace(/[^0-9]/g, '');
+                      if (val.length > 6) val = val.slice(0,4) + '-' + val.slice(4,6) + '-' + val.slice(6,8);
+                      else if (val.length > 4) val = val.slice(0,4) + '-' + val.slice(4);
+                      setNameBirthDate(val);
+                    }}
+                    className="w-full rounded-xl border border-white/20 bg-slate-800/80 shadow-inner px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm text-yellow-400/80">태어난 시간</label>
+                  <select
+                    value={nameBirthTime}
+                    onChange={(e) => setNameBirthTime(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-white focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+                  >
+                    {BIRTH_TIME_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value} className="bg-slate-800 text-white">
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm text-yellow-400/80">이름 (한글 또는 한자 직접 입력)</label>
+                  <input
+                    type="text"
+                    placeholder="한글 또는 한자 입력"
+                    value={nameInput}
+                    onChange={(e) => {
+                      setIsNamePremiumUnlocked(false); // 💡 이름을 수정할 때만 잠금!
+                      setNameInput(e.target.value);
+                      setHanjaSelections([]);
+                      setNameHanja("");
+                    }}
+                    className="w-full rounded-xl border border-white/10 bg-transparent px-4 py-3 text-white placeholder-white/40 focus:border-yellow-500/50 focus:outline-none focus:ring-2 focus:ring-yellow-500/30"
+                  />
+                  <p className="mt-1.5 text-xs text-gray-400">
+                    ※ 한자 변환이 번거로우신 경우, 키보드를 이용해 한자를 직접 입력하셔도 됩니다.
+                  </p>
+                  {nameInput.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {nameInput.split("").map((c, i) => (
+                        <div key={`${i}-${c}`} className="flex flex-col items-center gap-1">
+                          <span className="text-base font-medium text-yellow-400/90">{c}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleHanjaForChar(i)}
+                            className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-3 py-1.5 text-xs font-medium text-yellow-400 transition-all hover:bg-yellow-500/20 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+                          >
+                            한자
+                          </button>
+                          {hanjaSelections[i] && (
+                            <span className="text-sm text-amber-300/90">{hanjaSelections[i]}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {nameHanja && (
+                    <p className="mt-2 text-sm text-yellow-400/90">
+                      표시: {nameInput}({nameHanja})
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={isNameLoading}
+                  className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-3 text-sm font-medium text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  이름 풀이 보기
+                </button>
+              </form>
+              )
+            ) : (
+              <div className="space-y-6 animate-fade-in-up mt-4">
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md text-center">
+                    <p className="mb-2 text-sm font-bold text-yellow-400/90">
+                      {nameInput} {nameHanja && `(${nameHanja})`}
+                    </p>
+                    <p className="text-sm leading-relaxed text-white/90">
+                      {nameResultData?.freeSummary ?? "분석 결과를 불러올 수 없습니다."}
+                    </p>
+                  </div>
+                  
+                  {nameResultData?.freeWeakness && (
+                    <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 shadow-inner">
+                      <p className="text-xs font-bold text-red-400 mb-1 flex items-center gap-1">
+                        <span>⚠️</span> 이름의 치명적 약점 / 주의점
+                      </p>
+                      <p className="text-sm text-red-200/80 break-keep">
+                        {nameResultData.freeWeakness}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  className={`rounded-2xl border-2 p-5 backdrop-blur-md transition-all duration-1000 ${
+                    isNamePremiumUnlocked
+                      ? "border-yellow-500/50 bg-[#16120d]/90 shadow-[0_0_24px_rgba(234,179,8,0.15)]"
+                      : "border-yellow-500/20 bg-black/40"
+                  }`}
+                >
+                  <h4 className="mb-5 text-center text-base font-bold text-yellow-400 border-b border-yellow-500/20 pb-3">
+                    ✨ 심층 작명 분석 리포트
+                  </h4>
+
+                  {isNamePremiumUnlocked && nameResultData?.premiumReport?.basisBox && (
+                    <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                      <h5 className="mb-3 text-sm font-bold text-emerald-400 flex items-center gap-2">
+                        <span>📊</span> 작명 근거 Data 요약
+                      </h5>
+                      <ul className="space-y-2 text-sm text-white/80">
+                        <li className="flex gap-2"><strong className="text-emerald-500/80 min-w-[60px]">음령오행:</strong> <span>{nameResultData.premiumReport.basisBox.pronunciation}</span></li>
+                        <li className="flex gap-2"><strong className="text-emerald-500/80 min-w-[60px]">자원/의미:</strong> <span>{nameResultData.premiumReport.basisBox.resource}</span></li>
+                        <li className="flex gap-2"><strong className="text-emerald-500/80 min-w-[60px]">사주매칭:</strong> <span>{nameResultData.premiumReport.basisBox.sajuRelation}</span></li>
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    {[
+                      { key: "coreEnergy", label: "핵심 기운 및 파동 분석", icon: "🌊", content: nameResultData?.premiumReport?.coreEnergy },
+                      { key: "nameFlow", label: "음양오행 심층 분석", icon: "☯️", content: nameResultData?.premiumReport?.nameFlow },
+                      { key: "sajuFit", label: "사주와 이름의 궁합", icon: "🧬", content: nameResultData?.premiumReport?.sajuFit },
+                      { key: "lifeCycle", label: "인생 총운 (초/중/말년)", icon: "⏳", content: nameResultData?.premiumReport?.lifeCycle },
+                    ].map((item) => (
+                      <div key={item.key} className="rounded-xl border border-white/5 bg-white/5 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-bold text-yellow-400 flex items-center gap-2">
+                            <span>{item.icon}</span> {item.label}
+                          </span>
+                          {!isNamePremiumUnlocked && <span className="text-[10px] text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">🔒 잠금</span>}
+                        </div>
+                        <div className={`text-sm leading-relaxed transition-all duration-1000 ${isNamePremiumUnlocked ? "text-white/90 whitespace-pre-wrap" : "text-white/30 blur-sm select-none"}`}>
+                          {isNamePremiumUnlocked ? formatHighlight(item.content) : (item.content ?? "데이터를 불러오는 중입니다...")}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                 
+                  <p className="mt-5 text-[11px] text-white/40 text-center break-keep">
+                    ※ 본 분석은 정통 성명학 데이터를 기반으로 한 엔터테인먼트 콘텐츠이므로 참고용으로만 활용해 주시기 바랍니다.
+                  </p>
+                </div>
+
+                <div className="mt-8 space-y-3">
+                  {isNamePremiumUnlocked ? (
+                    <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={handleNameLinkShare}
+                      className="w-full rounded-xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20"
+                    >
+                      🔗 링크 공유
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNameShare}
+                      className="w-full rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm font-bold text-yellow-400 transition-all hover:bg-yellow-500/20"
+                    >
+                      🖼️ 이미지 공유
+                    </button>
+                  </div>
+
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleNamePremium}
+                      className="w-full rounded-xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 px-6 py-4 text-base font-semibold text-slate-900 shadow-lg shadow-yellow-500/30 transition-all hover:scale-[1.02] active:scale-95"
+                    >
+                      ✨ 전문가 심층 분석 리포트 잠금 해제 (4,900원)
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleNameReset}
+                    className="w-full rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-medium text-white/80 transition-all hover:bg-white/10 active:scale-95"
+                  >
+                    ↺ 다시 하기 (처음으로)
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {showNamePaymentModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={(e) => e.target === e.currentTarget && setShowNamePaymentModal(false)}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border-2 border-yellow-500/50 bg-slate-900/90 p-6 shadow-2xl shadow-yellow-500/10 backdrop-blur-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="mb-4 text-center text-lg font-semibold text-yellow-400">
+                ✨ 전문가 심층 이름 풀이 리포트 잠금 해제 (4,900원)
+              </h3>
+              <p className="mb-6 text-center text-sm text-white/70">
+                핵심 기운 및 파동 분석, 음양오행 심층 분석, 사주(지장간/합충)와 이름 궁합, 인생 총운(초년/중년/말년)을 전문가가 심층 분석합니다.
+              </p>
+              <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNamePaymentModal(false)}
+                  className="flex-1 rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNamePaymentConfirm}
+                  className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-yellow-500/25 transition-all hover:from-yellow-400 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+                >
+                  결제하고 리포트 열기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showHanjaModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={(e) => e.target === e.currentTarget && setShowHanjaModal(false)}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border border-white/20 bg-white/10 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="mb-4 text-center text-lg font-medium text-yellow-400">
+                &quot;{hanjaModalTargetChar ?? ""}&quot; → 한자 선택
+              </h3>
+              {hanjaModalLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="h-10 w-10 animate-[fortune-spin_1s_linear_infinite] rounded-full border-2 border-yellow-500/50 border-t-yellow-400" />
+                  <p className="text-sm text-yellow-400/90">한자 검색 중...</p>
+                </div>
+              ) : (
+                <div className="hanja-modal-scroll max-h-[60vh] overflow-y-auto pr-2">
+                  {hanjaModalResults.length > 0 ? (
+                    <>
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-sm font-bold text-yellow-400">👍 이름용 추천 한자</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                        {hanjaModalResults.slice(0, 12).map((item, idx) => (
+                          <button
+                            key={`rec-${item.hanja}-${idx}`}
+                            type="button"
+                            onClick={() => handleHanjaSelectFromModal(item.hanja)}
+                            className="flex flex-col items-center justify-center rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-center transition-all hover:bg-yellow-500/20 hover:border-yellow-400 hover:shadow-[0_0_15px_rgba(234,179,8,0.3)] focus:outline-none focus:ring-2 focus:ring-yellow-500/50"
+                          >
+                            <span className="text-3xl font-serif text-blue-300/90 mb-1 drop-shadow-md">{item.hanja}</span>
+                            <span className="text-[11px] text-white/90 line-clamp-1 leading-tight bg-black/40 px-2 py-1 rounded w-full truncate">{item.meaning.split(',')[0]}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {hanjaModalResults.length > 12 && (
+                        <details className="mt-5 group">
+                          <summary className="cursor-pointer text-sm text-white/50 hover:text-white/80 transition-colors list-none flex items-center justify-center border-t border-white/10 pt-4">
+                            <span>전체 한자 보기 ({hanjaModalResults.length - 12}개 더보기) ▾</span>
+                          </summary>
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-4 opacity-70 hover:opacity-100 transition-opacity">
+                          {[...hanjaModalResults.slice(12)].sort((a, b) => a.meaning.localeCompare(b.meaning, 'ko-KR')).map((item, idx) => (
+                              <button
+                                key={`all-${item.hanja}-${idx}`}
+                                type="button"
+                                onClick={() => handleHanjaSelectFromModal(item.hanja)}
+                                className="flex flex-col items-center justify-center rounded-lg border border-white/10 bg-white/5 p-2 text-center transition-all hover:bg-white/10 focus:outline-none"
+                              >
+                                <span className="text-2xl font-serif text-blue-200/50 mb-1">{item.hanja}</span>
+                                <span className="text-[10px] text-white/50 line-clamp-1 leading-tight w-full truncate">{item.meaning.split(',')[0]}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </details>
+                      )}
+                    </>
+                  ) : (
+                    !hanjaModalLoading && <p className="py-8 text-center text-sm text-white/60">해당 한자를 찾을 수 없습니다.</p>
+                  )}
+                </div>
+              )}
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={() => setShowHanjaModal(false)}
+                  className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        <FooterPolicy tabId="saju" />
+      </div>
+    </div>
+  );
+}
