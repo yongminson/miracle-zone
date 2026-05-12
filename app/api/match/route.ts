@@ -42,13 +42,26 @@ function getFixedScore(name1: string, date1: string, name2: string, date2: strin
 const RESPONSE_FORMAT = `
 {
   "score": 85,
+  "grade": "좋음",
   "title": "티키타카 폼 미친 '불'과 '쇠'의 만남",
   "summary": "서로의 부족한 기운을 찰떡같이 채워주는 환상의 짝꿍입니다.",
   "details": "서버가 확정한 오행 데이터를 바탕으로 한 MZ세대 맞춤 심층 풀이 (3~4문장)",
+  "elementRelation": "오행 상생/상극 관계 한줄 해석 (예: 물이 나무를 키우는 상생 관계 — 서로를 성장시키는 이상적인 조합)",
+  "categoryScores": {
+    "personality": 88,
+    "values": 82,
+    "money": 71,
+    "love": 90,
+    "future": 85
+  },
   "goodPoint": "환상의 케미 포인트 (가장 잘 맞는 점)",
   "badPoint": "마라맛 팩폭 주의구간 (싸우기 쉬운 포인트)",
-  "actionGuide": "오래가기 위한 꿀팁 1줄"
+  "actionGuide": "오래가기 위한 꿀팁 1줄",
+  "luckyDay": "함께하면 좋은 날 (예: 수요일, 매월 7일)",
+  "carefulDay": "조심할 날 (예: 토요일, 숫자 4가 겹치는 날)"
 }
+🚨 grade는 반드시 score 기준으로: 90이상=천생연분, 80이상=좋음, 70이상=보통, 69이하=주의 중 하나만 사용하세요.
+🚨 categoryScores의 모든 값은 0~100 숫자여야 합니다.
 🚨 반드시 위 JSON 형식으로만 답변하세요.
 `;
 
@@ -63,10 +76,18 @@ export async function POST(request: NextRequest) {
   if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: "API 키가 없습니다." }, { status: 500 });
 
   try {
-    const { myInfo, partnerInfo } = await request.json();
+    const { myInfo, partnerInfo, relationshipType } = await request.json();
     if (!myInfo?.name || !partnerInfo?.name || !myInfo?.birthDate || !partnerInfo?.birthDate) {
       return NextResponse.json({ error: "정보를 모두 입력해주세요." }, { status: 400 });
     }
+    const relationshipLabel: Record<string, string> = {
+      lover: "연인",
+      couple: "부부",
+      friend: "친구",
+      family: "가족",
+      business: "비즈니스 파트너",
+    };
+    const relLabel = relationshipLabel[relationshipType] || "연인";
 
     // 🚀 서버에서 모든 것을 통제! AI의 헛소리 원천 차단
     const myNameElem = getNameElement(myInfo.name);
@@ -78,9 +99,16 @@ export async function POST(request: NextRequest) {
     const prompt = `
     [사람 A] 이름: ${myInfo.name} (초성 기운: ${myNameElem}), 사주 기운: ${mySajuElem}
     [사람 B] 이름: ${partnerInfo.name} (초성 기운: ${partnerNameElem}), 사주 기운: ${partnerSajuElem}
+    [관계 유형]: ${relLabel}
     
     🚨 [긴급 명령] 이 두 사람의 궁합 점수는 **${fixedScore}점**으로 이미 확정되었습니다!
-    이 점수(${fixedScore}점)와 확정된 오행 기운만을 바탕으로, MZ세대가 카톡으로 공유하기 딱 좋은 트렌디하고 재밌는 말투로 JSON 답변을 만들어줘.
+    이 점수(${fixedScore}점)와 확정된 오행 기운, 그리고 [${relLabel}] 관계에 맞는 톤으로 JSON 답변을 만들어줘.
+    - 연인이면 설레고 달달한 톤
+    - 부부면 현실적이고 진지한 조언 톤
+    - 친구면 유쾌하고 편한 톤
+    - 비즈니스면 냉철하고 분석적인 톤
+    - 가족이면 따뜻하고 유대감 중심의 톤
+    MZ세대가 카톡으로 공유하기 딱 좋은 트렌디하고 재밌는 말투로 작성해줘.
     `;
 
     const completion = await openai.chat.completions.create({

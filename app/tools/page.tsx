@@ -4552,6 +4552,7 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
   // 🚀 상태에 calendar(음양력) 추가
   const [myInfo, setMyInfo] = useState({ name: "", gender: "male", calendar: "solar", birthDate: "", birthTime: "unknown" });
   const [partnerInfo, setPartnerInfo] = useState({ name: "", gender: "female", calendar: "solar", birthDate: "", birthTime: "unknown" });
+  const [relationshipType, setRelationshipType] = useState("lover");
   
   const [isLoading, setIsLoading] = useState(false);
   const [resultData, setResultData] = useState<any>(null);
@@ -4578,7 +4579,7 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
     const partnerKey = `${partnerInfo.name}_${partnerInfo.gender}_${partnerInfo.calendar}_${partnerInfo.birthDate}_${partnerInfo.birthTime}`;
     
     const sortedKeys = [myKey, partnerKey].sort(); // 알파벳 순으로 정렬해버림 (위치 무관)
-    const cacheKey = `match_${sortedKeys[0]}_${sortedKeys[1]}`;
+    const cacheKey = `match_${sortedKeys[0]}_${sortedKeys[1]}_${relationshipType}`;
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
@@ -4592,7 +4593,7 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
       const res = await fetch("/api/match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ myInfo, partnerInfo }),
+        body: JSON.stringify({ myInfo, partnerInfo, relationshipType }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -4637,6 +4638,35 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
             </div>
 
             <div className="space-y-6">
+
+              {/* 💑 관계 유형 선택 */}
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+                <p className="text-xs text-white/50 mb-3 font-bold tracking-widest text-center">어떤 관계인가요?</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {[
+                    { value: "lover", label: "연인", emoji: "💑" },
+                    { value: "couple", label: "부부", emoji: "💍" },
+                    { value: "friend", label: "친구", emoji: "🤝" },
+                    { value: "family", label: "가족", emoji: "👨‍👩‍👧" },
+                    { value: "business", label: "비즈니스", emoji: "💼" },
+                  ].map((rel) => (
+                    <button
+                      key={rel.value}
+                      type="button"
+                      onClick={() => setRelationshipType(rel.value)}
+                      className={`flex flex-col items-center gap-1 rounded-xl py-2.5 px-1 text-xs font-bold transition-all ${
+                        relationshipType === rel.value
+                          ? "bg-rose-500/30 border border-rose-400/60 text-rose-300"
+                          : "bg-white/5 border border-white/10 text-white/50 hover:text-white/80"
+                      }`}
+                    >
+                      <span className="text-lg leading-none">{rel.emoji}</span>
+                      <span>{rel.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* 👤 나의 정보 */}
               <div className="rounded-3xl border border-rose-500/30 bg-slate-900/80 p-6 backdrop-blur-md shadow-lg">
                 <h3 className="text-rose-400 font-bold mb-4 flex items-center gap-2"><span>👤</span> 나의 정보</h3>
@@ -4712,10 +4742,32 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
             <div className="rounded-3xl border border-rose-500/30 bg-slate-900/90 p-6 md:p-8 backdrop-blur-xl shadow-2xl">
               
               <div className="text-center border-b border-white/10 pb-6 mb-6">
-                <div className="flex justify-center items-center gap-4 mb-4">
+              <div className="flex justify-center items-center gap-4 mb-4">
                   <span className="text-lg font-bold text-rose-300">{myInfo.name}</span>
-                  <Heart className="w-5 h-5 text-rose-500 animate-pulse" fill="currentColor" />
+                  {relationshipType === "lover" ? (
+                    <Heart className="w-5 h-5 text-rose-500 animate-pulse fill-current" />
+                  ) : (
+                    <span className="text-xl leading-none">
+                      {{
+                        couple: "💍",
+                        friend: "🤝",
+                        family: "👨‍👩‍👧",
+                        business: "💼",
+                      }[relationshipType] ?? "❤️"}
+                    </span>
+                  )}
                   <span className="text-lg font-bold text-orange-300">{partnerInfo.name}</span>
+                </div>
+                <div className="flex justify-center mb-2">
+                  <span className="text-xs px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/60">
+                    {{
+                      lover: "💑 연인 궁합",
+                      couple: "💍 부부 궁합",
+                      friend: "🤝 친구 궁합",
+                      family: "👨‍👩‍👧 가족 궁합",
+                      business: "💼 비즈니스 궁합",
+                    }[relationshipType] ?? "💑 연인 궁합"}
+                  </span>
                 </div>
                 
                 <div className="relative inline-flex items-center justify-center mb-2">
@@ -4732,8 +4784,30 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                   <span className="absolute text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-orange-400">{resultData.score}점</span>
                 </div>
                 
+                {/* 궁합 등급 배지 */}
+                {resultData.grade && (
+                  <div className="mt-3 mb-1">
+                    <span className={`inline-block px-4 py-1 rounded-full text-sm font-extrabold border ${
+                      resultData.grade === "천생연분"
+                        ? "bg-rose-500/20 border-rose-400 text-rose-300"
+                        : resultData.grade === "좋음"
+                        ? "bg-orange-500/20 border-orange-400 text-orange-300"
+                        : resultData.grade === "보통"
+                        ? "bg-yellow-500/20 border-yellow-400 text-yellow-300"
+                        : "bg-slate-500/20 border-slate-400 text-slate-300"
+                    }`}>
+                      {resultData.grade === "천생연분" ? "💑 천생연분" : resultData.grade === "좋음" ? "💛 좋음" : resultData.grade === "보통" ? "🤝 보통" : "⚠️ 주의"}
+                    </span>
+                  </div>
+                )}
                 <h3 className="text-xl font-bold text-white mt-4">{resultData.title}</h3>
                 <p className="text-sm text-white/70 mt-2">{resultData.summary}</p>
+                {/* 오행 관계 */}
+                {resultData.elementRelation && (
+                  <p className="mt-2 text-xs text-rose-300/80 bg-rose-500/10 rounded-xl px-3 py-2 border border-rose-500/20">
+                    🌿 {resultData.elementRelation}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-4 mb-6">
@@ -4741,6 +4815,33 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                   <h4 className="text-sm font-bold text-rose-400 mb-2">🔍 상세 궁합 풀이</h4>
                   <p className="text-sm text-white/85 leading-relaxed">{resultData.details}</p>
                 </div>
+
+                {/* 분야별 궁합 점수 바 */}
+                {resultData.categoryScores && (
+                  <div className="bg-black/40 rounded-2xl p-4 border border-white/5">
+                    <h4 className="text-sm font-bold text-white/70 mb-3">📊 분야별 궁합</h4>
+                    <div className="space-y-2">
+                      {[
+                        { label: "성격 조화", key: "personality", color: "bg-rose-400" },
+                        { label: "가치관", key: "values", color: "bg-orange-400" },
+                        { label: "금전 관념", key: "money", color: "bg-yellow-400" },
+                        { label: "애정 표현", key: "love", color: "bg-pink-400" },
+                        { label: "미래 비전", key: "future", color: "bg-purple-400" },
+                      ].map(({ label, key, color }) => {
+                        const score = resultData.categoryScores[key] ?? 0;
+                        return (
+                          <div key={key} className="flex items-center gap-3">
+                            <span className="w-16 text-xs text-white/50 shrink-0">{label}</span>
+                            <div className="flex-1 h-1.5 rounded-full bg-white/10">
+                              <div className={`h-1.5 rounded-full ${color} transition-all duration-700`} style={{ width: `${score}%` }} />
+                            </div>
+                            <span className="w-9 text-xs text-right text-white/70 font-mono">{score}점</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-emerald-900/20 rounded-xl p-3 border border-emerald-500/20">
@@ -4757,6 +4858,20 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                   <p className="text-[11px] font-bold text-orange-400 mb-1">💡 관계 발전을 위한 조언</p>
                   <p className="text-sm text-white/90">{resultData.actionGuide}</p>
                 </div>
+
+                {/* 좋은 날 / 조심할 날 */}
+                {(resultData.luckyDay || resultData.carefulDay) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-emerald-900/20 rounded-xl p-3 border border-emerald-500/20">
+                      <p className="text-[10px] font-bold text-emerald-400 mb-1">📅 함께하면 좋은 날</p>
+                      <p className="text-xs text-white/80 leading-snug">{resultData.luckyDay}</p>
+                    </div>
+                    <div className="bg-red-900/20 rounded-xl p-3 border border-red-500/20">
+                      <p className="text-[10px] font-bold text-red-400 mb-1">⚡ 조심할 날</p>
+                      <p className="text-xs text-white/80 leading-snug">{resultData.carefulDay}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">

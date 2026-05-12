@@ -1,0 +1,246 @@
+ 🚀 [소름돋는 궁합 컴포넌트 - 음양력 추가 및 이름 기반 캐싱]
+function MatchTab({ isVisible, onNavigate } { isVisible boolean, onNavigate (id TabId) = void }) {
+   🚀 상태에 calendar(음양력) 추가
+  const [myInfo, setMyInfo] = useState({ name , gender male, calendar solar, birthDate , birthTime unknown });
+  const [partnerInfo, setPartnerInfo] = useState({ name , gender female, calendar solar, birthDate , birthTime unknown });
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [resultData, setResultData] = useStateany(null);
+  
+  const handleDateInput = (val string, setter any) = {
+    let clean = val.replace([^0-9]g, '');
+    if (clean.length  6) clean = clean.slice(0,4) + '-' + clean.slice(4,6) + '-' + clean.slice(6,8);
+    else if (clean.length  4) clean = clean.slice(0,4) + '-' + clean.slice(4);
+    setter(clean);
+  };
+
+  const handleMatchAnalyze = async (e React.FormEvent) = {
+    e.preventDefault();
+    if (!myInfo.name  !partnerInfo.name  !myInfo.birthDate  !partnerInfo.birthDate) {
+      return alert(이름과 생년월일을 모두 입력해 주세요.);
+    }
+
+    supabase.rpc('increment_tab_click', { target_tab_id 'match' }).then(({ error }) = { if(error) console.error('궁합 에러', error) });
+    setIsLoading(true);
+    setResultData(null);
+
+     🚀 A와 B의 위치를 바꿔서 입력해도 항상 똑같은 결과가 나오도록 정렬(Sort) 마법 적용
+    const myKey = `${myInfo.name}_${myInfo.gender}_${myInfo.calendar}_${myInfo.birthDate}_${myInfo.birthTime}`;
+    const partnerKey = `${partnerInfo.name}_${partnerInfo.gender}_${partnerInfo.calendar}_${partnerInfo.birthDate}_${partnerInfo.birthTime}`;
+    
+    const sortedKeys = [myKey, partnerKey].sort();  알파벳 순으로 정렬해버림 (위치 무관)
+    const cacheKey = `match_${sortedKeys[0]}_${sortedKeys[1]}`;
+    if (typeof window !== undefined) {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        setResultData(JSON.parse(cached));
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    try {
+      const res = await fetch(apimatch, {
+        method POST,
+        headers { Content-Type applicationjson },
+        body JSON.stringify({ myInfo, partnerInfo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      if (typeof window !== undefined) localStorage.setItem(cacheKey, JSON.stringify(data));
+      setResultData(data);
+    } catch (err) {
+      alert(err instanceof Error  err.message  궁합 분석 중 오류가 발생했습니다.);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatTimeLabel = (label string) = {
+    if (!label  label === 모름) return 모름;
+    if (label.includes(()) {
+      const parts = label.split(();
+      if (parts.length  1) {
+        const timePart = parts[1].replace(), ).trim();
+        const namePart = parts[0].trim();
+        return `${timePart} (${namePart})`;
+      }
+    }
+    return label;
+  };
+
+  return (
+    div role=tabpanel aria-hidden={!isVisible} className={`absolute inset-0 flex flex-col overflow-y-auto transition-opacity duration-500 ease-out ${isVisible  pointer-events-auto opacity-100  pointer-events-none opacity-0}`}
+      { 🚀 궁합 탭 전용 배경 (Intertwining crimson and orange) }
+            div className=fixed inset-0 z-0 pointer-events-none bg-slate-900 overflow-hidden
+        div className=absolute inset-0 bg-cover bg-center opacity-40 style={{ backgroundImage url('bg_match.png') }} 
+      div
+
+      div className=relative z-10 flex flex-1 flex-col items-center px-4 py-8
+        
+        {!isLoading && !resultData && (
+          form onSubmit={handleMatchAnalyze} className=w-full max-w-md animate-fade-in-up
+            div className=text-center mb-8
+              span className=inline-block px-3 py-1 mb-3 rounded-full bg-rose-50020 border border-rose-40030 text-rose-300 text-xs font-bold tracking-widestCHEMISTRY TESTspan
+              h2 className=text-3xl font-extrabold text-white mb-2 drop-shadow-lg소름돋는 궁합h2
+              p className=text-sm text-white70나와 그 사람의 타고난 기운은 얼마나 잘 맞을까p
+            div
+
+            div className=space-y-6
+              { 👤 나의 정보 }
+              div className=rounded-3xl border border-rose-50030 bg-slate-90080 p-6 backdrop-blur-md shadow-lg
+                h3 className=text-rose-400 font-bold mb-4 flex items-center gap-2span👤span 나의 정보h3
+                div className=space-y-4
+                  div className=flex gap-3
+                    input type=text placeholder=내 이름 value={myInfo.name} onChange={e=setMyInfo({...myInfo, name e.target.value})} className=flex-1 rounded-xl bg-black40 border border-white10 px-4 py-3 text-white focusborder-rose-400 focusoutline-none 
+                    select value={myInfo.gender} onChange={e=setMyInfo({...myInfo, gender e.target.value})} className=w-24 rounded-xl bg-black40 border border-white10 px-2 py-3 text-white focusborder-rose-400 focusoutline-none
+                      option value=male남자optionoption value=female여자option
+                    select
+                  div
+                  
+                  { 🚀 음양력 및 생년월일 }
+                  div className=flex gap-3
+                    select value={myInfo.calendar} onChange={e=setMyInfo({...myInfo, calendar e.target.value})} className=w-24 rounded-xl bg-black40 border border-white10 px-2 py-3 text-white focusborder-rose-400 focusoutline-none text-sm
+                      option value=solar양력optionoption value=lunar음력option
+                    select
+                    input type=tel maxLength={10} placeholder=생년월일 (예 19900101) value={myInfo.birthDate} onChange={e=handleDateInput(e.target.value, (valstring)=setMyInfo({...myInfo, birthDate val}))} className=flex-1 rounded-xl bg-black40 border border-white10 px-4 py-3 text-white focusborder-rose-400 focusoutline-none 
+                  div
+
+                  select value={myInfo.birthTime} onChange={e=setMyInfo({...myInfo, birthTime e.target.value})} className=w-full rounded-xl bg-black40 border border-white10 px-3 py-3 text-white focusborder-rose-400 focusoutline-none text-sm
+                    {BIRTH_TIME_OPTIONS.map(o = option key={o.value} value={o.value}{formatTimeLabel(o.label)}option)}
+                  select
+                div
+              div
+
+              { ❤️ 상대방 정보 }
+              div className=rounded-3xl border border-orange-50030 bg-slate-90080 p-6 backdrop-blur-md shadow-lg
+                h3 className=text-orange-400 font-bold mb-4 flex items-center gap-2span❤️span 상대방 정보h3
+                div className=space-y-4
+                  div className=flex gap-3
+                    input type=text placeholder=상대방 이름 value={partnerInfo.name} onChange={e=setPartnerInfo({...partnerInfo, name e.target.value})} className=flex-1 rounded-xl bg-black40 border border-white10 px-4 py-3 text-white focusborder-orange-400 focusoutline-none 
+                    select value={partnerInfo.gender} onChange={e=setPartnerInfo({...partnerInfo, gender e.target.value})} className=w-24 rounded-xl bg-black40 border border-white10 px-2 py-3 text-white focusborder-orange-400 focusoutline-none
+                      option value=female여자optionoption value=male남자option
+                    select
+                  div
+
+                  { 🚀 음양력 및 생년월일 }
+                  div className=flex gap-3
+                    select value={partnerInfo.calendar} onChange={e=setPartnerInfo({...partnerInfo, calendar e.target.value})} className=w-24 rounded-xl bg-black40 border border-white10 px-2 py-3 text-white focusborder-orange-400 focusoutline-none text-sm
+                      option value=solar양력optionoption value=lunar음력option
+                    select
+                    input type=tel maxLength={10} placeholder=생년월일 (예 19920505) value={partnerInfo.birthDate} onChange={e=handleDateInput(e.target.value, (valstring)=setPartnerInfo({...partnerInfo, birthDate val}))} className=flex-1 rounded-xl bg-black40 border border-white10 px-4 py-3 text-white focusborder-orange-400 focusoutline-none 
+                  div
+
+                  select value={partnerInfo.birthTime} onChange={e=setPartnerInfo({...partnerInfo, birthTime e.target.value})} className=w-full rounded-xl bg-black40 border border-white10 px-3 py-3 text-white focusborder-orange-400 focusoutline-none text-sm
+                    {BIRTH_TIME_OPTIONS.map(o = option key={o.value} value={o.value}{formatTimeLabel(o.label)}option)}
+                  select
+                div
+              div
+
+              button type=submit className=w-full rounded-2xl bg-gradient-to-r from-rose-500 to-orange-500 px-6 py-4 text-base font-bold text-white shadow-[0_0_20px_rgba(244,63,94,0.3)] hoverscale-[1.02] transition-transform
+                ✨ 상세 궁합 분석하기
+              button
+            div
+          form
+        )}
+
+        {isLoading && (
+          div className=flex flex-1 flex-col items-center justify-center gap-6 mt-10 w-full max-w-md
+            div className=relative flex items-center justify-center
+              div className=absolute w-24 h-24 bg-rose-50020 rounded-full animate-ping 
+              Heart className=w-12 h-12 text-rose-500 animate-pulse drop-shadow-[0_0_15px_rgba(244,63,94,0.8)] fill=currentColor 
+            div
+            div className=text-center
+              p className=text-rose-300 font-bold tracking-wide사주와 이름의 기운을 교차 분석 중입니다...p
+              p className=text-xs text-white50 mt-2사주 명식 대조 및 성명학 오행 보완성 계산p
+            div
+          div
+        )}
+
+        {resultData && !isLoading && (
+          div id=match-capture-area className=w-full max-w-md animate-fade-in-up pb-6
+            div className=rounded-3xl border border-rose-50030 bg-slate-90090 p-6 mdp-8 backdrop-blur-xl shadow-2xl
+              
+              div className=text-center border-b border-white10 pb-6 mb-6
+                div className=flex justify-center items-center gap-4 mb-4
+                  span className=text-lg font-bold text-rose-300{myInfo.name}span
+                  Heart className=w-5 h-5 text-rose-500 animate-pulse fill=currentColor 
+                  span className=text-lg font-bold text-orange-300{partnerInfo.name}span
+                div
+                
+                div className=relative inline-flex items-center justify-center mb-2
+                  svg className=w-28 h-28 transform -rotate-90
+                    circle cx=56 cy=56 r=50 stroke=rgba(255,255,255,0.1) strokeWidth=8 fill=none 
+                    circle cx=56 cy=56 r=50 stroke=url(#score-gradient) strokeWidth=8 fill=none strokeDasharray=314 strokeDashoffset={314 - (314  resultData.score)  100} className=transition-all duration-1500 ease-out 
+                    defs
+                      linearGradient id=score-gradient x1=0% y1=0% x2=100% y2=0%
+                        stop offset=0% stopColor=#f43f5e 
+                        stop offset=100% stopColor=#f97316 
+                      linearGradient
+                    defs
+                  svg
+                  span className=absolute text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-orange-400{resultData.score}점span
+                div
+                
+                h3 className=text-xl font-bold text-white mt-4{resultData.title}h3
+                p className=text-sm text-white70 mt-2{resultData.summary}p
+              div
+
+              div className=space-y-4 mb-6
+                div className=bg-black40 rounded-2xl p-4 border border-white5
+                  h4 className=text-sm font-bold text-rose-400 mb-2🔍 상세 궁합 풀이h4
+                  p className=text-sm text-white85 leading-relaxed{resultData.details}p
+                div
+
+                div className=grid grid-cols-2 gap-3
+                  div className=bg-emerald-90020 rounded-xl p-3 border border-emerald-50020
+                    p className=text-[10px] font-bold text-emerald-400 mb-1😍 가장 잘 맞는 점p
+                    p className=text-xs text-white90 leading-snug{resultData.goodPoint}p
+                  div
+                  div className=bg-red-90020 rounded-xl p-3 border border-red-50020
+                    p className=text-[10px] font-bold text-red-400 mb-1⚠️ 주의해야 할 점p
+                    p className=text-xs text-white90 leading-snug{resultData.badPoint}p
+                  div
+                div
+
+                div className=bg-orange-90020 rounded-xl p-4 border border-orange-50020
+                  p className=text-[11px] font-bold text-orange-400 mb-1💡 관계 발전을 위한 조언p
+                  p className=text-sm text-white90{resultData.actionGuide}p
+                div
+              div
+
+              div className=space-y-3
+                div className=grid grid-cols-2 gap-3
+                button onClick={() = {
+                    const shareData = { title 소름돋는 궁합 분석, text 우리의 궁합 점수는 몇 점일까 확인해보세요!, url window.location.href };
+                    if (navigator.share) { navigator.share(shareData).catch(() = {}); } 
+                    else { navigator.clipboard.writeText(window.location.href); alert(링크가 복사되었습니다.); }
+                  }} className=w-full rounded-2xl border border-sky-50040 bg-sky-50010 px-4 py-4 text-sm font-bold text-sky-300 transition-all hoverbg-sky-50020 flex flex-col items-center justify-center gap-1
+                    span className=text-xl leading-none🔗span 링크 공유
+                  button
+                  button onClick={async () = { const target = document.getElementById(match-capture-area); await captureAndShareElement(target, { fileName match-result.png }); }} className=w-full rounded-2xl border border-yellow-50040 bg-yellow-50010 px-4 py-4 text-sm font-bold text-yellow-400 transition-all hoverbg-yellow-50020 flex flex-col items-center justify-center gap-1
+                    span className=text-xl leading-none🖼️span 이미지 공유
+                  button
+                div
+                button onClick={() = setResultData(null)} className=w-full rounded-2xl border border-white20 bg-white5 px-4 py-4 text-sm font-medium text-white80 hoverbg-white10 transition-colors
+                  ↺ 다른 사람과 궁합 보기
+                button
+              div
+
+              { 🚀 유도 깔때기 기적의 제단으로 자연스럽게 연결 }
+              div className=mt-6 pt-6 border-t border-white10
+                p className=text-center text-xs text-white50 mb-3우리 관계의 긍정적인 에너지를 모으고 싶다면p
+                button onClick={() = { window.scrollTo(0,0); onNavigate('altar'); }} className=w-full rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 px-4 py-4 text-sm font-bold text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] hoverscale-[1.02] transition-transform
+                  🙏 기적의 제단에 소원 빌러 가기
+                button
+              div
+
+            div
+          div
+        )}
+        FooterPolicy tabId=match as any 
+      div
+    div
+  );
+}
