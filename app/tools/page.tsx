@@ -2215,6 +2215,26 @@ function getHanjaOptionsByChar(name: string): { char: string; options: string[] 
   }));
 }
 
+type NameResultData = {
+  freeSummary: string;
+  freeWeakness?: string;
+  nameGrade?: string;
+  nameScore?: number;
+  gradeReason?: string;
+  yinYangBalance?: string;
+  strokes?: { won: string; hyeong: string; i: string; jeong: string };
+  careers?: string[];
+  renameNeeded?: string;
+  renameReason?: string;
+  premiumReport: {
+    basisBox?: { pronunciation: string; resource: string; sajuRelation: string };
+    coreEnergy: string;
+    nameFlow: string;
+    sajuFit: string;
+    lifeCycle: string;
+  };
+};
+
 function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [activeSajuMode, setActiveSajuMode] = useState<"face" | "name">("face");
   
@@ -2246,17 +2266,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
   const [showNameResult, setShowNameResult] = useState(false);
   const [isNameLoading, setIsNameLoading] = useState(false);
   const [nameLoadingStep, setNameLoadingStep] = useState(0);
-  const [nameResultData, setNameResultData] = useState<{
-    freeSummary: string;
-    freeWeakness?: string;
-    premiumReport: {
-      basisBox?: { pronunciation: string; resource: string; sajuRelation: string };
-      coreEnergy: string;
-      nameFlow: string;
-      sajuFit: string;
-      lifeCycle: string;
-    };
-  } | null>(null);
+  const [nameResultData, setNameResultData] = useState<NameResultData | null>(null);
   const [showNamePaymentModal, setShowNamePaymentModal] = useState(false);
   const [isNamePremiumUnlocked, setIsNamePremiumUnlocked] = useState(false);
   const [selectedPayMethod, setSelectedPayMethod] = useState<PayMethodPg>("kpn");
@@ -2283,7 +2293,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       if (n.nameGender) setNameGender(n.nameGender);
       if (n.hanjaSelections) setHanjaSelections(n.hanjaSelections);
       if (n.nameResultData) {
-        setNameResultData(n.nameResultData as typeof nameResultData);
+        setNameResultData(n.nameResultData as NameResultData);
         setShowNameResult(true);
       }
       setActiveSajuMode("name");
@@ -2332,7 +2342,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
             if (parsed.nameGender) setNameGender(parsed.nameGender);
             if (parsed.hanjaSelections) setHanjaSelections(parsed.hanjaSelections);
             if (parsed.nameResultData) {
-              setNameResultData(parsed.nameResultData);
+              setNameResultData(parsed.nameResultData as NameResultData);
               setShowNameResult(true);
               setIsNamePremiumUnlocked(true);
             }
@@ -3074,9 +3084,9 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border-2 border-amber-500/50 bg-[#16120d]/90 p-5 shadow-lg">
-                      <h4 className="mb-4 text-center text-base font-bold text-amber-400 border-b border-amber-500/30 pb-2">
-                        ✨ 심층 인상 및 주의점 (팩트폭력)
+                    <div className="rounded-2xl border border-yellow-500/30 bg-[#16120d]/90 p-5 shadow-lg">
+                      <h4 className="mb-3 text-center text-base font-bold text-yellow-300 border-b border-yellow-500/20 pb-2">
+                        ✦ 심층 작명 분석 리포트
                       </h4>
                       <div className="space-y-4">
                         {[
@@ -3402,6 +3412,85 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                   )}
                 </div>
 
+                {isNamePremiumUnlocked && (
+                  <div className="space-y-4">
+                    {(nameResultData?.nameGrade ||
+                      nameResultData?.nameScore != null ||
+                      nameResultData?.gradeReason) && (
+                      <div className="rounded-2xl border-2 border-yellow-400/60 bg-gradient-to-br from-yellow-500/10 to-amber-600/10 p-5 text-center shadow-lg">
+                        <p className="text-xs text-yellow-400/70 mb-1">이름 등급</p>
+                        <div className="flex items-center justify-center gap-3 mb-1 flex-wrap">
+                          {nameResultData?.nameGrade ? (
+                            <span className="text-4xl font-bold text-yellow-300">{nameResultData.nameGrade}</span>
+                          ) : null}
+                          {nameResultData?.nameScore != null ? (
+                            <span className="text-2xl font-bold text-white/60">{nameResultData.nameScore}점</span>
+                          ) : null}
+                        </div>
+                        {nameResultData?.nameGrade ? (
+                          <div className="flex justify-center gap-1 mb-2 flex-wrap">
+                            {(["A+", "A", "B+", "B", "C", "D"] as const).map((g) => (
+                              <span
+                                key={g}
+                                className={`text-xs px-1.5 py-0.5 rounded ${
+                                  nameResultData.nameGrade === g ? "bg-yellow-500 text-black font-bold" : "text-white/20"
+                                }`}
+                              >
+                                {g}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+                        {nameResultData?.gradeReason ? (
+                          <p className="text-xs text-white/60">{nameResultData.gradeReason}</p>
+                        ) : null}
+                      </div>
+                    )}
+
+                    {(nameResultData?.yinYangBalance || nameResultData?.strokes) && (
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                        <h4 className="text-sm font-bold text-white/70 mb-3">☯️ 음양 배열</h4>
+                        {nameResultData?.yinYangBalance ? (
+                          <p className="text-sm text-yellow-300 mb-4 whitespace-pre-wrap">{nameResultData.yinYangBalance}</p>
+                        ) : (
+                          <p className="text-sm text-white/40 mb-4">음양 배열 데이터가 없습니다.</p>
+                        )}
+                        <h4 className="text-sm font-bold text-white/70 mb-3">📐 획수 분석</h4>
+                        <div className="space-y-2">
+                          {(
+                            [
+                              { label: "원격(元格)", key: "won" as const },
+                              { label: "형격(亨格)", key: "hyeong" as const },
+                              { label: "이격(利格)", key: "i" as const },
+                              { label: "정격(貞格)", key: "jeong" as const },
+                            ] as const
+                          ).map(({ label, key }) => (
+                            <div key={label} className="flex gap-3 text-sm">
+                              <span className="w-28 shrink-0 text-white/50">{label}</span>
+                              <span className="text-white/80">
+                                {nameResultData?.strokes?.[key] ?? "—"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {nameResultData?.careers && nameResultData.careers.length > 0 && (
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <h4 className="text-sm font-bold text-white/70 mb-2">💼 직업 적성</h4>
+                        <div className="space-y-1">
+                          {nameResultData.careers.map((career, i) => (
+                            <p key={i} className="text-sm text-white/80">
+                              {i + 1}. {career}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div
                   className={`rounded-2xl border-2 p-5 backdrop-blur-md transition-all duration-1000 ${
                     isNamePremiumUnlocked
@@ -3454,7 +3543,52 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
                 <div className="mt-8 space-y-3">
                   {isNamePremiumUnlocked ? (
-                    <div className="grid grid-cols-2 gap-3">
+                  <>
+                  {/* 개명 필요성 + VIP 연계 (공유 버튼 바로 위) */}
+                  {(nameResultData?.renameNeeded || nameResultData?.renameReason) && (
+                    <div
+                      className={`rounded-xl border p-4 ${
+                        !nameResultData.renameNeeded
+                          ? "border-white/15 bg-white/5"
+                          : nameResultData.renameNeeded === "높음"
+                            ? "border-red-500/40 bg-red-500/10"
+                            : nameResultData.renameNeeded === "보통"
+                              ? "border-yellow-500/40 bg-yellow-500/10"
+                              : "border-green-500/40 bg-green-500/10"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1 gap-2">
+                        <h4 className="text-sm font-bold text-white/80">✏️ 개명 필요성</h4>
+                        {nameResultData.renameNeeded ? (
+                          <span
+                            className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${
+                              nameResultData.renameNeeded === "높음"
+                                ? "bg-red-500 text-white"
+                                : nameResultData.renameNeeded === "보통"
+                                  ? "bg-yellow-500 text-black"
+                                  : "bg-green-500 text-black"
+                            }`}
+                          >
+                            {nameResultData.renameNeeded}
+                          </span>
+                        ) : null}
+                      </div>
+                      {nameResultData.renameReason ? (
+                        <p className="text-xs text-white/60 mb-3">{nameResultData.renameReason}</p>
+                      ) : null}
+                      {nameResultData.renameNeeded && nameResultData.renameNeeded !== "낮음" && (
+                        <button
+                          type="button"
+                          onClick={() => alert("VIP 전체 대운분석과 함께 전문가 개명 상담을 받아보세요!\n\n준비 중인 서비스입니다.")}
+                          className="w-full rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg transition-all hover:scale-[1.02] active:scale-95"
+                        >
+                          👑 전문가 개명 상담 받기 (VIP 서비스)
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={handleNameLinkShare}
@@ -3470,7 +3604,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                       🖼️ 이미지 공유
                     </button>
                   </div>
-
+                  </>
                   ) : (
                     <button
                       type="button"
