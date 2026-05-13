@@ -316,7 +316,10 @@ type FortuneResultData = {
   texts: string[];
   luckyItems?: LuckyItems;
   baziChart?: BaziChart;
-  dailyGuide?: { point: string; strategy: string; action: string; }; 
+  dailyGuide?: { point: string; strategy: string; action: string; };
+  luckyColor?: string;
+  luckyDirection?: string;
+  caution?: string;
 } | null;
 
 type PremiumReport = {
@@ -897,6 +900,40 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 </div>
 
+                {/* 행운 색깔 / 방향 / 조심할 점 카드 */}
+                {(fortuneData.luckyColor || fortuneData.luckyDirection || fortuneData.caution) && (
+                  <div className="rounded-xl border border-white/10 bg-white/5 p-5 backdrop-blur-md space-y-3">
+                    <h3 className="text-sm font-medium text-yellow-400/90">오늘의 행운 & 주의</h3>
+                    {fortuneData.luckyColor && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-lg shrink-0">🎨</span>
+                        <div>
+                          <p className="text-xs font-semibold text-white/60 mb-0.5">행운 색깔</p>
+                          <p className="text-sm text-white/90">{fortuneData.luckyColor}</p>
+                        </div>
+                      </div>
+                    )}
+                    {fortuneData.luckyDirection && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-lg shrink-0">🧭</span>
+                        <div>
+                          <p className="text-xs font-semibold text-white/60 mb-0.5">행운 방향</p>
+                          <p className="text-sm text-white/90">{fortuneData.luckyDirection}</p>
+                        </div>
+                      </div>
+                    )}
+                    {fortuneData.caution && (
+                      <div className="flex items-start gap-3">
+                        <span className="text-lg shrink-0">⚠️</span>
+                        <div>
+                          <p className="text-xs font-semibold text-white/60 mb-0.5">오늘 조심할 점</p>
+                          <p className="text-sm text-white/90">{fortuneData.caution}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex gap-3">
                 <div className="grid grid-cols-3 gap-3">
   <button
@@ -975,9 +1012,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                     { key: "love", title: "[연애운]", content: premiumResult.love },
                     { key: "career", title: "[직장·진로운]", content: premiumResult.career },
                     { key: "health", title: "[건강운]", content: premiumResult.health },
-                    ...(premiumResult.luckyColor ? [{ key: "luckyColor", title: "🎨 [오늘의 행운 색깔]", content: premiumResult.luckyColor }] : []),
-                    ...(premiumResult.luckyDirection ? [{ key: "luckyDirection", title: "🧭 [오늘의 행운 방향]", content: premiumResult.luckyDirection }] : []),
-                    ...(premiumResult.caution ? [{ key: "caution", title: "⚠️ [오늘 조심할 점]", content: premiumResult.caution }] : []),
                   ].map(({ key, title, content }) => (
                       <section key={key} className="space-y-4">
                         <h3 className="text-base font-semibold text-yellow-400">

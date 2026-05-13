@@ -244,6 +244,17 @@ ${profile.summaryText}
       });
     }
 
+    // 기본 운세용 행운 색깔/방향/조심할 점 (오행 기반 정적 매핑)
+    const ELEMENT_LUCKY: Record<string, { color: string; direction: string; caution: string }> = {
+      "木": { color: "초록색·청색", direction: "동쪽", caution: "감정적 충동을 조심하고, 새로운 시작보다 기존 계획 점검에 집중하세요." },
+      "火": { color: "빨간색·주황색", direction: "남쪽", caution: "과도한 열정으로 인한 실수를 주의하고, 중요한 결정은 오후보다 오전에 하세요." },
+      "土": { color: "노란색·갈색", direction: "중앙(내부)", caution: "우유부단한 태도를 경계하고, 신뢰 관계에서 지나친 의존은 피하세요." },
+      "金": { color: "흰색·금색", direction: "서쪽", caution: "완벽주의로 인한 갈등을 조심하고, 타인의 의견을 열린 마음으로 수용하세요." },
+      "水": { color: "검정색·짙은 파란색", direction: "북쪽", caution: "지나친 걱정과 우유부단함을 경계하고, 결정을 미루지 말고 실행에 옮기세요." },
+    };
+    const todayElement = profile.todayPillar?.element || "土";
+    const lucky = ELEMENT_LUCKY[todayElement] ?? ELEMENT_LUCKY["土"];
+
     return NextResponse.json({
       dayKey,
       scores: [profile.freeScores.total, profile.freeScores.love, profile.freeScores.money, profile.freeScores.work, profile.freeScores.study, profile.freeScores.health],
@@ -253,6 +264,9 @@ ${profile.summaryText}
       luckyItems: null,
       daeunInfo: null,
       premiumReport: null,
+      luckyColor: lucky.color,
+      luckyDirection: lucky.direction,
+      caution: lucky.caution,
     });
   } catch (error) {
     console.error("Fortune API Error:", error);
