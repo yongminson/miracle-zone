@@ -221,6 +221,17 @@ export default function VipLandingPage() {
     }
   }, []);
 
+  // GlobalSiteFooter에서 운영자 모드 활성화 감지
+  useEffect(() => {
+    const handleStorageChange = () => {
+      if (typeof window !== "undefined") {
+        setIsAdminMode(localStorage.getItem("MASTER_ADMIN") === "true");
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (isSuccess) {
@@ -859,6 +870,24 @@ export default function VipLandingPage() {
             </button>
           </div>
         ) : null}
+
+{isAdminMode && (
+          <div className="fixed bottom-6 left-6 z-[100] bg-slate-900/95 border-2 border-yellow-500 p-4 rounded-2xl backdrop-blur-xl shadow-2xl max-w-[200px]">
+            <h3 className="text-yellow-400 font-bold text-sm mb-2 border-b border-white/10 pb-2">👑 운영자 모드</h3>
+            <p className="text-[11px] text-white/60 mb-3">VIP 결제 없이 리포트 생성 가능</p>
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem("MASTER_ADMIN");
+                setIsAdminMode(false);
+                alert("운영자 모드가 종료되었습니다.");
+              }}
+              className="w-full text-[10px] font-bold text-red-400/80 hover:text-red-400 transition-colors border border-red-400/20 rounded-lg py-1.5"
+            >
+              ❌ 운영자 모드 종료
+            </button>
+          </div>
+        )}
 
         <p className="text-center text-xs font-medium uppercase tracking-[0.35em] text-amber-500/70">
           Miracle Zone Premium

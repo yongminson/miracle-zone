@@ -17,11 +17,21 @@ export function GlobalSiteFooter() {
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
 
   const handleCopyrightDoubleClick = () => {
+    if (localStorage.getItem("MASTER_ADMIN") === "true") {
+      if (confirm("현재 운영자 모드입니다. 종료할까요?")) {
+        localStorage.removeItem("MASTER_ADMIN");
+        alert("운영자 모드가 종료되었습니다.");
+        window.location.reload();
+      }
+      return;
+    }
     const pwd = prompt("운영자 비밀번호를 입력하세요.");
     if (pwd === "s1223534") {
       localStorage.setItem("MASTER_ADMIN", "true");
-      alert("✨ 운영자 모드가 활성화되었습니다.");
+      alert("✨ 운영자 모드 활성화! 모든 유료 서비스가 프리패스됩니다.");
       window.location.reload();
+    } else if (pwd !== null) {
+      alert("비밀번호가 일치하지 않습니다.");
     }
   };
 
