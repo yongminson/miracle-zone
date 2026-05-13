@@ -1121,7 +1121,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
             </div>
           </div>
         )}
-        <FooterPolicy tabId="fortune" />
         {/* 🚀 구글 애드센스 심사 통과를 위한 SEO 전문 텍스트 블록 (봇 먹이용) */}
         <div className="mx-auto w-full max-w-md mt-8 mb-4 px-4 text-[11px] text-white/30 leading-relaxed break-keep text-justify">
           <h2 className="font-bold mb-2 text-white/40">명운(命運) - 정통 명리학과 현대 AI 기술의 만남</h2>
@@ -1136,7 +1135,6 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
           </p>
         </div>
 
-        <FooterPolicy tabId="fortune" />
       </div>
     </div>
   );
@@ -1340,7 +1338,6 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
             </div>
           </div>
         )}
-        <FooterPolicy tabId="dream" />
       </div>
     </div>
   );
@@ -3740,7 +3737,6 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
             </div>
           </div>
         )}
-        <FooterPolicy tabId="saju" />
       </div>
     </div>
   );
@@ -4594,7 +4590,6 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
             </div>
           </div>
         )}
-        <FooterPolicy tabId="mbti" as any />
       </div>
     </div>
   );
@@ -4956,7 +4951,6 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
             </div>
           </div>
         )}
-        <FooterPolicy tabId="match" as any />
       </div>
     </div>
   );
