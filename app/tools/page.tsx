@@ -308,98 +308,6 @@ type DaeunInfo = {
   currentDescription: string;
 };
 
-// 🚀 [추가] 탭별 맞춤 푸터 & 약관 모달 & 진짜 관리자 로그인 컴포넌트
-function FooterPolicy({ tabId }: { tabId: TabId }) {
-  const [showPolicy, setShowPolicy] = useState<string | null>(null);
-  const [showCompanyInfo, setShowCompanyInfo] = useState(false); // 🚀 사업자 정보 토글 상태 추가
-
-  const handleAdminLogin = () => {
-    const pwd = prompt("운영자 비밀번호를 입력하세요.");
-    if (pwd === "s1223534") {
-      localStorage.setItem("MASTER_ADMIN", "true");
-      alert("✨ 운영자 모드가 활성화되었습니다. 이제 모든 프리미엄 결제가 프리패스됩니다.");
-    } else if (pwd) {
-      alert("비밀번호가 일치하지 않습니다.");
-    }
-  };
-
-  return (
-    <div className={`mx-auto w-full max-w-md border border-white/10 bg-black/40 backdrop-blur-md rounded-2xl pt-6 pb-8 text-center space-y-3 px-4 relative z-50 shadow-xl ${tabId === "altar" ? "mt-3 mb-4" : "mt-12 mb-8"}`}>
-      {tabId === "lotto" ? (
-          <>
-            <p className="text-[10px] text-white/40 break-keep leading-relaxed">
-              제공된 로또 번호는 수학적 난수와 통계 기반으로 추첨되며, 당첨을 보장하지 않습니다. 과도한 복권 몰입은 가계 재정에 부담이 될 수 있습니다.
-            </p>
-            <p className="text-[10px] font-bold text-white/30 pt-1">
-              도박중독예방상담센터: 1336 | 동행복권: 1588-0908
-            </p>
-          </>
-        ) : tabId === "altar" ? (
-          <div className="space-y-1 text-center">
-            <p className="text-[10px] text-white/40 break-keep leading-relaxed">
-              본 서비스는 희망과 위로를 나누는 공간으로 특정 종교와 무관하며 법적 효력을 갖지 않습니다.
-            </p>
-            <p className="text-[10px] text-red-400/80 pl-5 -indent-5 leading-relaxed break-keep animate-pulse">
-              ※ 욕설, 혐오, 정치, 비방 등 부적절한 내용은 통보 없이 즉시 삭제될 수 있습니다.
-            </p>
-          </div>
-        ) : (
-          <p className="text-[10px] text-white/40 break-keep leading-relaxed">
-            본 서비스에서 제공하는 운세, 해몽, 관상 및 이름 풀이 결과는 정통 명리학에 기반한 통계적 해석으로, 절대적인 미래를 보장하지 않으며 법적 책임을 지지 않습니다.
-          </p>
-        )}
-
-<div className="flex flex-wrap justify-center gap-x-3 gap-y-2 text-[10px] text-white/50 pt-2 font-medium">
-        <button type="button" onClick={() => setShowPolicy("terms")} className="hover:text-white transition-colors">이용약관</button>
-        <span>|</span>
-        <button type="button" onClick={() => setShowPolicy("privacy")} className="hover:text-white transition-colors">개인정보처리방침</button>
-        <span>|</span>
-        <button type="button" onClick={() => setShowPolicy("refund")} className="hover:text-white transition-colors">환불정책</button>
-        <span>|</span>
-        <button type="button" onClick={() => setShowCompanyInfo(!showCompanyInfo)} className="hover:text-white transition-colors flex items-center gap-1">
-          사업자 정보 {showCompanyInfo ? "▲" : "▼"}
-        </button>
-      </div>
-
-      {/* 🚀 PG 심사용 사업자 정보 (아코디언 토글 적용) */}
-      {showCompanyInfo && (
-        <div className="mt-4 pt-4 border-t border-white/10 text-[10px] text-white/30 space-y-1.5 leading-relaxed break-keep animate-fade-in-up">
-          <p className="font-bold text-white/50">와이엠 스튜디오 (YM Studio)</p>
-          <p>대표자: 손용민 | 사업자등록번호: 510-21-21827</p>
-          <p>주소: 충청남도 아산시 둔포면 운교길 129번길 14-71</p>
-          <p>고객센터: 0507-1385-9994 | 이메일: support@ymsudio.co.kr</p>
-          <p>통신판매업신고번호: 제 2026-충남아산-0479 호</p>
-        </div>
-      )}
-
-      {/* 🔒 더블클릭 시 숨겨진 운영자 로그인 작동 */}
-      <p className="text-[9px] text-white/20 pt-2 cursor-default select-none" onDoubleClick={handleAdminLogin}>
-        © 2026 명운(命運). All rights reserved.
-      </p>
-
-      {/* 📜 정책 모달창 */}
-      {showPolicy && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setShowPolicy(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-white/20 p-6 shadow-2xl max-h-[85vh] flex flex-col text-left" onClick={e=>e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-yellow-400 mb-4 border-b border-white/10 pb-3 shrink-0 flex justify-between items-center">
-              <span>{showPolicy === "terms" ? "이용약관" : showPolicy === "privacy" ? "개인정보처리방침" : "환불정책"}</span>
-              <button onClick={() => setShowPolicy(null)} className="text-white/50 hover:text-white text-2xl font-light">&times;</button>
-            </h3>
-            <div className="text-xs text-white/80 space-y-4 leading-relaxed whitespace-pre-wrap flex-1 overflow-y-auto pr-2 custom-scrollbar">
-            {showPolicy === "terms" && "제1조 (목적)\n본 약관은 서비스의 이용조건 및 절차, 이용자와 회사의 권리, 의무, 책임사항을 규정함을 목적으로 합니다.\n\n제2조 (서비스의 성격)\n본 서비스에서 제공하는 모든 결과는 통계적, 학술적 해석에 기반하며 절대적인 사실이나 미래를 보장하지 않습니다.\n\n제3조 (서비스 제공 시기)\n본 서비스에서 제공하는 모든 유료 서비스(디지털 콘텐츠)는 결제 완료 후 즉시 이용 가능합니다."}
-              {showPolicy === "privacy" && "1. 수집하는 개인정보 항목\n회사는 회원가입 없이 서비스를 제공하며, 사주 분석을 위해 입력하신 생년월일, 성별, 이름 등은 서버에 영구 저장되지 않고 분석 즉시 폐기됩니다.\n\n2. 쿠키의 사용\n서비스 편의를 위해 기기 내부에 일부 설정(예: 프리미엄 해제 상태)이 임시 저장될 수 있습니다."}
-              {showPolicy === "refund" && "[디지털 콘텐츠 환불 규정 안내]\n\n본 서비스에서 제공되는 모든 유료 서비스는 '디지털 콘텐츠'에 해당하며, 관련 법령에 의거하여 다음과 같이 환불 정책을 운영합니다.\n\n1. 환불 기준 (청약철회)\n- 이용권을 결제하였으나 실제 서비스를 전혀 이용하지 않은 경우(결과 열람 전), 결제일로부터 7일 이내에 고객센터를 통해 100% 환불을 요청하실 수 있습니다.\n\n2. 시스템 오류 및 서비스 장애\n- 결제는 정상적으로 완료되었으나 시스템 오류로 인해 결과 화면을 전혀 열람하지 못한 경우, 고객센터 확인을 거쳐 즉시 100% 환불 또는 서비스 재제공 처리를 해드립니다.\n\n3. 환불 제한 사항\n- 전자상거래법 제17조 제2항 제5호에 따라, 소비자의 사용 또는 일부 소비로 재화 등의 가치가 현저히 감소한 경우(예: 운세/관상/번호 추출 결과를 이미 열람한 경우)에는 청약철회가 제한됩니다."}
-            </div>
-            <button className="mt-6 w-full py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/20 transition-colors focus:outline-none" onClick={() => setShowPolicy(null)}>
-              확인하고 닫기
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 const FORTUNE_CACHE_PREFIX = "fortune-cache-";
 const PREMIUM_CACHE_PREFIX = "fortune-premium-cache-";
 const NAME_CACHE_PREFIX = "name-cache-";
@@ -697,13 +605,10 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     <div
       role="tabpanel"
       aria-hidden={!isVisible}
-      className={`
-        absolute inset-0 flex flex-col overflow-y-auto
-        transition-opacity duration-500 ease-out
-        ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
-      `}
+      className={isVisible ? "relative w-full" : "hidden"}
     >
-      <div className="fixed inset-0 z-0 pointer-events-none bg-slate-950">
+      <div className="relative isolate min-h-[100svh] w-full">
+        <div className="pointer-events-none absolute inset-0 z-0 bg-slate-950">
         <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: "url('/bg_fortune.png')" }} />
         {isVisible && (
           <div className="absolute inset-0 overflow-hidden">
@@ -726,7 +631,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         <div className="absolute inset-0 bg-black/40" />
       </div>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 py-8">
+      <div className="relative z-10 flex flex-col items-center gap-6 px-6 py-6">
         {!isLoading && !showResult && (
           <form
             onSubmit={handleSubmit}
@@ -826,7 +731,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
         )}
 
         {isLoading && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-6">
+          <div className="flex min-h-[280px] flex-col items-center justify-center gap-6">
             <div className="relative">
                <div className="h-14 w-14 animate-[fortune-spin_1.2s_linear_infinite] rounded-full border-2 border-yellow-500/30 border-t-yellow-400" />
               <div className="absolute inset-2 rounded-full border border-yellow-500/20" />
@@ -1123,7 +1028,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
         {/* 🚀 구글 애드센스 심사 통과를 위한 SEO 전문 텍스트 블록 (봇 먹이용) */}
-        <div className="mx-auto w-full max-w-md mt-8 mb-4 px-4 text-[11px] text-white/30 leading-relaxed break-keep text-justify">
+        <div className="mx-auto w-full max-w-md mt-6 mb-2 px-4 text-[11px] text-white/30 leading-relaxed break-keep text-justify">
           <h2 className="font-bold mb-2 text-white/40">명운(命運) - 정통 명리학과 현대 AI 기술의 만남</h2>
           <p className="mb-2">
             명운(命運)은 수천 년간 전해져 내려온 동양 철학의 정수인 사주명리학(四柱命理學)을 바탕으로, 현대인의 삶에 필요한 지혜와 통찰을 제공하는 전문 운세 분석 플랫폼입니다. 인간이 태어난 연, 월, 일, 시의 네 기둥(四柱)과 여덟 글자(八字)를 분석하여 선천적인 기운과 후천적인 운의 흐름을 과학적이고 통계적인 접근으로 해석합니다.
@@ -1136,6 +1041,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
           </p>
         </div>
 
+      </div>
       </div>
     </div>
   );
@@ -1207,9 +1113,9 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
   };
 
   return (
-    <div role="tabpanel" aria-hidden={!isVisible} className={`absolute inset-0 flex flex-col overflow-y-auto transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
-      
-      <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900 overflow-hidden">
+    <div role="tabpanel" aria-hidden={!isVisible} className={isVisible ? "relative w-full" : "hidden"}>
+      <div className="relative isolate min-h-[100svh] w-full">
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-slate-900">
         <style>{`
           @keyframes floatDream {
             0%, 100% { transform: translateY(0px); }
@@ -1226,7 +1132,7 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
         />
       </div>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 pt-4 pb-12 min-h-full">
+      <div className="relative z-10 flex flex-col items-center gap-6 px-6 pt-4 pb-6">
         {!isLoading && !resultData && (
           <form onSubmit={handleDreamAnalyze} className="w-full max-w-md rounded-3xl border border-white/20 bg-slate-900/80 p-8 backdrop-blur-xl shadow-[0_0_40px_rgba(0,0,0,0.5)]">
             <div className="text-center mb-6">
@@ -1252,7 +1158,7 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
         )}
 
         {isLoading && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-8 mt-4">
+          <div className="flex min-h-[280px] flex-col items-center justify-center gap-8 mt-4">
             
             <div 
               className="relative w-48 h-48 sm:w-56 sm:h-56 rounded-full border-[6px] border-white/30 overflow-hidden" 
@@ -1339,6 +1245,7 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
@@ -1919,11 +1826,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     <div
       role="tabpanel"
       aria-hidden={!isVisible}
-      className={`
-        absolute inset-0 flex flex-col bg-transparent
-        transition-opacity duration-500 ease-out
-        ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
-      `}
+      className={isVisible ? "relative w-full bg-transparent min-h-[100dvh]" : "hidden"}
     >
       <div className="fixed inset-0 z-0 pointer-events-none">
         <video src="/초.mp4" autoPlay loop muted playsInline className="w-full h-full object-cover" />
@@ -1932,7 +1835,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         <div className={`absolute inset-0 bg-gradient-to-t from-amber-500/30 to-transparent transition-opacity duration-1000 ${isCandleOn ? "opacity-100" : "opacity-0"}`} />
       </div>
 
-      <div className="relative z-10 w-full h-full flex flex-col">
+      <div className="relative z-10 flex min-h-[100dvh] w-full flex-col">
         <audio ref={audioRef} src="/432Hz_Candle_BGM.wav" loop />
 
         {showWishToast && (
@@ -2022,7 +1925,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
         </div>
 
         {/* 🚀 초소형 압축 입력창 영역 (화면 하단 밀착 & 가로 배치 강제) */}
-        <div className="relative z-10 flex w-full max-w-md mx-auto flex-col items-center justify-end px-4 pb-2 mt-auto shrink-0">
+        <div className="relative z-10 flex w-full max-w-md mx-auto flex-col items-center justify-end px-4 pb-1 mt-auto shrink-0">
           <div className="w-full rounded-xl border border-white/20 bg-black/60 p-3 backdrop-blur-md shadow-xl">
             <textarea
               value={wishText}
@@ -2031,6 +1934,14 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
               rows={1}
               className="w-full resize-none rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-amber-50 placeholder-amber-200/60 focus:border-yellow-500/60 focus:outline-none focus:ring-1 focus:ring-yellow-500/40"
             />
+            <div className="mt-2 space-y-1 px-0.5 text-center">
+              <p className="text-[10px] leading-relaxed text-white/45 break-keep">
+                본 서비스는 희망과 위로를 나누는 공간으로 특정 종교와 무관하며 법적 효력을 갖지 않습니다.
+              </p>
+              <p className="text-[10px] leading-relaxed text-red-400/80 break-keep animate-pulse">
+                ※ 욕설, 혐오, 정치, 비방 등 부적절한 내용은 통보 없이 즉시 삭제될 수 있습니다.
+              </p>
+            </div>
             <div className="mt-1 flex items-center justify-between text-[10px] px-1">
               <span className="text-amber-100/70">전체 소원 {activeWishCount}개</span>
               <span className="text-yellow-300/80">프리미엄 {activePremiumCount}개</span>
@@ -2051,14 +1962,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
             </button>
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={handleMuteToggle}
-          className="fixed bottom-24 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500/20 text-yellow-400 transition-colors hover:bg-yellow-500/30 focus:outline-none"
-        >
-          {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-        </button>
 
         {showPremiumModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => handlePremiumCancel()}>
@@ -2097,17 +2000,15 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
             </div>
           </div>
         )}
-        {/* 기적의 제단 전용 경고 문구 */}
-        <div className="w-full max-w-md mx-auto px-4 pb-2 text-center space-y-1">
-          <p className="text-[10px] text-white/40 leading-relaxed">
-            본 서비스는 희망과 위로를 나누는 공간으로 특정 종교와 무관하며 법적 효력을 갖지 않습니다.
-          </p>
-          <p className="text-[10px] text-red-400/70 leading-relaxed">
-            ※ 욕설, 혐오, 정치, 비방 등 부적절한 내용은 통보 없이 즉시 삭제될 수 있습니다.
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={handleMuteToggle}
+          className="fixed bottom-24 right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-yellow-500/20 text-yellow-400 transition-colors hover:bg-yellow-500/30 focus:outline-none"
+        >
+          {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        </button>
 
-{/* 🚀 대표님 오더: 깔끔하고 파워풀한 소원 집중형 부적 UI */}
+        {/* 🚀 대표님 오더: 깔끔하고 파워풀한 소원 집중형 부적 UI */}
 <div className="absolute left-[-9999px] top-[-9999px]">
   <div ref={talismanRef} className="relative w-[400px] h-[700px] flex flex-col items-center justify-center bg-black p-10 text-center shadow-2xl" style={{ backgroundImage: "url('/talisman-bg.png')", backgroundSize: "cover", backgroundPosition: "center" }}>
     
@@ -2883,18 +2784,15 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     <div
       role="tabpanel"
       aria-hidden={!isVisible}
-      className={`
-        absolute inset-0 flex flex-col overflow-y-auto
-        transition-opacity duration-500 ease-out
-        ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
-      `}
+      className={isVisible ? "relative w-full" : "hidden"}
     >
-      <div className="fixed inset-0 z-0 pointer-events-none bg-slate-950">
-        <div className="absolute inset-0 bg-cover bg-center opacity-60 mix-blend-screen" style={{ backgroundImage: "url('/bg_face_name.png')" }} />
-        <div className="absolute inset-0 bg-black/50" />
-      </div>
+      <div className="relative isolate min-h-[100svh] w-full">
+        <div className="pointer-events-none absolute inset-0 z-0 bg-slate-950">
+          <div className="absolute inset-0 bg-cover bg-center opacity-60 mix-blend-screen" style={{ backgroundImage: "url('/bg_face_name.png')" }} />
+          <div className="absolute inset-0 bg-black/50" />
+        </div>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 py-8">
+        <div className="relative z-10 flex flex-col items-center gap-6 px-6 py-6">
         
         <div className="flex gap-2 rounded-xl bg-slate-800/60 p-1">
           {/* 🚀 [비밀 버튼] 사주 탭 진입을 "S"로 인식 */}
@@ -3747,6 +3645,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
       </div>
+      </div>
     </div>
   );
 }
@@ -4122,11 +4021,8 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
   const displayHistory = lottoHistory.slice(0, 5);
 
   return (
-    <div
-      role="tabpanel"
-      aria-hidden={!isVisible}
-      className={`absolute inset-0 flex flex-col overflow-y-auto overflow-x-hidden transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
-    >
+    <div role="tabpanel" aria-hidden={!isVisible} className={isVisible ? "relative w-full overflow-x-hidden" : "hidden"}>
+      <div className="relative isolate min-h-[100svh] w-full overflow-x-hidden">
       <canvas ref={canvasRef} id="matrix-canvas" className="absolute inset-0 z-0 opacity-30 pointer-events-none" />
 
       {/* 로딩 모달창 */}
@@ -4174,7 +4070,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
         </div>
       )}
 
-      <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 py-8">
+      <div className="relative z-10 flex flex-col items-center gap-6 px-6 py-6">
         <div className="flex flex-wrap items-center justify-center gap-2">
           <span className="rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm">이번 주 추천 조합</span>
           
@@ -4284,17 +4180,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
             <span className="text-sm text-yellow-300/70">→</span>
           </div>
         </a>
-
-        {/* 로또 전용 경고 문구 */}
-        <div className="mx-auto w-full max-w-md px-4 pb-4 text-center space-y-1">
-          <p className="text-[10px] text-white/40 leading-relaxed">
-            제공된 로또 번호는 수학적 난수와 통계 기반으로 추첨되며, 당첨을 보장하지 않습니다.<br />
-            과도한 복권 몰입은 가계 재정에 부담이 될 수 있습니다.
-          </p>
-          <p className="text-[10px] font-bold text-white/30">
-            도박중독예방상담센터: 1336 | 동행복권: 1588-0908
-          </p>
-        </div>
+      </div>
       </div>
     </div>
   );
@@ -4441,13 +4327,13 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
   };
 
   return (
-    <div role="tabpanel" aria-hidden={!isVisible} className={`absolute inset-0 flex flex-col overflow-y-auto transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
-      {/* 🚀 MBTI 탭 전용 배경 (Neon teal, indigo, deep purple) */}
-            <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900 overflow-hidden">
-        <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{ backgroundImage: "url('/bg_mbti.png')" }} />
-      </div>
+    <div role="tabpanel" aria-hidden={!isVisible} className={isVisible ? "relative w-full" : "hidden"}>
+      <div className="relative isolate min-h-[100svh] w-full">
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-slate-900">
+          <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{ backgroundImage: "url('/bg_mbti.png')" }} />
+        </div>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-8">
+      <div className="relative z-10 flex w-full flex-col items-center px-4 py-6">
         
         {/* 1. 시작 화면 */}
         {step === 0 && (
@@ -4609,6 +4495,7 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
           </div>
         )}
       </div>
+      </div>
     </div>
   );
 }
@@ -4687,13 +4574,13 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
   };
 
   return (
-    <div role="tabpanel" aria-hidden={!isVisible} className={`absolute inset-0 flex flex-col overflow-y-auto transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}>
-      {/* 🚀 궁합 탭 전용 배경 (Intertwining crimson and orange) */}
-            <div className="fixed inset-0 z-0 pointer-events-none bg-slate-900 overflow-hidden">
-        <div className="absolute inset-0 bg-cover bg-center opacity-40" style={{ backgroundImage: "url('/bg_match.png')" }} />
-      </div>
+    <div role="tabpanel" aria-hidden={!isVisible} className={isVisible ? "relative w-full" : "hidden"}>
+      <div className="relative isolate min-h-[100svh] w-full">
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-slate-900">
+          <div className="absolute inset-0 bg-cover bg-center opacity-40" style={{ backgroundImage: "url('/bg_match.png')" }} />
+        </div>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center px-4 py-8">
+      <div className="relative z-10 flex w-full flex-col items-center px-4 py-6">
         
         {!isLoading && !resultData && (
           <form onSubmit={handleMatchAnalyze} className="w-full max-w-md animate-fade-in-up">
@@ -4791,7 +4678,7 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
         )}
 
         {isLoading && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 mt-10 w-full max-w-md">
+          <div className="mt-10 flex min-h-[220px] w-full max-w-md flex-col items-center justify-center gap-6">
             <div className="relative flex items-center justify-center">
               <div className="absolute w-24 h-24 bg-rose-500/20 rounded-full animate-ping" />
               <Heart className="w-12 h-12 text-rose-500 animate-pulse drop-shadow-[0_0_15px_rgba(244,63,94,0.8)]" fill="currentColor" />
@@ -4969,6 +4856,7 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
@@ -5406,7 +5294,7 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
       </nav>
 
       {/* 메인 콘텐츠 영역 */}
-      <main className="relative flex-1 w-full overflow-hidden min-h-screen">
+      <main className="relative flex w-full flex-1 flex-col">
         {TABS.map((tab) => {
           const isVisible = activeTab === tab.id;
           const IconComponent = tab.icon;
@@ -5424,11 +5312,7 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
               key={tab.id}
               role="tabpanel"
               aria-hidden={!isVisible}
-              className={`
-                absolute inset-0 flex flex-col items-center justify-center gap-8 px-6
-                transition-opacity duration-500 ease-out
-                ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}
-              `}
+              className={`flex flex-col items-center gap-8 px-6 py-12 ${isVisible ? "" : "hidden"}`}
             >
               <p className="text-center text-lg text-yellow-400/90">
                 신비로운 {tab.label} 기능이 곧 업데이트 됩니다.
@@ -5446,6 +5330,18 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
           );
         })}
       </main>
+
+      {activeTab === "lotto" && (
+        <div className="w-full shrink-0 border-t border-white/10 bg-slate-950 px-4 py-3">
+          <p className="mx-auto max-w-2xl text-center text-[10px] leading-relaxed text-white/45 break-keep">
+            제공된 로또 번호는 수학적 난수와 통계 기반으로 추첨되며, 당첨을 보장하지 않습니다. 과도한 복권 몰입은 가계 재정에 부담이 될 수 있습니다.
+          </p>
+          <p className="mx-auto mt-2 max-w-2xl text-center text-[10px] font-semibold text-white/35 break-keep">
+            도박중독예방상담센터: 1336 | 동행복권: 1588-0908
+          </p>
+        </div>
+      )}
+
       <GlobalSiteFooter />
     </div>
   );
