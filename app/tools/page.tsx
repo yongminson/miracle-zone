@@ -25,6 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { GlobalSiteFooter } from "@/components/layout/GlobalSiteFooter";
 import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
 import { clearPendingPaymentData, readPendingPaymentData, savePendingPaymentData } from "@/lib/payments/pending-payment-data";
 import {
@@ -2096,7 +2097,15 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
             </div>
           </div>
         )}
-        <FooterPolicy tabId="altar" />
+        {/* 기적의 제단 전용 경고 문구 */}
+        <div className="w-full max-w-md mx-auto px-4 pb-2 text-center space-y-1">
+          <p className="text-[10px] text-white/40 leading-relaxed">
+            본 서비스는 희망과 위로를 나누는 공간으로 특정 종교와 무관하며 법적 효력을 갖지 않습니다.
+          </p>
+          <p className="text-[10px] text-red-400/70 leading-relaxed">
+            ※ 욕설, 혐오, 정치, 비방 등 부적절한 내용은 통보 없이 즉시 삭제될 수 있습니다.
+          </p>
+        </div>
 
 {/* 🚀 대표님 오더: 깔끔하고 파워풀한 소원 집중형 부적 UI */}
 <div className="absolute left-[-9999px] top-[-9999px]">
@@ -4276,7 +4285,16 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
           </div>
         </a>
 
-        <FooterPolicy tabId="lotto" />
+        {/* 로또 전용 경고 문구 */}
+        <div className="mx-auto w-full max-w-md px-4 pb-4 text-center space-y-1">
+          <p className="text-[10px] text-white/40 leading-relaxed">
+            제공된 로또 번호는 수학적 난수와 통계 기반으로 추첨되며, 당첨을 보장하지 않습니다.<br />
+            과도한 복권 몰입은 가계 재정에 부담이 될 수 있습니다.
+          </p>
+          <p className="text-[10px] font-bold text-white/30">
+            도박중독예방상담센터: 1336 | 동행복권: 1588-0908
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -5388,7 +5406,7 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
       </nav>
 
       {/* 메인 콘텐츠 영역 */}
-      <main className="relative flex-1 w-full overflow-hidden">
+      <main className="relative flex-1 w-full overflow-hidden min-h-screen">
         {TABS.map((tab) => {
           const isVisible = activeTab === tab.id;
           const IconComponent = tab.icon;
@@ -5428,6 +5446,7 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
           );
         })}
       </main>
+      <GlobalSiteFooter />
     </div>
   );
 }
