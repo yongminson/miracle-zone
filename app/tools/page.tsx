@@ -223,7 +223,7 @@ const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean }[] =
   { id: "match", label: "소름돋는 궁합", icon: Heart, isReady: true }, 
   { id: "mbti", label: "MBTI - 심층 성격 검사", icon: Activity, isReady: true },
   { id: "dream", label: "꿈 해몽", icon: BookOpen, isReady: true },
-  //{ id: "lotto", label: "행운의 로또", icon: Trophy, isReady: true },
+  { id: "lotto", label: "행운의 로또", icon: Trophy, isReady: true },
   { id: "altar", label: "기적의 제단", icon: Flame, isReady: true },
 ];
 
@@ -3781,6 +3781,9 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
   const [couponClickCount, setCouponClickCount] = useState(0);
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [couponInput, setCouponInput] = useState("");
+  const [isWatchingAd, setIsWatchingAd] = useState(false);
+  const [adWatchCount, setAdWatchCount] = useState(0); // 오늘 광고 시청 횟수
+  const [adCountdown, setAdCountdown] = useState(0);
 
   // 세션 감지 및 DB에서 남은 횟수 불러오기
   useEffect(() => {
@@ -4089,6 +4092,27 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
     alert("✨ [비밀 관리자 모드] 로또 무료 횟수가 3회로 초기화되었습니다.");
   };
 
+  // 광고 보고 프리미엄 뽑기
+  const handleWatchAdForPremium = () => {
+    if (isWatchingAd) return;
+    setIsWatchingAd(true);
+    setAdCountdown(5);
+
+    // 5초 카운트다운 (실제 광고 연동 전 시뮬레이션)
+    let count = 5;
+    const timer = setInterval(() => {
+      count--;
+      setAdCountdown(count);
+      if (count <= 0) {
+        clearInterval(timer);
+        setIsWatchingAd(false);
+        setAdWatchCount(prev => prev + 1);
+        // 광고 시청 완료 → 프리미엄 뽑기 실행
+        void executeLottoDraw(false);
+      }
+    }, 1000);
+  };
+
   const currentSet = lottoHistory[0] ?? [];
   const displayHistory = lottoHistory.slice(0, 5);
 
@@ -4181,19 +4205,48 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col gap-4 sm:flex-row">
-            <button type="button" onClick={handleFreeDraw} disabled={isDrawing} className="flex-1 rounded-xl border border-yellow-700/40 bg-[#2a2a2a] px-6 py-3 text-sm font-medium text-yellow-200 transition-all hover:bg-[#333333] disabled:opacity-50">
-              일반 번호 생성 (남은 횟수: {freeCount}/3)
-            </button>
-
+          <div className="mt-6 flex flex-col gap-3">
+            {/* 무료 뽑기 버튼 */}
             <button
               type="button"
-              onClick={handlePremiumClick}
-              disabled={showLottoProgressModal}
-              className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-yellow-900/25 transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-50"
+              onClick={handleFreeDraw}
+              disabled={isDrawing || freeCount <= 0}
+              className="w-full rounded-xl border border-yellow-700/40 bg-[#2a2a2a] px-6 py-3 text-sm font-medium text-yellow-200 transition-all hover:bg-[#333333] disabled:opacity-50"
             >
-              ✨ 고급 통계 번호 추출
+              {freeCount > 0
+                ? `일반 번호 생성 (남은 횟수: ${freeCount}/3)`
+                : "오늘 무료 횟수를 모두 사용했습니다"}
             </button>
+
+            {/* 광고 보고 고급 통계 뽑기 */}
+            <button
+              type="button"
+              onClick={handleWatchAdForPremium}
+              disabled={isWatchingAd || showLottoProgressModal}
+              className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-yellow-900/25 transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-50 relative overflow-hidden"
+            >
+              {isWatchingAd ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
+                  광고 시청 중... ({adCountdown}초)
+                </span>
+              ) : (
+                <span>📺 광고 보고 고급 통계 번호 추출</span>
+              )}
+              {/* 카운트다운 진행바 */}
+              {isWatchingAd && (
+                <div
+                  className="absolute bottom-0 left-0 h-1 bg-slate-900/40 transition-all"
+                  style={{ width: `${((5 - adCountdown) / 5) * 100}%` }}
+                />
+              )}
+            </button>
+
+            {adWatchCount > 0 && (
+              <p className="text-center text-xs text-yellow-300/60">
+                오늘 광고 시청 {adWatchCount}회 완료 ✓
+              </p>
+            )}
           </div>
         </div>
 

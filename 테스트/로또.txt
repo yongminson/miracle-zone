@@ -1,0 +1,486 @@
+function getLottoBallStyle(num: number) {
+  if (num <= 10) return "bg-yellow-400 text-black";
+  if (num <= 20) return "bg-blue-500 text-white";
+  if (num <= 30) return "bg-red-500 text-white";
+  if (num <= 40) return "bg-gray-500 text-white";
+  return "bg-green-500 text-white";
+}
+
+function generateLottoNumbers(): number[] {
+  const numbers: number[] = [];
+  while (numbers.length < 6) {
+    const n = Math.floor(Math.random() * 45) + 1;
+    if (!numbers.includes(n)) numbers.push(n);
+  }
+  return numbers.sort((a, b) => a - b);
+}
+
+const LOTTO_STORAGE_KEY = "miracle-lotto-free-count";
+const LOTTO_DATE_KEY = "miracle-lotto-free-date";
+const MATRIX_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const MATRIX_COLOR = "#0abdc6";
+
+function LottoTab({ isVisible }: { isVisible: boolean }) {
+  const [lottoHistory, setLottoHistory] = useState<number[][]>([]);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [freeCount, setFreeCount] = useState(3);
+  
+  // 🚀 유저 정보 및 DB 잔여 횟수 상태 추가
+  const [user, setUser] = useState<any>(null);
+  const [premiumCount, setPremiumCount] = useState(0);
+
+  // 💡 [이스터에그 상태 관리] 추가!
+  const [couponClickCount, setCouponClickCount] = useState(0);
+  const [showCouponModal, setShowCouponModal] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+
+  // 세션 감지 및 DB에서 남은 횟수 불러오기
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const fetchPremiumCount = async (userId: string) => {
+      const { data, error } = await supabase.from('profiles').select('premium_lotto_count').eq('id', userId).single();
+      if (data && !error) setPremiumCount(data.premium_lotto_count);
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) fetchPremiumCount(session.user.id);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) fetchPremiumCount(session.user.id);
+      else setPremiumCount(0);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [isVisible]);
+
+  // 무료 횟수 로컬 스토리지 관리
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const today = new Date().toDateString();
+    const savedDate = localStorage.getItem(LOTTO_DATE_KEY);
+    const s = localStorage.getItem(LOTTO_STORAGE_KEY);
+
+    if (savedDate !== today) {
+      setFreeCount(3);
+      localStorage.setItem(LOTTO_DATE_KEY, today);
+      localStorage.setItem(LOTTO_STORAGE_KEY, "3");
+    } else if (s) {
+      const n = parseInt(s, 10);
+      if (!Number.isNaN(n) && n >= 0) setFreeCount(n);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(LOTTO_STORAGE_KEY, String(freeCount));
+      localStorage.setItem(LOTTO_DATE_KEY, new Date().toDateString());
+    }
+  }, [freeCount]);
+
+  const [visibleCount, setVisibleCount] = useState(0);
+  const [showLottoProgressModal, setShowLottoProgressModal] = useState(false);
+  const [lottoProgressStep, setLottoProgressStep] = useState(0);
+  const [lottoProgressPct, setLottoProgressPct] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const LOTTO_PROGRESS_STEPS = [
+    "출현 빈도 분포 정리 중...",
+    "구간/합계 필터 적용 중...",
+    "고급 통계 조합 계산 중...",
+  ];
+
+  // 💡 [5번 클릭 감지 로직]
+  const handleCouponSecretClick = () => {
+    setCouponClickCount((prev) => {
+      const nextCount = prev + 1;
+      if (nextCount === 5) {
+        setShowCouponModal(true); // 5번 채우면 모달창 오픈!
+        return 0;
+      }
+      return nextCount;
+    });
+  };
+
+  // 💡 [클릭 2초 후 카운트 초기화]
+  useEffect(() => {
+    if (couponClickCount > 0) {
+      const timer = setTimeout(() => setCouponClickCount(0), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [couponClickCount]);
+
+  // 💡 [쿠폰 확인 로직: 1회 제한 + 대표님 전용 초기화 기능]
+  const handleCouponSubmit = async () => {
+    // 👑 대표님 전용 시크릿 초기화 키 (영상 촬영용)
+    if (couponInput === "쿠폰초기화") {
+      if (user) localStorage.removeItem(`coupon_used_${user.id}`);
+      alert("✨ [관리자] 쿠폰 사용 기록이 초기화되었습니다. 이제 다시 쓸 수 있습니다!");
+      setCouponInput("");
+      return;
+    }
+
+    if (couponInput === "로또1등기원") {
+      if (!user) {
+        alert("로그인이 필요합니다. 먼저 카카오 로그인을 해주세요!");
+        setShowCouponModal(false);
+        return;
+      }
+
+      // 🚫 일반 유저 1회 한정 차단 로직
+      if (localStorage.getItem(`coupon_used_${user.id}`)) {
+        alert("❌ 이미 사용 완료된 쿠폰입니다. (1인 1회 한정)");
+        setShowCouponModal(false);
+        setCouponInput("");
+        return;
+      }
+
+      alert("🎉 시크릿 쿠폰 확인! 로또 10회 이용권이 충전되었습니다.");
+      
+      // 🔒 쿠폰 사용 완료 도장 찍기
+      localStorage.setItem(`coupon_used_${user.id}`, "true");
+
+      // 프론트엔드 숫자 즉시 증가
+      setPremiumCount((prev) => prev + 10);
+
+      // DB에도 횟수 반영 업데이트
+      await supabase
+        .from('profiles')
+        .update({ premium_lotto_count: premiumCount + 10 })
+        .eq('id', user.id);
+
+      setShowCouponModal(false);
+      setCouponInput("");
+    } else {
+      alert("❌ 유효하지 않은 쿠폰 번호입니다.");
+    }
+  };
+
+  // 매트릭스 애니메이션 효과
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !isVisible) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const resize = () => {
+      const parent = canvas.parentElement;
+      if (parent) { canvas.width = parent.clientWidth; canvas.height = parent.clientHeight; } 
+      else { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    const fontSize = 14;
+    const columns = Math.floor(canvas.width / fontSize);
+    const drops: number[] = Array(columns).fill(1);
+
+    const draw = () => {
+      ctx.fillStyle = "rgba(10, 10, 10, 0.08)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = `${fontSize}px monospace`;
+      ctx.fillStyle = "rgba(180, 140, 30, 0.45)";
+      for (let i = 0; i < drops.length; i++) {
+        const char = MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)];
+        const x = i * fontSize;
+        const y = drops[i] * fontSize;
+        ctx.fillText(char, x, y);
+        if (y > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      }
+    };
+    let frameId: number;
+    const loop = () => { draw(); frameId = requestAnimationFrame(loop); };
+    frameId = requestAnimationFrame(loop);
+    return () => { window.removeEventListener("resize", resize); cancelAnimationFrame(frameId); };
+  }, [isVisible]);
+
+  // 일반 무료 번호 생성
+  const handleFreeDraw = () => {
+    if (freeCount <= 0) return alert("무료 횟수가 모두 소진되었습니다.");
+    if (isDrawing) return;
+    supabase.rpc('increment_tab_click', { target_tab_id: 'lotto' }).then(({ error }) => { if(error) console.error('로또 에러:', error) });
+    setIsDrawing(true);
+    setVisibleCount(0);
+    const numbers = generateLottoNumbers();
+    setLottoHistory((prev) => [numbers, ...prev]);
+    setFreeCount((c) => c - 1);
+    numbers.forEach((_, i) => { setTimeout(() => setVisibleCount((v) => v + 1), i * 450); });
+    setTimeout(() => setIsDrawing(false), numbers.length * 450 + 100);
+  };
+
+  // 10회권 묶음 결제 진행 함수
+  const handleLottoPaymentConfirm = async () => {
+    if (!user) return alert("로그인 정보가 없습니다.");
+    
+    if (typeof window !== "undefined") {
+      const IMP = (window as any).IMP;
+      if (!IMP) return alert("🚨 결제 시스템 로딩 실패.");
+      IMP.init("imp61375123"); 
+
+      const amount = 4500; // 10회권 가격
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      const payData: any = {
+        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
+        pay_method: "card",
+        merchant_uid: `mid_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        name: "고급 통계 로또 추천 10회 이용권",
+        amount: amount,
+        buyer_email: user.email || "test@ymstudio.co.kr", 
+        buyer_name: user.user_metadata?.name || "명운 사용자",
+        app_scheme: "myungun",
+      };
+
+      if (isMobile) {
+        const toolsOrigin = `${window.location.origin}/tools`;
+        payData.m_redirect_url = `${toolsOrigin}?tab=lotto`;
+        localStorage.removeItem("pendingPremiumWish");
+        localStorage.setItem("pendingPaymentType", "lotto");
+        localStorage.setItem("pendingPaymentAmount", String(amount));
+        localStorage.setItem("pendingPaymentUserId", user.id);
+        savePendingPaymentData({ v: 1, tab: "lotto", flow: "lotto" });
+        savePendingPaymentState({
+          tab: "lotto",
+          flow: "lotto",
+          lotto: { amount, userId: user.id },
+        });
+      }
+
+      IMP.request_pay(payData, async function (rsp: any) {
+        if (!rsp || rsp.success !== true) {
+          const isUserCancel =
+            rsp?.error_msg?.includes("사용자 취소") || rsp?.error_code === "F1002" || rsp?.error_code === "F1001";
+          if (isUserCancel && !isMobile) {
+            alert("결제가 취소되었습니다.\n💡 PC 화면 결제창의 [결제 완료] 버튼을 눌러주세요!");
+          } else {
+            alert(rsp?.error_msg ? `결제가 취소되었습니다.\n${rsp.error_msg}` : "결제가 취소되었습니다.");
+          }
+          return;
+        }
+        try {
+            const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                paymentType: "lotto",
+                imp_uid: rsp.imp_uid,
+                paymentId: rsp.imp_uid,
+                merchant_uid: rsp.merchant_uid,
+                amount: amount,
+                userId: user.id
+              }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.success) {
+              setShowLottoPaymentModal(false);
+              alert("✨ 결제 성공! 로또 10회 이용권이 충전되었습니다.");
+              const { data } = await supabase.from('profiles').select('premium_lotto_count').eq('id', user.id).single();
+              if (data) setPremiumCount(data.premium_lotto_count);
+            } else {
+              alert(`🚨 결제 검증 실패: ${verifyData.message}`);
+            }
+        } catch (error) {
+          console.error("결제 검증 오류:", error);
+          alert("서버 오류가 발생했습니다.");
+        }
+      });
+    }
+  };
+
+  const handlePremiumClick = () => {
+    if (isDrawing) return;
+    void executeLottoDraw(false);
+  };
+
+  // 실제 고급 통계 로또 번호 추출
+  const executeLottoDraw = async (usePremium: boolean = false) => {
+    if (usePremium && user) {
+      const { data, error } = await supabase.rpc('use_premium_lotto', { user_id: user.id });
+      if (error || !data) {
+        alert("잔여 횟수 차감 중 오류가 발생했습니다.");
+        return;
+      }
+      setPremiumCount(c => c - 1);
+    }
+
+    setShowLottoProgressModal(true);
+    setLottoProgressStep(0);
+    setLottoProgressPct(0);
+    const progressInterval = setInterval(() => setLottoProgressPct((p) => Math.min(100, p + 2)), 60);
+    setTimeout(() => setLottoProgressStep(1), 900);
+    setTimeout(() => setLottoProgressStep(2), 1800);
+
+    try {
+      const res = await fetch("/api/lotto", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "생성 실패");
+
+      const numbers = data.numbers as number[];
+      clearInterval(progressInterval);
+      setLottoProgressPct(100);
+      setShowLottoProgressModal(false);
+      setIsDrawing(true);
+      setVisibleCount(0);
+      setLottoHistory((prev) => [numbers, ...prev]);
+
+      numbers.forEach((_, i) => setTimeout(() => setVisibleCount((v) => v + 1), i * 450));
+      setTimeout(() => setIsDrawing(false), numbers.length * 450 + 100);
+    } catch (err) {
+      clearInterval(progressInterval);
+      setShowLottoProgressModal(false);
+      alert(err instanceof Error ? err.message : "오류가 발생했습니다.");
+    }
+  };
+
+  const handleAdminReset = () => {
+    setFreeCount(3);
+    if (typeof window !== "undefined") localStorage.setItem(LOTTO_STORAGE_KEY, "3");
+    alert("✨ [비밀 관리자 모드] 로또 무료 횟수가 3회로 초기화되었습니다.");
+  };
+
+  const currentSet = lottoHistory[0] ?? [];
+  const displayHistory = lottoHistory.slice(0, 5);
+
+  return (
+    <div
+      role="tabpanel"
+      aria-hidden={!isVisible}
+      className={`absolute inset-0 flex flex-col overflow-y-auto overflow-x-hidden transition-opacity duration-500 ease-out ${isVisible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"}`}
+    >
+      <canvas ref={canvasRef} id="matrix-canvas" className="absolute inset-0 z-0 opacity-30 pointer-events-none" />
+
+      {/* 로딩 모달창 */}
+      {showLottoProgressModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-yellow-700/30 bg-[#17120d]/90 p-8 backdrop-blur-md shadow-2xl">
+            <p className="mb-6 text-center text-lg font-medium text-yellow-300">{LOTTO_PROGRESS_STEPS[lottoProgressStep]}</p>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-700">
+              <div className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 transition-all duration-75 ease-out" style={{ width: `${lottoProgressPct}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🎁 시크릿 쿠폰 모달창 */}
+      {showCouponModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-yellow-500/30 bg-[#111] p-6 shadow-2xl md:p-8">
+            <h3 className="mb-2 text-center text-2xl font-bold text-white">🤫 시크릿 쿠폰</h3>
+            <p className="mb-6 text-center text-sm text-gray-400">숨겨진 쿠폰 코드를 입력하세요.</p>
+            
+            <input
+              type="text"
+              value={couponInput}
+              onChange={(e) => setCouponInput(e.target.value)}
+              placeholder="쿠폰 번호 입력"
+              className="mb-4 w-full rounded-lg border border-gray-700 bg-black px-4 py-3 text-center text-white focus:border-yellow-500 focus:outline-none"
+            />
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCouponModal(false)}
+                className="flex-1 rounded-lg bg-gray-800 py-3 text-gray-300 transition hover:bg-gray-700"
+              >
+                닫기
+              </button>
+              <button
+                onClick={handleCouponSubmit}
+                className="flex-1 rounded-lg bg-gradient-to-r from-yellow-600 to-yellow-400 py-3 font-bold text-black transition hover:scale-105"
+              >
+                충전하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 py-8">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <span className="rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm">이번 주 추천 조합</span>
+          
+          {/* 👇 cursor-text 적용으로 일반 글씨와 똑같이 I빔 커서가 뜨도록 완벽 위장 */}
+          <span 
+            onClick={handleCouponSecretClick}
+            className="cursor-text select-none rounded-full border border-yellow-700/40 bg-yellow-500/10 px-3 py-1 text-[11px] text-yellow-200 backdrop-blur-sm"
+          >
+            무료 3회 제공
+          </span>
+
+          {user && premiumCount > 0 && <span className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-[11px] text-emerald-300 font-bold backdrop-blur-sm">이용권 {premiumCount}회 보유</span>}
+        </div>
+
+        <div className="w-full max-w-2xl rounded-3xl border border-yellow-700/35 bg-[#151515]/85 p-6 shadow-[0_0_30px_rgba(245,158,11,0.08)] backdrop-blur-md">
+          <div className="mb-5 text-center">
+            <h2 onClick={() => pushSecret("L", handleAdminReset)} className="text-xl font-bold text-yellow-300 select-none cursor-pointer">행운의 로또 번호 추출기</h2>
+            <p className="mt-2 text-sm text-yellow-50/70">가볍게 번호를 뽑고, 필요하면 고급 통계 필터 추천까지 받아볼 수 있습니다.</p>
+          </div>
+
+          <div className="rounded-2xl border border-yellow-800/20 bg-[#0f0f0f]/70 px-4 py-6">
+            <p className="mb-4 text-center text-sm font-medium tracking-wide text-yellow-200/80">이번에 추출된 번호</p>
+            <div className="flex min-h-[100px] flex-wrap items-center justify-center gap-5">
+              {currentSet.length === 0 ? (
+                <p className="text-sm text-yellow-50/45">아직 생성된 번호가 없습니다. 아래 버튼을 눌러 시작하세요.</p>
+              ) : (
+                currentSet.map((num, i) => (
+                  <div key={`current-${num}-${i}`} className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-xl font-bold shadow-inner ring-2 ring-black/20 ${getLottoBallStyle(num)} ${i < visibleCount ? "animate-[lotto-ball-bounce_0.5s_ease-out_forwards]" : "opacity-0 scale-0"}`}>
+                    {num}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-4 sm:flex-row">
+            <button type="button" onClick={handleFreeDraw} disabled={isDrawing} className="flex-1 rounded-xl border border-yellow-700/40 bg-[#2a2a2a] px-6 py-3 text-sm font-medium text-yellow-200 transition-all hover:bg-[#333333] disabled:opacity-50">
+              일반 번호 생성 (남은 횟수: {freeCount}/3)
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePremiumClick}
+              disabled={showLottoProgressModal}
+              className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-yellow-900/25 transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-50"
+            >
+              ✨ 고급 통계 번호 추출
+            </button>
+          </div>
+        </div>
+
+        {displayHistory.length > 0 && (
+          <div className="w-full max-w-lg space-y-3">
+            <h3 className="text-center text-sm font-medium text-yellow-300/90">추천 번호 이력</h3>
+            <div className="space-y-2">
+              {displayHistory.map((nums, idx) => (
+                <div key={idx} className="flex flex-wrap items-center justify-center gap-2 rounded-xl border border-yellow-700/20 bg-[#1a1a1a]/80 px-4 py-3">
+                  {nums.map((num, i) => (
+                    <div key={`${idx}-${i}`} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold shadow-inner ${getLottoBallStyle(num)}`}>
+                      {num}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <a href="https://www.dhlottery.co.kr/" target="_blank" rel="noreferrer noopener" className="mt-2 w-full max-w-md rounded-2xl border border-yellow-700/30 bg-[#191611]/90 px-4 py-4 transition-all hover:bg-[#211c15]">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/15 text-lg">🎟</div>
+              <div>
+                <p className="text-sm font-medium text-yellow-200">동행복권 공식 홈페이지</p>
+                <p className="mt-1 text-xs text-yellow-50/50">추첨 결과 및 판매점 정보 확인</p>
+              </div>
+            </div>
+            <span className="text-sm text-yellow-300/70">→</span>
+          </div>
+        </a>
+
+        <FooterPolicy tabId="lotto" />
+      </div>
+    </div>
+  );
+}
