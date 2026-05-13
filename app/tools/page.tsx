@@ -41,6 +41,33 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+/** 애드센스 심사용 SEO 아코디언 — 사용자 눈에 거의 안 띄는 최하단 설명 텍스트 */
+function SeoAccordion({ title, items }: { title: string; items: { q: string; a: string }[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mx-auto w-full max-w-md mt-4 mb-2 px-4">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between text-[11px] text-white/25 hover:text-white/40 transition-colors py-2"
+      >
+        <span>{title}</span>
+        <span>{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="space-y-3 pb-4">
+          {items.map((item) => (
+            <div key={item.q}>
+              <p className="text-[11px] font-semibold text-white/35 mb-1">{item.q}</p>
+              <p className="text-[10px] leading-relaxed text-white/25">{item.a}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // 🚀 [추가] 관리자 전용 통계 대시보드 컴포넌트
 function AdminDashboard() {
   const [stats, setStats] = useState({ daily: 0, total: 0, tabs: [] });
@@ -1238,12 +1265,19 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                 </button>
               )}
 
-              <button onClick={() => setResultData(null)} className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-medium text-white/80 hover:bg-white/10 transition-colors">
+<button onClick={() => setResultData(null)} className="w-full rounded-2xl border border-white/20 bg-white/5 px-4 py-4 text-sm font-medium text-white/80 hover:bg-white/10 transition-colors">
                 다른 꿈 해몽하기
               </button>
             </div>
           </div>
         )}
+
+        <SeoAccordion title="꿈 해몽이란 무엇인가요? ▾" items={[
+          { q: "꿈 해몽(解夢)의 원리", a: "동양 철학에서 꿈은 우주의 기운과 무의식이 만나는 신비로운 공간으로 여겨져 왔습니다. 꿈은 정몽(正夢·예지몽), 반몽(反夢·반대로 실현), 잡몽(雜夢·심리 반영)으로 나뉩니다." },
+          { q: "대표적인 길몽(吉夢)의 종류", a: "용이 하늘로 올라가는 꿈은 큰 성공과 출세를, 살찐 돼지가 집으로 들어오는 꿈은 재물운을, 밝게 빛나는 태양이나 보름달은 명예와 성공을, 맑은 물이 흐르는 꿈은 재물운과 건강운 상승을 나타냅니다." },
+          { q: "꿈 해몽을 현명하게 활용하는 방법", a: "좋은 꿈은 긍정적인 에너지로, 불안한 꿈은 주변을 점검하는 계기로 삼는 것이 지혜로운 활용법입니다. 꿈은 현재 나의 심리 상태와 잠재의식을 반영합니다." },
+        ]} />
+
       </div>
       </div>
     </div>
@@ -3759,7 +3793,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                 </div>
               )}
               <div className="mt-5">
-                <button
+              <button
                   type="button"
                   onClick={() => setShowHanjaModal(false)}
                   className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
@@ -3770,6 +3804,13 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
             </div>
           </div>
         )}
+
+        <SeoAccordion title="관상·이름풀이에 대해 알아보세요 ▾" items={[
+          { q: "관상학(觀相學)이란?", a: "관상은 얼굴의 생김새를 통해 성격, 운명, 건강 상태를 파악하는 동양 전통 학문입니다. 얼굴을 상정(이마·초년운), 중정(눈~코·중년운), 하정(코 아래·말년운) 세 구역으로 나눠 분석합니다." },
+          { q: "성명학(姓名學)과 이름 획수의 비밀", a: "성명학에서는 이름의 획수와 음양오행 에너지가 삶에 영향을 미친다고 봅니다. 원격·형격·이격·정격·총격 다섯 가지 격을 분석하여 이름의 길흉을 판단합니다." },
+          { q: "개명(改名)은 언제 고려하나요?", a: "이름 획수 대부분이 흉수이거나, 음양오행 균형이 크게 깨진 경우, 사주팔자와 이름의 오행이 심하게 충돌하는 경우 개명을 고려해볼 수 있습니다." },
+        ]} />
+
       </div>
       </div>
     </div>
@@ -4620,6 +4661,13 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
             </div>
           </div>
         )}
+
+        <SeoAccordion title="MBTI와 사주의 연관성 ▾" items={[
+          { q: "MBTI와 오행(五行)의 놀라운 연결", a: "MBTI의 E(외향)/I(내향)는 명리학의 양(陽)/음(陰)에, S(감각)는 토(土), N(직관)은 목(木)·화(火), T(사고)는 금(金), F(감정)는 화(火)·수(水)에 대응됩니다." },
+          { q: "내 MBTI 유형과 맞는 사주 기운은?", a: "INTJ·INTP는 수(水)·금(金) 기운으로 깊은 분석력을, ENFP·ENFJ는 화(火)·목(木) 기운으로 열정과 창의성을, ISTJ·ESTJ는 금(金)·토(土) 기운으로 책임감과 원칙을 지닙니다." },
+          { q: "MBTI × 사주 융합 분석의 장점", a: "MBTI로 현재 심리 경향을, 사주로 타고난 에너지와 운의 흐름을 이해하면 동서양 최고의 지혜로 자신을 입체적으로 파악할 수 있습니다." },
+        ]} />
+
       </div>
       </div>
     </div>
@@ -4977,15 +5025,22 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                 <button onClick={() => { window.scrollTo(0,0); onNavigate('altar'); }} className="w-full rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 px-4 py-4 text-sm font-bold text-white shadow-[0_0_15px_rgba(168,85,247,0.4)] hover:scale-[1.02] transition-transform">
                   🙏 기적의 제단에 소원 빌러 가기
                 </button>
-              </div>
+                </div>
 
-            </div>
-          </div>
-        )}
-      </div>
-      </div>
-    </div>
-  );
+</div>
+</div>
+)}
+
+<SeoAccordion title="궁합(宮合)이란 무엇인가요? ▾" items={[
+{ q: "궁합의 원리", a: "궁합은 두 사람의 사주팔자를 대조하여 음양오행의 조화와 상생·상극 관계를 분석하는 것입니다. 단순한 미신이 아니라 두 사람의 에너지 특성을 이해하여 더 행복한 관계를 만들기 위한 지혜입니다." },
+{ q: "삼합(三合) — 가장 잘 맞는 띠 조합", a: "인·오·술(화火), 신·자·진(수水), 해·묘·미(목木), 사·유·축(금金)의 삼합 관계가 궁합이 잘 맞는 대표적인 조합입니다." },
+{ q: "나쁜 궁합도 극복할 수 있나요?", a: "궁합이 좋지 않아도 두 사람의 노력과 이해가 더 중요합니다. 궁합은 관계의 특성을 미리 파악하여 지혜롭게 관계를 가꾸는 참고 도구로 활용하는 것이 올바른 접근입니다." },
+]} />
+
+</div>
+</div>
+</div>
+);
 }
 
 export default function Home() {
