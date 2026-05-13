@@ -93,6 +93,9 @@ export function SiteHeader({ variant = "marketing", right }: SiteHeaderProps) {
           <Link href="/vip" className={vipNavClass}>
             🌟 VIP 대운 분석
           </Link>
+          <Link href="/about" className="text-slate-400 transition hover:text-amber-300">
+            서비스 소개
+          </Link>
         </nav>
 
         <button
@@ -130,6 +133,15 @@ export function SiteHeader({ variant = "marketing", right }: SiteHeaderProps) {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 🌟 VIP 대운 분석
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/about"
+                className="block rounded-xl px-3 py-3 text-sm text-slate-200 hover:bg-white/5"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                서비스 소개
               </Link>
             </li>
           </ul>
