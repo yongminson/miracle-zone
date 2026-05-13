@@ -1250,6 +1250,14 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
   );
 }
 
+/** 제단 탭 하단 푸터 — GlobalSiteFooter와 동일 약관/사업자 문구 */
+const ALTAR_FOOTER_TERMS =
+  "제1조 (목적)\n본 약관은 서비스의 이용조건 및 절차, 이용자와 회사의 권리, 의무, 책임사항을 규정함을 목적으로 합니다.\n\n제2조 (서비스의 성격)\n본 서비스에서 제공하는 모든 결과는 통계적, 학술적 해석에 기반하며 절대적인 사실이나 미래를 보장하지 않습니다.\n\n제3조 (서비스 제공 시기)\n본 서비스에서 제공하는 모든 유료 서비스(디지털 콘텐츠)는 결제 완료 후 즉시 이용 가능합니다.";
+const ALTAR_FOOTER_PRIVACY =
+  "1. 수집하는 개인정보 항목\n회사는 회원가입 없이 서비스를 제공하며, 사주 분석을 위해 입력하신 생년월일, 성별, 이름 등은 서버에 영구 저장되지 않고 분석 즉시 폐기됩니다.\n\n2. 쿠키의 사용\n서비스 편의를 위해 기기 내부에 일부 설정(예: 프리미엄 해제 상태)이 임시 저장될 수 있습니다.";
+const ALTAR_FOOTER_REFUND =
+  "[디지털 콘텐츠 환불 규정 안내]\n\n본 서비스에서 제공되는 모든 유료 서비스는 '디지털 콘텐츠'에 해당하며, 관련 법령에 의거하여 다음과 같이 환불 정책을 운영합니다.\n\n1. 환불 기준 (청약철회)\n- 이용권을 결제하였으나 실제 서비스를 전혀 이용하지 않은 경우(결과 열람 전), 결제일로부터 7일 이내에 고객센터를 통해 100% 환불을 요청하실 수 있습니다.\n\n2. 시스템 오류 및 서비스 장애\n- 결제는 정상적으로 완료되었으나 시스템 오류로 인해 결과 화면을 전혀 열람하지 못한 경우, 고객센터 확인을 거쳐 즉시 100% 환불 또는 서비스 재제공 처리를 해드립니다.\n\n3. 환불 제한 사항\n- 전자상거래법 제17조 제2항 제5호에 따라, 소비자의 사용 또는 일부 소비로 재화 등의 가치가 현저히 감소한 경우(예: 운세/관상/번호 추출 결과를 이미 열람한 경우)에는 청약철회가 제한됩니다.";
+
 function AltarTab({ isVisible }: { isVisible: boolean }) {
   // 🚀 [추가] 촛불 애니메이션 및 사운드 상태 (기존 432Hz BGM과 충돌하지 않음)
   const [isCandleOn, setIsCandleOn] = useState(false);
@@ -1327,6 +1335,8 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
   const [premiumNameDisplay, setPremiumNameDisplay] = useState<PremiumNameDisplay>("anonymous");
   const [premiumNameInput, setPremiumNameInput] = useState("");
   const [premiumWishText, setPremiumWishText] = useState("");
+  const [altarFooterPolicy, setAltarFooterPolicy] = useState<"terms" | "privacy" | "refund" | null>(null);
+  const [altarFooterCompany, setAltarFooterCompany] = useState(false);
   const [countdownNow, setCountdownNow] = useState(Date.now());
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -1820,6 +1830,26 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     setPremiumWishText("");
     setPremiumNameInput("");
   };
+
+  const handleAltarFooterCopyrightDoubleClick = () => {
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem("MASTER_ADMIN") === "true") {
+      if (confirm("현재 운영자 모드입니다. 종료할까요?")) {
+        localStorage.removeItem("MASTER_ADMIN");
+        alert("운영자 모드가 종료되었습니다.");
+        window.location.reload();
+      }
+      return;
+    }
+    const pwd = prompt("운영자 비밀번호를 입력하세요.");
+    if (pwd === "s1223534") {
+      localStorage.setItem("MASTER_ADMIN", "true");
+      alert("✨ 운영자 모드 활성화! 모든 유료 서비스가 프리패스됩니다.");
+      window.location.reload();
+    } else if (pwd !== null) {
+      alert("비밀번호가 일치하지 않습니다.");
+    }
+  };
   
   return (
     <div
@@ -1861,19 +1891,16 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                 {floatingWishes.map((wish, i) => (
                   <div
                     key={`wish-${i}`}
-                    className="absolute"
+                    className="absolute max-w-[45vw]"
                     style={{
-                      /* 화면 양끝 15%~85% 사이에서만 나타나도록 제한 (짤림 방지) */
                       left: `${15 + ((i * 17 + 5) % 70)}%`,
                       top: `${30 + (i * 11 % 41)}%`,
                       transform: "translateX(-50%)",
                       animation: `float-wish-center ${10 + (i % 9)}s ease-out infinite`,
                       animationDelay: `${(i * 0.7) % 8}s`,
-                      width: "max-content",
-                      maxWidth: "85vw", /* 모바일/PC 모두 화면 폭의 85%를 넘지 않음 */
                     }}
                   >
-                    <p style={{ whiteSpace: "pre-wrap", wordBreak: "keep-all", textAlign: "center" }} className="text-sm font-medium text-white/60 px-3">
+                    <p className="mx-auto max-w-[45vw] truncate text-center text-sm font-medium text-white/60 px-1">
                       {wish}
                     </p>
                   </div>
@@ -1893,25 +1920,33 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                   return (
                     <div
                       key={pw.id}
-                      className="absolute"
+                      className="absolute max-w-[45vw]"
                       style={{
                         left: `${leftPct}%`,
                         animation: `float-up-premium ${duration}s linear infinite`,
                         animationDelay: delay,
-                        width: "max-content",
-                        maxWidth: "90vw",
                       }}
                     >
-                      <div className="flex flex-col items-center justify-center bg-black/30 backdrop-blur-sm px-4 py-3 rounded-2xl border border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.15)]">
-                        <p className={
+                      <div className="mx-auto flex max-w-[45vw] flex-col items-center justify-center overflow-hidden bg-black/30 px-4 py-3 rounded-2xl border border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.15)] backdrop-blur-sm">
+                        <p
+                          className={`w-full max-w-[45vw] truncate text-center leading-snug ${
                             isTenDays
-                              ? "text-base sm:text-xl font-extrabold text-yellow-200 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)] text-center break-keep leading-snug whitespace-pre-wrap"
-                              : "text-sm sm:text-lg font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] text-center break-keep leading-snug whitespace-pre-wrap"
-                          }
+                              ? "text-base sm:text-xl font-extrabold text-yellow-200 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)] break-keep"
+                              : "text-sm sm:text-lg font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] break-keep"
+                          }`}
                         >
-                          {pw.badge}<br/>{pw.content}
+                          {pw.badge}
                         </p>
-                        <p className={isTenDays ? "mt-1.5 text-xs font-medium text-amber-200/90" : "mt-1.5 text-[11px] text-yellow-400/80"}>
+                        <p
+                          className={`mt-1 w-full max-w-[45vw] truncate text-center leading-snug ${
+                            isTenDays
+                              ? "text-base sm:text-xl font-extrabold text-yellow-200 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)] break-keep"
+                              : "text-sm sm:text-lg font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] break-keep"
+                          }`}
+                        >
+                          {pw.content}
+                        </p>
+                        <p className={`w-full max-w-[45vw] truncate text-center ${isTenDays ? "mt-1.5 text-xs font-medium text-amber-200/90" : "mt-1.5 text-[11px] text-yellow-400/80"}`}>
                           남은 시간: {formatCountdown(remaining)}
                         </p>
                       </div>
@@ -1933,14 +1968,6 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
               rows={1}
               className="w-full resize-none rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm text-amber-50 placeholder-amber-200/60 focus:border-yellow-500/60 focus:outline-none focus:ring-1 focus:ring-yellow-500/40"
             />
-            <div className="mt-2 space-y-1 px-0.5 text-center">
-              <p className="text-[10px] leading-relaxed text-white/45 break-keep">
-                본 서비스는 희망과 위로를 나누는 공간으로 특정 종교와 무관하며 법적 효력을 갖지 않습니다.
-              </p>
-              <p className="text-[10px] leading-relaxed text-red-400/80 break-keep animate-pulse">
-                ※ 욕설, 혐오, 정치, 비방 등 부적절한 내용은 통보 없이 즉시 삭제될 수 있습니다.
-              </p>
-            </div>
             <div className="mt-1 flex items-center justify-between text-[10px] px-1">
               <span className="text-amber-100/70">전체 소원 {activeWishCount}개</span>
               <span className="text-yellow-300/80">프리미엄 {activePremiumCount}개</span>
@@ -1961,6 +1988,104 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
             </button>
           </div>
         </div>
+
+        <footer className="relative z-10 mt-4 w-full shrink-0 border-t border-white/10 bg-slate-950 pb-[env(safe-area-inset-bottom,0px)] text-slate-300 pointer-events-auto">
+          <div className="mx-auto max-w-5xl px-4 pb-10 pt-6 sm:px-6">
+            <p className="text-center text-[10px] leading-relaxed text-white/45">
+              본 서비스는 희망과 위로를 나누는 공간으로 특정 종교와 무관하며 법적 효력을 갖지 않습니다.
+            </p>
+            <p className="mt-3 text-center text-[10px] leading-relaxed text-red-400/80 animate-pulse break-keep">
+              ※ 욕설, 혐오, 정치, 비방 등 부적절한 내용은 통보 없이 즉시 삭제될 수 있습니다.
+            </p>
+
+            <div className="mt-6 flex flex-wrap justify-center gap-x-3 gap-y-2 text-[11px] font-medium text-white/55">
+              <button type="button" onClick={() => setAltarFooterPolicy("terms")} className="transition-colors hover:text-white">
+                이용약관
+              </button>
+              <span aria-hidden>|</span>
+              <button type="button" onClick={() => setAltarFooterPolicy("privacy")} className="transition-colors hover:text-white">
+                개인정보처리방침
+              </button>
+              <span aria-hidden>|</span>
+              <button type="button" onClick={() => setAltarFooterPolicy("refund")} className="transition-colors hover:text-white">
+                환불정책
+              </button>
+              <span aria-hidden>|</span>
+              <button
+                type="button"
+                onClick={() => setAltarFooterCompany((v) => !v)}
+                className="flex items-center gap-1 transition-colors hover:text-white"
+              >
+                사업자 정보 {altarFooterCompany ? "▲" : "▼"}
+              </button>
+            </div>
+
+            {altarFooterCompany ? (
+              <div className="mx-auto mt-6 max-w-lg space-y-1.5 border-t border-white/10 pt-6 text-[10px] leading-relaxed text-white/40">
+                <p className="font-bold text-white/55">와이엠 스튜디오 (YM Studio)</p>
+                <p>대표자: 손용민 | 사업자등록번호: 510-21-21827</p>
+                <p>주소: 충청남도 아산시 둔포면 운교길 129번길 14-71</p>
+                <p>고객센터: 0507-1385-9994 | 이메일: support@ymsudio.co.kr</p>
+                <p>통신판매업신고번호: 제 2026-충남아산-0479 호</p>
+              </div>
+            ) : null}
+
+            <p
+              onDoubleClick={handleAltarFooterCopyrightDoubleClick}
+              className="mt-8 cursor-default select-none text-center text-[10px] text-white/25"
+            >
+              © {new Date().getFullYear()} 명운(命運). All rights reserved.
+            </p>
+          </div>
+        </footer>
+
+        {altarFooterPolicy ? (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+            onClick={() => setAltarFooterPolicy(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="altar-policy-title"
+          >
+            <div
+              className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl border border-white/20 bg-slate-900 p-6 text-left shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3
+                id="altar-policy-title"
+                className="mb-4 flex shrink-0 items-center justify-between border-b border-white/10 pb-3 text-lg font-bold text-yellow-400"
+              >
+                <span>
+                  {altarFooterPolicy === "terms"
+                    ? "이용약관"
+                    : altarFooterPolicy === "privacy"
+                      ? "개인정보처리방침"
+                      : "환불정책"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAltarFooterPolicy(null)}
+                  className="text-2xl font-light text-white/50 hover:text-white"
+                  aria-label="닫기"
+                >
+                  ×
+                </button>
+              </h3>
+              <div className="flex-1 overflow-y-auto pr-2 text-xs leading-relaxed text-white/80 whitespace-pre-wrap">
+                {altarFooterPolicy === "terms" && ALTAR_FOOTER_TERMS}
+                {altarFooterPolicy === "privacy" && ALTAR_FOOTER_PRIVACY}
+                {altarFooterPolicy === "refund" && ALTAR_FOOTER_REFUND}
+              </div>
+              <button
+                type="button"
+                className="mt-6 w-full rounded-xl bg-white/10 py-3 font-medium text-white transition-colors hover:bg-white/20"
+                onClick={() => setAltarFooterPolicy(null)}
+              >
+                확인하고 닫기
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {showPremiumModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => handlePremiumCancel()}>
