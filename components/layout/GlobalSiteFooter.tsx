@@ -16,6 +16,15 @@ export function GlobalSiteFooter() {
   const [showPolicy, setShowPolicy] = useState<"terms" | "privacy" | "refund" | null>(null);
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
 
+  const handleCopyrightDoubleClick = () => {
+    const pwd = prompt("운영자 비밀번호를 입력하세요.");
+    if (pwd === "s1223534") {
+      localStorage.setItem("MASTER_ADMIN", "true");
+      alert("✨ 운영자 모드가 활성화되었습니다.");
+      window.location.reload();
+    }
+  };
+
   return (
     <>
       <footer className="border-t border-white/10 bg-slate-950 text-slate-300">
@@ -68,7 +77,10 @@ export function GlobalSiteFooter() {
             </div>
           ) : null}
 
-          <p className="mt-8 text-center text-[10px] text-white/25">
+<p
+            onDoubleClick={handleCopyrightDoubleClick}
+            className="mt-8 text-center text-[10px] text-white/25 select-none cursor-default"
+          >
             © {new Date().getFullYear()} 명운(命運). All rights reserved.
           </p>
         </div>

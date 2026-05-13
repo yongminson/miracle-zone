@@ -213,6 +213,13 @@ export default function VipLandingPage() {
   /** 동일 마크다운으로 PDF 빌드가 중복 실행되지 않도록 */
   const [reportRevision, setReportRevision] = useState(0);
   const [hasSavedVipRestore, setHasSavedVipRestore] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsAdminMode(localStorage.getItem("MASTER_ADMIN") === "true");
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1006,10 +1013,12 @@ export default function VipLandingPage() {
               <button
                 type="button"
                 disabled={isBusy || isPaymentPending}
-                onClick={handleOpenPaymentModal}
+                onClick={isAdminMode ? () => handleIssueReport() : handleOpenPaymentModal}
                 className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-amber-700 via-amber-500 to-yellow-500 px-6 py-5 text-center font-serif text-base font-bold tracking-wide text-stone-950 shadow-[0_0_40px_-8px_rgba(245,158,11,0.55)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 sm:text-lg"
               >
-                <span className="relative z-10 drop-shadow-sm">29,900원 결제하고 VIP 리포트 즉시 발급받기</span>
+                <span className="relative z-10 drop-shadow-sm">
+                  {isAdminMode ? "⚡ [운영자] 결제 없이 VIP 리포트 생성" : "29,900원 결제하고 VIP 리포트 즉시 발급받기"}
+                </span>
                 <span className="absolute inset-0 bg-gradient-to-t from-black/10 to-white/20 opacity-40" />
               </button>
               <p className="mt-3 text-center text-[11px] text-slate-500">

@@ -314,7 +314,7 @@ function FooterPolicy({ tabId }: { tabId: TabId }) {
 
   const handleAdminLogin = () => {
     const pwd = prompt("운영자 비밀번호를 입력하세요.");
-    if (pwd === "1004") {
+    if (pwd === "s1223534") {
       localStorage.setItem("MASTER_ADMIN", "true");
       alert("✨ 운영자 모드가 활성화되었습니다. 이제 모든 프리미엄 결제가 프리패스됩니다.");
     } else if (pwd) {
