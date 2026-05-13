@@ -25,7 +25,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
-import { GlobalSiteFooter } from "@/components/layout/GlobalSiteFooter";
 import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
 import { clearPendingPaymentData, readPendingPaymentData, savePendingPaymentData } from "@/lib/payments/pending-payment-data";
 import {
@@ -5342,7 +5341,6 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
         </div>
       )}
 
-      <GlobalSiteFooter />
     </div>
   );
 }
