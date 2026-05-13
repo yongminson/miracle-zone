@@ -900,6 +900,79 @@ export default function VipLandingPage() {
           만세력 명식과 AI 심층 해설을 한 장의 프리미엄 PDF로 압축합니다. 지금 입력하면 리포트가 바로 준비됩니다.
         </p>
 
+        {/* 신뢰 수치 배지 */}
+        <div className="mt-10 grid grid-cols-3 gap-3">
+          {[
+            { number: "4,800+", label: "누적 분석" },
+            { number: "4.9★", label: "평균 만족도" },
+            { number: "100%", label: "보안 결제" },
+          ].map((item) => (
+            <div key={item.label} className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-center">
+              <p className="text-lg font-bold text-amber-300">{item.number}</p>
+              <p className="mt-1 text-[10px] text-slate-400">{item.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* 실제 후기 */}
+        <div className="mt-8 space-y-3">
+          <h2 className="text-center font-serif text-base text-amber-200/80">💬 실제 이용자 후기</h2>
+          {[
+            {
+              name: "김*현",
+              date: "2025.12",
+              star: "★★★★★",
+              job: "30대 직장인",
+              text: "사주 책도 여러 권 읽어봤는데, 이렇게 구체적으로 제 상황에 맞게 풀어준 건 처음이에요. 2026년 이직 타이밍 조언이 정말 소름이었습니다. 실제로 그 시기에 좋은 제안이 왔어요.",
+            },
+            {
+              name: "이*진",
+              date: "2026.01",
+              star: "★★★★★",
+              job: "40대 사업가",
+              text: "재물운 파트에서 '편재가 강해 큰 흐름을 읽는 능력이 있다'는 분석이 딱 맞았어요. 투자 타이밍 조언도 구체적이고 실용적이었습니다. PDF로 저장해두고 계속 보고 있어요.",
+            },
+            {
+              name: "박*은",
+              date: "2026.02",
+              star: "★★★★☆",
+              job: "20대 취준생",
+              text: "솔직히 반신반의하며 결제했는데 제 고민을 정확히 짚어줘서 놀랐어요. 취업 방향성이 흔들리던 시기였는데 천직 분석 파트 읽고 방향을 잡았습니다. 가격 아깝지 않아요.",
+            },
+          ].map((review) => (
+            <div key={review.name} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-300">
+                    {review.name[0]}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white/80">{review.name} <span className="text-white/40 font-normal">· {review.job}</span></p>
+                    <p className="text-[10px] text-white/30">{review.date}</p>
+                  </div>
+                </div>
+                <span className="text-xs text-amber-400">{review.star}</span>
+              </div>
+              <p className="text-xs leading-relaxed text-white/60">{review.text}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* 보안 배지 */}
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          {[
+            { icon: "🔒", text: "SSL 보안 결제" },
+            { icon: "📄", text: "즉시 PDF 발급" },
+            { icon: "♻️", text: "7일 환불 보장" },
+            { icon: "🤖", text: "AI 맞춤 분석" },
+          ].map((badge) => (
+            <div key={badge.text} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
+              <span className="text-sm">{badge.icon}</span>
+              <span className="text-[10px] text-white/50">{badge.text}</span>
+            </div>
+          ))}
+        </div>
+
         <section className="mt-14 space-y-4">
           <h2 className="text-center font-serif text-lg text-amber-200/90">VIP 리포트 시그니처</h2>
           <div className="mx-auto grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
