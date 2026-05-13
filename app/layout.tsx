@@ -103,6 +103,18 @@ export default function RootLayout({
           strategy="afterInteractive"
         />
 
+        {/* 🚀 4. 네이버 애널리틱스 스크립트 (명운 전용) */}
+        <Script id="naver-analytics" strategy="afterInteractive">
+          {`
+            if(!wcs_add) var wcs_add = {};
+            wcs_add["wa"] = "588480255fbec0";
+            if(window.wcs) {
+              wcs_do();
+            }
+          `}
+        </Script>
+        <Script src="//wcs.naver.net/wcslog.js" strategy="afterInteractive" />
+
         {/* 🚀 3. 메인 콘텐츠 및 분석 툴 */}
         <div className="flex min-h-screen flex-col">
           <div className="flex-1">{children}</div>
