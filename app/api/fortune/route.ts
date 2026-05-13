@@ -13,6 +13,9 @@ type PremiumReport = {
   love: string;
   career: string;
   health: string;
+  luckyColor: string;
+  luckyDirection: string;
+  caution: string;
 };
 
 type AgeGroupCode = "child" | "teen" | "adult" | "mature";
@@ -114,7 +117,11 @@ function buildFallbackPremiumReport(
   const career = "오늘의 직장운은 속도보다 완성도와 협업 순서 관리에서 차이가 날 가능성이 높습니다. 혼자 밀어붙이기보다 설명과 조율을 한 번 더 거치는 방식이 실제 성과에 유리합니다.";
   const health = "오늘의 건강운은 큰 이상보다 누적 피로와 생활 리듬 불균형을 먼저 관리해야 하는 흐름입니다. 몸이 보내는 작은 신호를 초기에 잡는 것이 전체 흐름을 안정시키는 데 더 유리합니다.";
   
-  return { daeun, monthlyAdvice, wealth, love, career, health };
+  const luckyColor = `오늘은 ${dayMaster} 일간의 기운을 보강하는 색깔을 활용하시면 좋습니다. 주변 환경이나 의상에 해당 색을 가미하면 긍정적인 에너지 흐름에 도움이 됩니다.`;
+  const luckyDirection = `오늘의 행운 방향은 일간 오행과 상생 관계에 있는 방향입니다. 중요한 미팅이나 이동 시 이 방향을 활용하면 기운의 흐름이 더 원활해집니다.`;
+  const caution = `오늘은 ${weakest} 기운이 약한 날이므로 해당 영역에서 무리한 결정을 피하는 것이 좋습니다. 감정적인 충동보다는 신중한 판단을 우선하고, 새로운 시작보다는 기존 계획을 점검하는 데 에너지를 쓰는 것이 현명합니다. 특히 오늘은 서두르는 행동이 예상치 못한 마찰을 만들 수 있으니 한 템포 여유를 두세요.`;
+
+  return { daeun, monthlyAdvice, wealth, love, career, health, luckyColor, luckyDirection, caution };
 }
 
 function sanitizePremiumReport(parsed: Partial<PremiumReport> | undefined, fallback: PremiumReport): PremiumReport {
@@ -125,20 +132,26 @@ function sanitizePremiumReport(parsed: Partial<PremiumReport> | undefined, fallb
     love: parsed?.love?.trim() || fallback.love,
     career: parsed?.career?.trim() || fallback.career,
     health: parsed?.health?.trim() || fallback.health,
+    luckyColor: parsed?.luckyColor?.trim() || fallback.luckyColor,
+    luckyDirection: parsed?.luckyDirection?.trim() || fallback.luckyDirection,
+    caution: parsed?.caution?.trim() || fallback.caution,
   };
 }
 
 const SYSTEM_PROMPT_PREMIUM = (timeSync: string) => `${timeSync}
 
 당신은 한국 전통 최고급 명리학자입니다.
-반드시 아래 6개 항목만 JSON으로 응답하세요.
+반드시 아래 9개 항목만 JSON으로 응답하세요.
 {
   "daeun": "문자열",
   "monthlyAdvice": "문자열",
   "wealth": "문자열",
   "love": "문자열",
   "career": "문자열",
-  "health": "문자열"
+  "health": "문자열",
+  "luckyColor": "오늘 오행 기운에 맞는 행운 색깔 1~2가지와 그 이유 (예: 붉은색·주황색 — 화(火) 기운을 보강하여...)",
+  "luckyDirection": "오늘 오행 기운에 맞는 행운 방향 1가지와 그 이유 (예: 남쪽 — 오늘 일진의 화(火) 기운과 상생하여...)",
+  "caution": "오늘 오행 충극 관계에서 반드시 조심해야 할 점 2~3가지를 구체적으로 서술"
 }`;
 
 export async function POST(request: NextRequest) {
@@ -190,6 +203,9 @@ ${profile.summaryText}
 - "love" (연애운): ${profile.freeTexts.love}
 - "career" (직장운): ${profile.freeTexts.work}
 - "health" (건강운): ${profile.freeTexts.health}
+- "luckyColor" (행운 색깔): 오늘 일진(${profile.todayPillar?.element}) 오행을 기준으로 상생하는 오행의 색깔 1~2가지와 명리학적 근거를 2~3문장으로 작성하세요.
+- "luckyDirection" (행운 방향): 오늘 일진 오행과 상생하는 방향 1가지와 명리학적 근거를 2~3문장으로 작성하세요.
+- "caution" (오늘 조심할 점): 오늘 일진과 사주 원국의 충극 관계에서 발생하는 주의사항을 실생활 조언 형태로 2~3가지 구체적으로 작성하세요. (최소 3~4문장)
 
 [🚨 상위 0.1% 최고급 명리학자 프리미엄 리포트 작성 지시]
 1. 항목별 철저한 독립성 (가장 중요): "오늘의 핵심 조언(monthlyAdvice)"과 "재물운(wealth)"의 내용이 단 한 문장도 겹쳐서는 안 됩니다! 완전히 다른 내용으로 철저하게 독립적으로 작성하세요.

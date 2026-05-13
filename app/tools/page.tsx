@@ -326,6 +326,9 @@ type PremiumReport = {
   love: string;
   career: string;
   health: string;
+  luckyColor?: string;
+  luckyDirection?: string;
+  caution?: string;
 };
 
 type DaeunInfo = {
@@ -972,6 +975,9 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                     { key: "love", title: "[연애운]", content: premiumResult.love },
                     { key: "career", title: "[직장·진로운]", content: premiumResult.career },
                     { key: "health", title: "[건강운]", content: premiumResult.health },
+                    ...(premiumResult.luckyColor ? [{ key: "luckyColor", title: "🎨 [오늘의 행운 색깔]", content: premiumResult.luckyColor }] : []),
+                    ...(premiumResult.luckyDirection ? [{ key: "luckyDirection", title: "🧭 [오늘의 행운 방향]", content: premiumResult.luckyDirection }] : []),
+                    ...(premiumResult.caution ? [{ key: "caution", title: "⚠️ [오늘 조심할 점]", content: premiumResult.caution }] : []),
                   ].map(({ key, title, content }) => (
                       <section key={key} className="space-y-4">
                         <h3 className="text-base font-semibold text-yellow-400">
