@@ -23,13 +23,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     {
-      url: `${baseUrl}/`, // 메인 페이지
+      url: `${baseUrl}/`,
       lastModified: new Date(),
+      changeFrequency: "daily" as const,
+      priority: 1,
     },
     {
-      url: `${baseUrl}/blog`, // 블로그 목록 페이지
+      url: `${baseUrl}/tools`,
       lastModified: new Date(),
+      changeFrequency: "daily" as const,
+      priority: 0.9,
     },
-    ...blogUrls, // 블로그 상세 글들
+    {
+      url: `${baseUrl}/vip`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/lotto`,
+      lastModified: new Date(),
+      changeFrequency: "daily" as const,
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    },
+    ...blogUrls,
   ];
 }
