@@ -1891,7 +1891,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                 {floatingWishes.map((wish, i) => (
                   <div
                     key={`wish-${i}`}
-                    className="absolute max-w-[45vw]"
+                    className="absolute"
                     style={{
                       left: `${15 + ((i * 17 + 5) % 70)}%`,
                       top: `${30 + (i * 11 % 41)}%`,
@@ -1900,7 +1900,7 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                       animationDelay: `${(i * 0.7) % 8}s`,
                     }}
                   >
-                    <p className="mx-auto max-w-[45vw] truncate text-center text-sm font-medium text-white/60 px-1">
+                    <p className="mx-auto break-words whitespace-normal max-w-[40vw] text-xs leading-snug text-center font-medium text-white/60 px-1">
                       {wish}
                     </p>
                   </div>
@@ -1920,33 +1920,35 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
                   return (
                     <div
                       key={pw.id}
-                      className="absolute max-w-[45vw]"
+                      className="absolute"
                       style={{
                         left: `${leftPct}%`,
                         animation: `float-up-premium ${duration}s linear infinite`,
                         animationDelay: delay,
                       }}
                     >
-                      <div className="mx-auto flex max-w-[45vw] flex-col items-center justify-center overflow-hidden bg-black/30 px-4 py-3 rounded-2xl border border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.15)] backdrop-blur-sm">
+                      <div className="mx-auto flex max-w-[40vw] flex-col items-center justify-center bg-black/30 px-4 py-3 rounded-2xl border border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.15)] backdrop-blur-sm">
                         <p
-                          className={`w-full max-w-[45vw] truncate text-center leading-snug ${
+                          className={`w-full break-words whitespace-normal max-w-[40vw] text-xs leading-snug text-center ${
                             isTenDays
-                              ? "text-base sm:text-xl font-extrabold text-yellow-200 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)] break-keep"
-                              : "text-sm sm:text-lg font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] break-keep"
+                              ? "font-extrabold text-yellow-200 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]"
+                              : "font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]"
                           }`}
                         >
                           {pw.badge}
                         </p>
                         <p
-                          className={`mt-1 w-full max-w-[45vw] truncate text-center leading-snug ${
+                          className={`mt-1 w-full break-words whitespace-normal max-w-[40vw] text-xs leading-snug text-center ${
                             isTenDays
-                              ? "text-base sm:text-xl font-extrabold text-yellow-200 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)] break-keep"
-                              : "text-sm sm:text-lg font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] break-keep"
+                              ? "font-extrabold text-yellow-200 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]"
+                              : "font-bold text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]"
                           }`}
                         >
                           {pw.content}
                         </p>
-                        <p className={`w-full max-w-[45vw] truncate text-center ${isTenDays ? "mt-1.5 text-xs font-medium text-amber-200/90" : "mt-1.5 text-[11px] text-yellow-400/80"}`}>
+                        <p
+                          className={`mt-1.5 w-full break-words whitespace-normal max-w-[40vw] text-xs leading-snug text-center font-medium ${isTenDays ? "text-amber-200/90" : "text-yellow-400/80"}`}
+                        >
                           남은 시간: {formatCountdown(remaining)}
                         </p>
                       </div>
