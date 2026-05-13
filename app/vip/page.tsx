@@ -213,6 +213,39 @@ export default function VipLandingPage() {
   /** 동일 마크다운으로 PDF 빌드가 중복 실행되지 않도록 */
   const [reportRevision, setReportRevision] = useState(0);
   const [hasSavedVipRestore, setHasSavedVipRestore] = useState(false);
+  const [reviewIndex, setReviewIndex] = useState(0);
+
+  const REVIEWS = [
+    {
+      name: "김*현",
+      date: "2025.12",
+      star: "★★★★★",
+      job: "30대 직장인",
+      text: "사주 책도 여러 권 읽어봤는데, 이렇게 구체적으로 제 상황에 맞게 풀어준 건 처음이에요. 2026년 이직 타이밍 조언이 정말 소름이었습니다. 실제로 그 시기에 좋은 제안이 왔어요.",
+    },
+    {
+      name: "이*진",
+      date: "2026.01",
+      star: "★★★★★",
+      job: "40대 사업가",
+      text: "재물운 파트에서 '편재가 강해 큰 흐름을 읽는 능력이 있다'는 분석이 딱 맞았어요. 투자 타이밍 조언도 구체적이고 실용적이었습니다. PDF로 저장해두고 계속 보고 있어요.",
+    },
+    {
+      name: "박*은",
+      date: "2026.02",
+      star: "★★★★☆",
+      job: "20대 취준생",
+      text: "솔직히 반신반의하며 결제했는데 제 고민을 정확히 짚어줘서 놀랐어요. 취업 방향성이 흔들리던 시기였는데 천직 분석 파트 읽고 방향을 잡았습니다. 가격 아깝지 않아요.",
+    },
+  ];
+
+  // 자동 슬라이드 (4초마다)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setReviewIndex((prev) => (prev + 1) % REVIEWS.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
   const [isAdminMode, setIsAdminMode] = useState(false);
 
   useEffect(() => {
@@ -914,48 +947,72 @@ export default function VipLandingPage() {
           ))}
         </div>
 
-        {/* 실제 후기 */}
-        <div className="mt-8 space-y-3">
-          <h2 className="text-center font-serif text-base text-amber-200/80">💬 실제 이용자 후기</h2>
-          {[
-            {
-              name: "김*현",
-              date: "2025.12",
-              star: "★★★★★",
-              job: "30대 직장인",
-              text: "사주 책도 여러 권 읽어봤는데, 이렇게 구체적으로 제 상황에 맞게 풀어준 건 처음이에요. 2026년 이직 타이밍 조언이 정말 소름이었습니다. 실제로 그 시기에 좋은 제안이 왔어요.",
-            },
-            {
-              name: "이*진",
-              date: "2026.01",
-              star: "★★★★★",
-              job: "40대 사업가",
-              text: "재물운 파트에서 '편재가 강해 큰 흐름을 읽는 능력이 있다'는 분석이 딱 맞았어요. 투자 타이밍 조언도 구체적이고 실용적이었습니다. PDF로 저장해두고 계속 보고 있어요.",
-            },
-            {
-              name: "박*은",
-              date: "2026.02",
-              star: "★★★★☆",
-              job: "20대 취준생",
-              text: "솔직히 반신반의하며 결제했는데 제 고민을 정확히 짚어줘서 놀랐어요. 취업 방향성이 흔들리던 시기였는데 천직 분석 파트 읽고 방향을 잡았습니다. 가격 아깝지 않아요.",
-            },
-          ].map((review) => (
-            <div key={review.name} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-300">
-                    {review.name[0]}
+        {/* 실제 후기 - 슬라이드형 캐러셀 */}
+        <div className="mt-8">
+          <h2 className="text-center font-serif text-base text-amber-200/80 mb-4">💬 실제 이용자 후기</h2>
+
+          {/* 슬라이드 카드 */}
+          <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-white/5 p-5 min-h-[140px]">
+            {REVIEWS.map((review, idx) => (
+              <div
+                key={review.name}
+                className={`transition-all duration-500 ${
+                  idx === reviewIndex
+                    ? "opacity-100 translate-x-0"
+                    : idx < reviewIndex
+                    ? "opacity-0 -translate-x-full absolute inset-0 p-5"
+                    : "opacity-0 translate-x-full absolute inset-0 p-5"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/20 text-sm font-bold text-amber-300">
+                      {review.name[0]}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white/80">
+                        {review.name}
+                        <span className="text-white/40 font-normal"> · {review.job}</span>
+                      </p>
+                      <p className="text-[10px] text-white/30">{review.date}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-white/80">{review.name} <span className="text-white/40 font-normal">· {review.job}</span></p>
-                    <p className="text-[10px] text-white/30">{review.date}</p>
-                  </div>
+                  <span className="text-sm text-amber-400">{review.star}</span>
                 </div>
-                <span className="text-xs text-amber-400">{review.star}</span>
+                <p className="text-xs leading-relaxed text-white/65">{review.text}</p>
               </div>
-              <p className="text-xs leading-relaxed text-white/60">{review.text}</p>
+            ))}
+          </div>
+
+          {/* 하단 인디케이터 + 수동 버튼 */}
+          <div className="mt-3 flex items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => setReviewIndex((prev) => (prev - 1 + REVIEWS.length) % REVIEWS.length)}
+              className="text-white/30 hover:text-white/70 transition-colors text-lg px-2"
+            >
+              ‹
+            </button>
+            <div className="flex gap-1.5">
+              {REVIEWS.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setReviewIndex(idx)}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    idx === reviewIndex ? "w-6 bg-amber-400" : "w-1.5 bg-white/20"
+                  }`}
+                />
+              ))}
             </div>
-          ))}
+            <button
+              type="button"
+              onClick={() => setReviewIndex((prev) => (prev + 1) % REVIEWS.length)}
+              className="text-white/30 hover:text-white/70 transition-colors text-lg px-2"
+            >
+              ›
+            </button>
+          </div>
         </div>
 
         {/* 보안 배지 */}
