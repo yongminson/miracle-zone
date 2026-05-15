@@ -591,7 +591,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     return (
       <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="mb-4 text-center text-sm font-semibold text-black">사주팔자 (만세력)</h3>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-3">
           {cols.map(({ key, label, cell }) => (
             <div
               key={key}
@@ -5231,10 +5231,10 @@ function ZodiacTab({ isVisible }: { isVisible: boolean }) {
                   : "border-white/10 bg-white/5 hover:border-yellow-400/30"
               }`}
             >
-              <div className="relative h-14 w-14 overflow-hidden rounded-xl">
+              <div className="relative h-16 w-16 overflow-hidden rounded-xl">
                 <Image src={z.img} alt={z.label} fill className="object-cover" />
               </div>
-              <span className="text-[11px] font-medium text-white/80">{z.label}</span>
+              <span className="text-xs font-bold text-white/90">{z.label}</span>
             </button>
           ))}
         </div>
@@ -5296,12 +5296,31 @@ function ZodiacTab({ isVisible }: { isVisible: boolean }) {
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  const text = `${selectedZodiac.label} 운세\n\n${selectedZodiac[activeSection]}\n\n명운(命運)에서 확인하기: ${window.location.origin}`;
+                onClick={async () => {
+                  const shareText = `🐉 ${selectedZodiac.label} 운세\n\n${selectedZodiac[activeSection]}\n\n✨ 명운(命運)에서 나의 띠별 운세 확인하기\n${window.location.origin}/tools?tab=zodiac`;
                   if (navigator.share) {
-                    navigator.share({ title: `${selectedZodiac.label} 운세`, text });
+                    try {
+                      // logo.png 이미지 파일로 공유
+                      const response = await fetch('/logo.png');
+                      const blob = await response.blob();
+                      const file = new File([blob], 'myungwoon.png', { type: 'image/png' });
+                      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                          title: `${selectedZodiac.label} 운세 — 명운(命運)`,
+                          text: shareText,
+                          files: [file],
+                        });
+                      } else {
+                        await navigator.share({
+                          title: `${selectedZodiac.label} 운세 — 명운(命運)`,
+                          text: shareText,
+                        });
+                      }
+                    } catch {
+                      navigator.clipboard.writeText(shareText).then(() => alert("클립보드에 복사됐습니다!"));
+                    }
                   } else {
-                    navigator.clipboard.writeText(text).then(() => alert("클립보드에 복사됐습니다!"));
+                    navigator.clipboard.writeText(shareText).then(() => alert("클립보드에 복사됐습니다!"));
                   }
                 }}
                 className="rounded-2xl border border-sky-500/40 bg-sky-500/10 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20"
