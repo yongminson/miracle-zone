@@ -5352,7 +5352,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
         currency: "KRW",
         payMethod: selectedPayMethod === "kakaopay" ? "EASY_PAY" : selectedPayMethod === "tosspay" ? "EASY_PAY" : "CARD",
         customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
-        redirectUrl: isMobile ? `${toolsOrigin}?tab=palmistry` : undefined,
+        redirectUrl: isMobile ? `${toolsOrigin}?tab=saju` : undefined,
       });
       const portOneFail = getPortOnePaymentFailureReason(response, { isMobile });
       if (portOneFail) {
@@ -6191,12 +6191,16 @@ export default function Home() {
             // last_authorized_imp_uid 먼저 저장 후 탭 이동
             localStorage.setItem("last_authorized_imp_uid", returnPayId);
             // 탭 이동 전 약간의 딜레이로 isVisible 트리거 보장
-            setActiveTab("saju");
-            setTimeout(() => {
-              window.scrollTo({ top: 0, behavior: "smooth" });
-              // isVisible 재트리거를 위해 강제 리렌더
-              window.dispatchEvent(new CustomEvent("palmistryPaymentSuccess"));
-            }, 300);
+            if (pendingType === "palmistry") {
+              localStorage.setItem("palmistry_done", "1");
+              setActiveTab("palmistry");
+            } else {
+              setActiveTab("saju");
+              setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                window.dispatchEvent(new CustomEvent("palmistryPaymentSuccess"));
+              }, 300);
+            }
           },
         );
         return;
