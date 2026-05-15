@@ -5181,21 +5181,35 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
         localStorage.removeItem("pendingPalmistryData");
         localStorage.removeItem("pendingPaymentType");
         localStorage.removeItem("pendingPaymentAmount");
-        // 결제 후 자동으로 심층 분석 실행
-        // 모바일 리다이렉트 시 sessionStorage가 유지되는지 확인 후 실행
-        const checkAndAnalyze = () => {
+        // 결제 후 자동으로 심층 분석 실행 — 로딩 즉시 표시 후 API 직접 호출
+        setIsLoading(true);
+        setTimeout(async () => {
           const img = savedImageBase64Ref.current || sessionStorage.getItem("pendingPalmistryImage");
-          if (img) {
-            setTimeout(() => { doPremiumAnalyze(); }, 300);
-          } else {
-            // 이미지가 없으면 로딩 표시하며 안내
-            setIsLoading(true);
-            alert("✅ 결제가 완료되었습니다!\n\n손금 이미지를 다시 업로드해주시면\n즉시 심층 분석을 시작합니다.");
+          if (!img) {
             setIsLoading(false);
             setIsPremiumUnlocked(true);
+            alert("✅ 결제 완료!\n손금 이미지를 다시 업로드하면 즉시 심층 분석합니다.");
+            return;
           }
-        };
-        checkAndAnalyze();
+          try {
+            if (img) { savedImageBase64Ref.current = img; setImagePreview(img); }
+            const fetchRes = await fetch(img);
+            const blob = await fetchRes.blob();
+            const file = new File([blob], "palm.jpg", { type: blob.type || "image/jpeg" });
+            setImageFile(file);
+            const formData = new FormData();
+            formData.append("image", file);
+            formData.append("hand", savedHandRef.current || "right");
+            formData.append("isPremium", "true");
+            const apiRes = await fetch("/api/palmistry", { method: "POST", body: formData });
+            const data = await apiRes.json();
+            if (data.error) { alert(data.error); return; }
+            if (!data.result) { alert("분석 결과를 받지 못했습니다. 다시 시도해주세요."); return; }
+            setPremiumResult(data.result);
+            setIsPremiumUnlocked(true);
+          } catch { alert("분석 중 오류가 발생했습니다. 다시 시도해주세요."); }
+          finally { setIsLoading(false); }
+        }, 300);
       } else if (palmSaved && !(pendingType === "palmistry" && !lastImpUid)) {
         localStorage.removeItem("pendingPalmistryData");
       }
