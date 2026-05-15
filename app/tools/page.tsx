@@ -5300,22 +5300,11 @@ function ZodiacTab({ isVisible }: { isVisible: boolean }) {
                   const shareText = `🐉 ${selectedZodiac.label} 운세\n\n${selectedZodiac[activeSection]}\n\n✨ 명운(命運)에서 나의 띠별 운세 확인하기\n${window.location.origin}/tools?tab=zodiac`;
                   if (navigator.share) {
                     try {
-                      // logo.png 이미지 파일로 공유
-                      const response = await fetch('/logo.png');
-                      const blob = await response.blob();
-                      const file = new File([blob], 'myungwoon.png', { type: 'image/png' });
-                      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        await navigator.share({
-                          title: `${selectedZodiac.label} 운세 — 명운(命運)`,
-                          text: shareText,
-                          files: [file],
-                        });
-                      } else {
-                        await navigator.share({
-                          title: `${selectedZodiac.label} 운세 — 명운(命運)`,
-                          text: shareText,
-                        });
-                      }
+                      await navigator.share({
+                        title: `${selectedZodiac.label} 운세 — 명운(命運)`,
+                        text: shareText,
+                        url: `${window.location.origin}/tools?tab=zodiac`,
+                      });
                     } catch {
                       navigator.clipboard.writeText(shareText).then(() => alert("클립보드에 복사됐습니다!"));
                     }
