@@ -22,7 +22,8 @@ import {
   Camera,
   FileText,
   Bell, // 🚀 종 아이콘 추가
-  Star, // 🚀 띠별 운세 아이콘
+  Star,  // 🚀 띠별 운세 아이콘
+  Hand,  // 🚀 손금 분석 아이콘
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -126,7 +127,7 @@ function AdminDashboard() {
 }
 
 // 🚀 mbti와 match(궁합) 탭 추가
-type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match" | "zodiac";
+type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match" | "zodiac" | "palmistry";
 
 async function captureAndShareElement(
   target: HTMLElement | null,
@@ -247,9 +248,10 @@ const pushSecret = (char: string, callback?: () => void) => {
 // 🚀 사람들을 홀리는 마법의 네이밍 & 완벽한 탭 순서 배치
 const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, isReady: true },
-  { id: "zodiac",  label: "띠별 운세",   icon: Star,     isReady: true },
-  { id: "saju",    label: "관상/이름 풀이", icon: FileText, isReady: true },
-  { id: "match",   label: "소름돋는 궁합", icon: Heart,    isReady: true },
+  { id: "zodiac",     label: "띠별 운세",    icon: Star,     isReady: true },
+  { id: "saju",       label: "관상/이름 풀이", icon: FileText, isReady: true },
+  { id: "palmistry",  label: "손금 분석",    icon: Hand,     isReady: true },
+  { id: "match",      label: "소름돋는 궁합", icon: Heart,    isReady: true },
   { id: "mbti",    label: "MBTI - 심층 성격 검사", icon: Activity, isReady: true },
   { id: "dream",   label: "꿈 해몽",      icon: BookOpen, isReady: true },
   { id: "lotto",   label: "행운의 로또",  icon: Trophy,   isReady: true },
@@ -5078,6 +5080,327 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
 );
 }
 
+// ===== 손금 분석 탭 =====
+function PalmistryTab({ isVisible }: { isVisible: boolean }) {
+  const [hand, setHand] = useState<"left" | "right">("right");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [freeResult, setFreeResult] = useState<any>(null);
+  const [premiumResult, setPremiumResult] = useState<any>(null);
+  const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [premiumPeriod, setPremiumPeriod] = useState<"24h" | "10d">("24h");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isVisible) {
+      supabase.rpc('increment_tab_click', { target_tab_id: 'palmistry' }).then(({ error }) => { if(error) console.error('손금 에러:', error) });
+      // 마스터 어드민 체크
+      if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+        setIsPremiumUnlocked(true);
+      }
+    }
+  }, [isVisible]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("이미지 크기는 5MB 이하여야 합니다.");
+      return;
+    }
+    setImageFile(file);
+    setFreeResult(null);
+    setPremiumResult(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleAnalyze = async () => {
+    if (!imageFile) {
+      alert("손바닥 사진을 먼저 업로드해주세요.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", imageFile);
+      formData.append("hand", hand);
+      formData.append("isPremium", "false");
+
+      const res = await fetch("/api/palmistry", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.error) { alert(data.error); return; }
+      setFreeResult(data.result);
+    } catch {
+      alert("분석 중 오류가 발생했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePremiumAnalyze = async () => {
+    if (!imageFile) return;
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", imageFile);
+      formData.append("hand", hand);
+      formData.append("isPremium", "true");
+
+      const res = await fetch("/api/palmistry", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.error) { alert(data.error); return; }
+      setPremiumResult(data.result);
+      setShowPremiumModal(false);
+    } catch {
+      alert("분석 중 오류가 발생했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const GRADE_COLOR: Record<string, string> = {
+    "A+": "text-yellow-400", "A": "text-emerald-400",
+    "B+": "text-blue-400",   "B": "text-white/80", "C": "text-white/50",
+  };
+
+  const PALM_LINES = [
+    { key: "lifeLine",  label: "💚 생명선", desc: "건강·체력·생명력" },
+    { key: "heartLine", label: "❤️ 감정선", desc: "감정·연애·인간관계" },
+    { key: "headLine",  label: "💙 두뇌선", desc: "지성·사고력·창의성" },
+    { key: "fateLine",  label: "🌟 운명선", desc: "직업·성공·운명" },
+  ];
+
+  const PREMIUM_SECTIONS = [
+    { key: "wealth",  title: "💰 재물운",      icon: "💰" },
+    { key: "love",    title: "💕 결혼·연애운",  icon: "💕" },
+    { key: "health",  title: "💊 건강·수명운",  icon: "💊" },
+    { key: "career",  title: "🏆 직업·성공운",  icon: "🏆" },
+    { key: "summary", title: "✨ 종합 운명 리포트", icon: "✨" },
+  ];
+
+  return (
+    <div
+      className={`w-full min-h-screen relative ${isVisible ? "block" : "hidden"}`}
+      style={{
+        backgroundImage: "url('/images/bg-palmistry.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+      }}
+    >
+      <div className="absolute inset-0 bg-black/65 pointer-events-none" />
+
+      {/* 헤더 */}
+      <div className="relative z-10 pt-8 pb-4 text-center">
+        <h2 className="text-2xl font-bold text-yellow-400 mb-1">✋ 손금 분석</h2>
+        <p className="text-xs text-white/70">손바닥 사진을 업로드하면 AI가 손금을 분석합니다</p>
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-md px-4 pb-8 space-y-5">
+
+        {!freeResult ? (
+          <>
+            {/* 손 선택 */}
+            <div className="flex gap-3">
+              {(["right", "left"] as const).map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => setHand(h)}
+                  className={`flex-1 rounded-2xl border py-3 text-sm font-bold transition-all ${
+                    hand === h
+                      ? "border-yellow-400/70 bg-yellow-400/15 text-yellow-400"
+                      : "border-white/10 bg-white/5 text-white/60 hover:border-yellow-400/30"
+                  }`}
+                >
+                  {h === "right" ? "🖐️ 오른손" : "🤚 왼손"}
+                </button>
+              ))}
+            </div>
+
+            {/* 이미지 업로드 */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="cursor-pointer rounded-2xl border-2 border-dashed border-white/20 bg-white/5 p-6 text-center hover:border-yellow-400/40 transition-all"
+            >
+              {imagePreview ? (
+                <img src={imagePreview} alt="손금 미리보기" className="mx-auto max-h-48 rounded-xl object-contain" />
+              ) : (
+                <>
+                  <p className="text-4xl mb-3">🖐️</p>
+                  <p className="text-sm font-bold text-white/80 mb-1">손바닥 사진 업로드</p>
+                  <p className="text-xs text-white/45">손가락이 펼쳐진 손바닥 사진 · 최대 5MB</p>
+                </>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageChange}
+            />
+
+            {/* 촬영 팁 */}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-1.5">
+              <p className="text-xs font-bold text-yellow-400/90">📸 잘 나오는 촬영 방법</p>
+              <p className="text-[11px] text-white/55">• 밝은 조명 아래에서 촬영하세요</p>
+              <p className="text-[11px] text-white/55">• 손가락을 자연스럽게 펼쳐주세요</p>
+              <p className="text-[11px] text-white/55">• 손바닥 전체가 사진에 담기도록 하세요</p>
+              <p className="text-[11px] text-white/55">• 오른손: 현재·미래 운세 / 왼손: 타고난 운명</p>
+            </div>
+
+            {/* 분석 버튼 */}
+            <button
+              type="button"
+              onClick={handleAnalyze}
+              disabled={!imageFile || isLoading}
+              className="w-full rounded-2xl bg-gradient-to-r from-yellow-500 to-amber-600 py-4 text-base font-bold text-slate-900 shadow-lg transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isLoading ? "🔮 손금 분석 중..." : "✋ 손금 무료 분석하기"}
+            </button>
+          </>
+        ) : (
+          <>
+            {/* 무료 결과 */}
+            <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-5">
+              <div className="flex items-center gap-4 mb-4">
+                {imagePreview && (
+                  <img src={imagePreview} alt="손금" className="h-16 w-16 rounded-xl object-cover shrink-0" />
+                )}
+                <div>
+                  <p className="text-xs text-white/50 mb-1">{hand === "right" ? "오른손" : "왼손"} 분석 결과</p>
+                  <p className="text-sm text-white/80">{freeResult.handType}</p>
+                </div>
+              </div>
+
+              {/* 등급 */}
+              <div className="text-center py-3 mb-4 rounded-xl border border-white/10 bg-white/5">
+                <p className="text-xs text-white/50 mb-1">손금 종합 등급</p>
+                <p className={`text-4xl font-bold ${GRADE_COLOR[freeResult.overallGrade] ?? "text-white"}`}>
+                  {freeResult.overallGrade}
+                </p>
+                <p className="text-xs text-white/60 mt-1">{freeResult.gradeDesc}</p>
+              </div>
+
+              {/* 성격 요약 */}
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3 mb-4">
+                <p className="text-xs font-bold text-yellow-400/80 mb-1">✨ 손금으로 본 성격</p>
+                <p className="text-sm text-white/80">{freeResult.personality}</p>
+              </div>
+
+              {/* 4대 손금선 */}
+              <div className="space-y-3">
+                {PALM_LINES.map((line) => (
+                  freeResult[line.key] && (
+                    <div key={line.key} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-xs font-bold text-white/70 mb-1">
+                        {line.label}
+                        <span className="ml-1 text-white/35 font-normal">— {line.desc}</span>
+                      </p>
+                      <p className="text-sm text-white/75">{freeResult[line.key]}</p>
+                    </div>
+                  )
+                ))}
+              </div>
+            </div>
+
+            {/* 프리미엄 결과 */}
+            {premiumResult ? (
+              <div className="space-y-3">
+                <p className="text-center text-sm font-bold text-yellow-400">✨ 심층 손금 분석 리포트</p>
+                {PREMIUM_SECTIONS.map((section) => (
+                  premiumResult[section.key] && (
+                    <div key={section.key} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                      <p className="text-sm font-bold text-yellow-400 mb-2">{section.title}</p>
+                      <p className="text-sm leading-relaxed text-white/80">{premiumResult[section.key]}</p>
+                    </div>
+                  )
+                ))}
+              </div>
+            ) : (
+              /* 프리미엄 유도 버튼 */
+              <div className="rounded-2xl border border-yellow-500/30 bg-yellow-500/5 p-5 text-center">
+                <p className="text-sm font-bold text-yellow-400 mb-2">🔮 심층 손금 분석 리포트</p>
+                <p className="text-xs text-white/55 mb-4">
+                  재물운 · 결혼운 · 건강운 · 직업운 · 종합 운명 리포트를<br />AI로 상세하게 분석해드립니다
+                </p>
+                <button
+                  type="button"
+                  onClick={() => isPremiumUnlocked ? handlePremiumAnalyze() : setShowPremiumModal(true)}
+                  disabled={isLoading}
+                  className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3.5 text-sm font-bold text-slate-900 shadow-lg transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-40"
+                >
+                  {isLoading ? "🔮 분석 중..." : "✨ 상세 손금 분석 보기 (4,900원)"}
+                </button>
+              </div>
+            )}
+
+            {/* 다시 하기 */}
+            <button
+              type="button"
+              onClick={() => { setFreeResult(null); setPremiumResult(null); setImageFile(null); setImagePreview(null); }}
+              className="w-full rounded-2xl border border-white/20 bg-white/5 py-3 text-sm font-medium text-white/70 transition-colors hover:bg-white/10"
+            >
+              다른 손 분석하기
+            </button>
+
+            {/* SEO 아코디언 */}
+            <SeoAccordion title="손금(手相)이란 무엇인가요? ▾" items={[
+              { q: "손금학(手相學)의 원리", a: "손금은 손바닥의 선과 구릉의 형태를 분석하여 그 사람의 성격, 건강, 운명을 파악하는 동서양 공통의 전통 학문입니다. 생명선·감정선·두뇌선·운명선의 4대 주요선을 중심으로 분석합니다." },
+              { q: "오른손과 왼손의 차이", a: "동양 손금학에서는 오른손이 현재와 미래의 운명을, 왼손이 타고난 선천적 운명을 나타낸다고 봅니다. 두 손을 함께 비교하면 더 정확한 분석이 가능합니다." },
+              { q: "손금은 변하나요?", a: "손금은 나이와 생활 습관, 마음 상태에 따라 서서히 변합니다. 긍정적인 생각과 건강한 생활이 손금을 좋게 바꿀 수 있다고 봅니다." },
+            ]} />
+          </>
+        )}
+
+      </div>
+
+      {/* 프리미엄 결제 모달 */}
+      {showPremiumModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          onClick={() => setShowPremiumModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-yellow-500/30 bg-slate-900 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-2 text-center text-lg font-bold text-yellow-400">✋ 심층 손금 분석</h3>
+            <p className="mb-5 text-center text-sm text-white/60">재물·결혼·건강·직업·종합 운명 리포트</p>
+
+            <div className="flex flex-col gap-2 mb-5">
+              {([["24h", "24시간 이용권", "4,900원"], ["10d", "10일 이용권", "6,900원"]] as const).map(([val, label, price]) => (
+                <label key={val} className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all ${premiumPeriod === val ? "border-yellow-400/60 bg-yellow-400/10" : "border-white/10 bg-white/5"}`}>
+                  <input type="radio" checked={premiumPeriod === val} onChange={() => setPremiumPeriod(val)} className="accent-yellow-400" />
+                  <span className="text-sm text-white/80">{label}</span>
+                  <span className="ml-auto text-sm font-bold text-yellow-400">{price}</span>
+                </label>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={handlePremiumAnalyze}
+              disabled={isLoading}
+              className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3.5 font-bold text-slate-900 transition-all hover:from-yellow-400 disabled:opacity-40"
+            >
+              {isLoading ? "분석 중..." : "결제하고 분석받기"}
+            </button>
+            <button type="button" onClick={() => setShowPremiumModal(false)} className="mt-3 w-full rounded-xl border border-white/20 bg-white/5 py-3 text-sm text-white/70">
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ===== 띠별 운세 탭 =====
 // 현재 연도 기준으로 띠 해당 연도 자동 생성
 function getZodiacYears(baseYear: number): string {
@@ -5394,7 +5717,7 @@ export default function Home() {
       !!returnPayId ||
       params.get("imp_success") === "true" ||
       params.get("success") === "true";
-      const validTabs: TabId[] = ["fortune", "dream", "lotto", "altar", "saju", "mbti", "match", "zodiac"];
+      const validTabs: TabId[] = ["fortune", "dream", "lotto", "altar", "saju", "mbti", "match", "zodiac", "palmistry"];
       const tabFromUrl = params.get("tab") as TabId | null;
       if (tabFromUrl && validTabs.includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
@@ -5784,6 +6107,7 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
           if (tab.id === "mbti") return <MbtiTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
           if (tab.id === "match") return <MatchTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
           if (tab.id === "zodiac") return <ZodiacTab key={tab.id} isVisible={isVisible} />;
+          if (tab.id === "palmistry") return <PalmistryTab key={tab.id} isVisible={isVisible} />;
 
           return (
             <div
