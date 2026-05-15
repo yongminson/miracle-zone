@@ -5159,13 +5159,24 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
 
   const doPremiumAnalyze = async () => {
     let targetFile = imageFile;
-    if (!targetFile && savedImageBase64Ref.current) {
-      try {
-        const res = await fetch(savedImageBase64Ref.current);
-        const blob = await res.blob();
-        targetFile = new File([blob], "palm.jpg", { type: blob.type || "image/jpeg" });
-        setImageFile(targetFile);
-      } catch { alert("이미지를 찾을 수 없습니다. 다시 업로드해주세요."); return; }
+
+    // imageFile 없으면 savedImageBase64Ref에서 복구
+    if (!targetFile) {
+      // sessionStorage에서도 시도
+      const sessionImage = sessionStorage.getItem("pendingPalmistryImage");
+      const base64 = savedImageBase64Ref.current || sessionImage;
+      if (base64) {
+        try {
+          const res = await fetch(base64);
+          const blob = await res.blob();
+          targetFile = new File([blob], "palm.jpg", { type: blob.type || "image/jpeg" });
+          setImageFile(targetFile);
+          savedImageBase64Ref.current = base64;
+          if (sessionImage) sessionStorage.removeItem("pendingPalmistryImage");
+        } catch (e) {
+          alert("이미지 복구에 실패했습니다. 다시 업로드해주세요."); return;
+        }
+      }
     }
     if (!targetFile) { alert("이미지를 찾을 수 없습니다. 다시 업로드해주세요."); return; }
     setIsLoading(true);
