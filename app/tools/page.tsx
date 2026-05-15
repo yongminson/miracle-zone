@@ -247,13 +247,13 @@ const pushSecret = (char: string, callback?: () => void) => {
 // 🚀 사람들을 홀리는 마법의 네이밍 & 완벽한 탭 순서 배치
 const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, isReady: true },
-  { id: "zodiac", label: "띠별 운세", icon: Star, isReady: true },
-  { id: "saju", label: "관상/이름 풀이", icon: FileText, isReady: true },
-  { id: "match", label: "소름돋는 궁합", icon: Heart, isReady: true }, 
-  { id: "mbti", label: "MBTI - 심층 성격 검사", icon: Activity, isReady: true },
-  { id: "dream", label: "꿈 해몽", icon: BookOpen, isReady: true },
-  { id: "lotto", label: "행운의 로또", icon: Trophy, isReady: true },
-  { id: "altar", label: "기적의 제단", icon: Flame, isReady: true },
+  { id: "zodiac",  label: "띠별 운세",   icon: Star,     isReady: true },
+  { id: "saju",    label: "관상/이름 풀이", icon: FileText, isReady: true },
+  { id: "match",   label: "소름돋는 궁합", icon: Heart,    isReady: true },
+  { id: "mbti",    label: "MBTI - 심층 성격 검사", icon: Activity, isReady: true },
+  { id: "dream",   label: "꿈 해몽",      icon: BookOpen, isReady: true },
+  { id: "lotto",   label: "행운의 로또",  icon: Trophy,   isReady: true },
+  { id: "altar",   label: "기적의 제단",  icon: Flame,    isReady: true },
 ];
 
 const BIRTH_TIME_OPTIONS = [
@@ -5172,7 +5172,7 @@ function ZodiacTab({ isVisible }: { isVisible: boolean }) {
 
   useEffect(() => {
     if (isVisible) {
-      supabase.rpc('increment_tab_click', { target_tab_id: 'zodiac' }).catch(() => {});
+      supabase.rpc('increment_tab_click', { target_tab_id: 'zodiac' }).then(({ error }) => { if(error) console.error('띠별 에러:', error) });
     }
   }, [isVisible]);
 
@@ -5188,13 +5188,25 @@ function ZodiacTab({ isVisible }: { isVisible: boolean }) {
 
   return (
     <div className={`w-full ${isVisible ? "block" : "hidden"}`}>
-      <div className="mx-auto max-w-md px-4 py-6 space-y-6">
-
-        {/* 헤더 */}
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-yellow-400 mb-1">띠별 운세</h2>
-          <p className="text-xs text-white/50">나의 띠를 선택하여 운세를 확인하세요</p>
+      {/* 배경 이미지 헤더 */}
+      <div
+        className="relative w-full h-36 flex items-center justify-center mb-2"
+        style={{
+          backgroundImage: "url('/images/bg-zodiac.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="absolute inset-0 bg-black/50" />
+        <div className="relative z-10 text-center">
+          <h2 className="text-2xl font-bold text-yellow-400 mb-1">띠별 운세</h2>
+          <p className="text-xs text-white/70">나의 띠를 선택하여 운세를 확인하세요</p>
         </div>
+      </div>
+
+      <div className="mx-auto max-w-md px-4 py-4 space-y-6">
+
+        {/* 헤더 제거 후 바로 그리드 */}
 
         {/* 띠 선택 그리드 */}
         <div className="grid grid-cols-4 gap-2">
