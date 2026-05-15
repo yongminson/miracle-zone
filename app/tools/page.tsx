@@ -5182,7 +5182,20 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
         localStorage.removeItem("pendingPaymentType");
         localStorage.removeItem("pendingPaymentAmount");
         // 결제 후 자동으로 심층 분석 실행
-        setTimeout(() => { doPremiumAnalyze(); }, 500);
+        // 모바일 리다이렉트 시 sessionStorage가 유지되는지 확인 후 실행
+        const checkAndAnalyze = () => {
+          const img = savedImageBase64Ref.current || sessionStorage.getItem("pendingPalmistryImage");
+          if (img) {
+            setTimeout(() => { doPremiumAnalyze(); }, 300);
+          } else {
+            // 이미지가 없으면 로딩 표시하며 안내
+            setIsLoading(true);
+            alert("✅ 결제가 완료되었습니다!\n\n손금 이미지를 다시 업로드해주시면\n즉시 심층 분석을 시작합니다.");
+            setIsLoading(false);
+            setIsPremiumUnlocked(true);
+          }
+        };
+        checkAndAnalyze();
       } else if (palmSaved && !(pendingType === "palmistry" && !lastImpUid)) {
         localStorage.removeItem("pendingPalmistryData");
       }
@@ -6187,10 +6200,6 @@ export default function Home() {
             localStorage.setItem("last_authorized_imp_uid", returnPayId);
             localStorage.setItem("pendingPaymentType", "palmistry");
             setActiveTab("palmistry");
-            setTimeout(() => {
-              localStorage.setItem("last_authorized_imp_uid", returnPayId);
-              localStorage.setItem("pendingPaymentType", "palmistry");
-            }, 100);
           },
         );
         return;
