@@ -5183,6 +5183,14 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
 
   const handleAnalyze = async () => {
     if (!imageFile) { alert("손바닥 사진을 먼저 업로드해주세요."); return; }
+
+    // 왼손/오른손 확인 가드
+    const handLabel = hand === "right" ? "오른손" : "왼손";
+    const confirmed = window.confirm(
+      `${handLabel === "오른손" ? "🖐️" : "🤚"} ${handLabel} 손금을 분석합니다.\n\n업로드하신 사진이 ${handLabel} 손바닥 사진이 맞나요?\n\n확인을 누르면 분석을 시작합니다.`
+    );
+    if (!confirmed) return;
+
     savedHandRef.current = hand;
     setIsLoading(true);
     try {
@@ -5347,20 +5355,6 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
               )}
             </div>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-
-            {/* 손금선 안내 */}
-            <div className="rounded-xl border border-yellow-400/20 bg-yellow-400/5 p-4 space-y-2">
-              <p className="text-xs font-bold text-yellow-400/90">🔍 주요 손금선 위치 안내</p>
-              {PALM_LINES.map((line) => (
-                <div key={line.key} className="flex items-start gap-2">
-                  <span className="text-sm shrink-0">{line.label.split(" ")[0]}</span>
-                  <div>
-                    <span className="text-xs font-bold text-white/80">{line.label.split(" ")[1]}</span>
-                    <span className="text-xs text-white/45"> — {line.tip}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
 
             {/* 촬영 팁 */}
             <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
