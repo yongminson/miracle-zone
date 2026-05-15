@@ -5186,8 +5186,9 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
 
     // 왼손/오른손 확인 가드
     const handLabel = hand === "right" ? "오른손" : "왼손";
+    const otherLabel = hand === "right" ? "왼손" : "오른손";
     const confirmed = window.confirm(
-      `${handLabel === "오른손" ? "🖐️" : "🤚"} ${handLabel} 손금을 분석합니다.\n\n업로드하신 사진이 ${handLabel} 손바닥 사진이 맞나요?\n\n확인을 누르면 분석을 시작합니다.`
+      `⚠️ 손 선택 확인\n\n현재 선택: ${hand === "right" ? "🖐️" : "🤚"} ${handLabel}\n\n업로드하신 사진이 정말 ${handLabel} 손바닥 사진인가요?\n\n✅ 확인 → ${handLabel} 손금 분석 시작\n❌ 취소 → ${otherLabel}으로 다시 선택`
     );
     if (!confirmed) return;
 
