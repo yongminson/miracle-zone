@@ -6153,14 +6153,32 @@ export default function Home() {
             amount: localStorage.getItem("pendingPaymentAmount"),
           },
           () => {
-            // last_authorized_imp_uid 먼저 저장 후 탭 이동
             localStorage.setItem("last_authorized_imp_uid", returnPayId);
-            // 탭 이동 전 약간의 딜레이로 isVisible 트리거 보장
             setActiveTab("saju");
             setTimeout(() => {
               window.scrollTo({ top: 0, behavior: "smooth" });
-              // isVisible 재트리거를 위해 강제 리렌더
               window.dispatchEvent(new CustomEvent("palmistryPaymentSuccess"));
+            }, 300);
+          },
+        );
+        return;
+      }
+
+      // 🔧 버그2 수정: palmistry 결제 복귀 분기 추가
+      if (pendingType === "palmistry") {
+        await verifyAndAct(
+          {
+            paymentType: "saju",
+            imp_uid: returnPayId,
+            paymentId: returnPayId,
+            amount: localStorage.getItem("pendingPaymentAmount"),
+          },
+          () => {
+            localStorage.setItem("last_authorized_imp_uid", returnPayId);
+            localStorage.setItem("pendingPaymentType", "palmistry"); // PalmistryTab useEffect가 읽음
+            setActiveTab("palmistry");
+            setTimeout(() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
             }, 300);
           },
         );
