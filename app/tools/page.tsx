@@ -5171,7 +5171,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
           if (savedImage) {
             savedImageBase64Ref.current = savedImage;
             setImagePreview(savedImage);
-            localStorage.removeItem("pendingPalmistryImage");
+            // 이미지는 분석 완료 후 지움 (여기서 지우면 setTimeout에서 못 읽음)
           }
           if (parsed.hand) savedHandRef.current = parsed.hand;
           if (parsed.freeResult) {
