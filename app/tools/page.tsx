@@ -5425,7 +5425,8 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
           </>
         ) : (
           <>
-            {/* 무료 결과 */}
+            {/* 무료 결과 — 프리미엄 결과 있으면 숨김 */}
+            {!premiumResult && (
             <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-5">
               <div className="flex items-center gap-4 mb-4">
                 {imagePreview && (
@@ -5496,6 +5497,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
                 ))}
               </div>
             </div>
+            )}
 
             {/* 프리미엄 결과 */}
             {premiumResult ? (
