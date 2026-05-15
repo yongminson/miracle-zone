@@ -30,6 +30,17 @@ export async function POST(request: NextRequest) {
 
     // 무료 기본 분석 프롬프트
     const freePrompt = `당신은 수십 년 경력의 동양 손금 전문가입니다.
+업로드된 사진을 분석하기 전에 반드시 다음을 먼저 확인하세요:
+
+1. 사진에 사람의 손바닥이 있는가?
+2. 손바닥이 ${handLabel}인가? (왼손과 오른손을 엄지손가락 위치로 구별: 엄지가 오른쪽에 있으면 왼손, 왼쪽에 있으면 오른손)
+
+위 조건을 충족하지 않으면 반드시 아래 JSON으로 응답하세요:
+- 손이 아닌 경우: {"error": "손바닥 사진이 아닙니다. 손바닥이 잘 보이는 사진을 업로드해주세요."}
+- ${handLabel}이 아닌 경우: {"error": "wrong_hand"}
+
+조건을 충족하는 경우에만 아래 JSON 형식으로 분석 결과를 응답하세요.
+
 업로드된 ${handLabel} 손금 사진을 분석하여 아래 JSON 형식으로만 응답하세요.
 
 {
@@ -47,6 +58,17 @@ export async function POST(request: NextRequest) {
 
     // 유료 상세 분석 프롬프트
     const premiumPrompt = `당신은 수십 년 경력의 동양 손금 전문가입니다.
+업로드된 사진을 분석하기 전에 반드시 다음을 먼저 확인하세요:
+
+1. 사진에 사람의 손바닥이 있는가?
+2. 손바닥이 ${handLabel}인가? (왼손과 오른손을 엄지손가락 위치로 구별: 엄지가 오른쪽에 있으면 왼손, 왼쪽에 있으면 오른손)
+
+위 조건을 충족하지 않으면 반드시 아래 JSON으로 응답하세요:
+- 손이 아닌 경우: {"error": "손바닥 사진이 아닙니다. 손바닥이 잘 보이는 사진을 업로드해주세요."}
+- ${handLabel}이 아닌 경우: {"error": "wrong_hand"}
+
+조건을 충족하는 경우에만 아래 JSON 형식으로 분석 결과를 응답하세요.
+
 업로드된 ${handLabel} 손금 사진을 심층 분석하여 아래 JSON 형식으로만 응답하세요.
 
 {
@@ -138,8 +160,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (result.error) {
-      return NextResponse.json({ error: "손바닥 사진을 업로드해주세요. 손이 잘 보이는 사진이어야 합니다." }, { status: 400 });
-    }
+        if (result.error === "wrong_hand") {
+          const otherHand = hand === "right" ? "왼손" : "오른손";
+          return NextResponse.json({
+            error: `${otherHand} 손바닥 사진이 업로드됐습니다.\n${handLabel} 손바닥 사진으로 다시 업로드해주세요.`
+          }, { status: 400 });
+        }
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
 
     return NextResponse.json({ result });
 
