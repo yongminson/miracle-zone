@@ -5158,62 +5158,61 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
   useEffect(() => {
     if (typeof window === "undefined" || !isVisible) return;
 
-    const lastImpUid = localStorage.getItem("last_authorized_imp_uid");
-    const pendingType = localStorage.getItem("pendingPaymentType");
-    const palmSaved = localStorage.getItem("pendingPalmistryData");
+    const paymentDone = localStorage.getItem("palmistry_done");
+    if (!paymentDone) return;
 
-    // last_authorized_imp_uid 있으면 = 결제 성공 복귀 → pendingPaymentType 무관하게 처리
-    const paymentDone = localStorage.getItem("palmistry_payment_done");
-    if (paymentDone && palmSaved) {
-      localStorage.removeItem("palmistry_payment_done");
-        try {
-          const parsed = JSON.parse(palmSaved);
-          // 이미지는 sessionStorage에서 복구
-          const savedImage = localStorage.getItem("pendingPalmistryImage");
-          if (savedImage) {
-            savedImageBase64Ref.current = savedImage;
-            setImagePreview(savedImage);
-            // 이미지는 분석 완료 후 지움 (여기서 지우면 setTimeout에서 못 읽음)
-          }
-          if (parsed.hand) savedHandRef.current = parsed.hand;
-          if (parsed.freeResult) {
-            setFreeResult(parsed.freeResult);
-            setIsPremiumUnlocked(true);
-          }
-        } catch(e) {}
-        localStorage.removeItem("pendingPalmistryData");
-        localStorage.removeItem("pendingPaymentType");
-        localStorage.removeItem("pendingPaymentAmount");
-        // 결제 후 자동으로 심층 분석 실행 — 로딩 즉시 표시 후 API 직접 호출
-        setIsLoading(true);
-        setTimeout(async () => {
-          const img = savedImageBase64Ref.current || localStorage.getItem("pendingPalmistryImage");
-          if (!img) {
-            setIsLoading(false);
-            setIsPremiumUnlocked(true);
-            alert("✅ 결제 완료!\n손금 이미지를 다시 업로드하면 즉시 심층 분석합니다.");
-            return;
-          }
-          try {
-            if (img) { savedImageBase64Ref.current = img; setImagePreview(img); }
-            const fetchRes = await fetch(img);
-            const blob = await fetchRes.blob();
-            const file = new File([blob], "palm.jpg", { type: blob.type || "image/jpeg" });
-            setImageFile(file);
-            const formData = new FormData();
-            formData.append("image", file);
-            formData.append("hand", savedHandRef.current || "right");
-            formData.append("isPremium", "true");
-            const apiRes = await fetch("/api/palmistry", { method: "POST", body: formData });
-            const data = await apiRes.json();
-            if (data.error) { alert(data.error); return; }
-            if (!data.result) { alert("분석 결과를 받지 못했습니다. 다시 시도해주세요."); return; }
-            setPremiumResult(data.result);
-            setIsPremiumUnlocked(true);
-          } catch { alert("분석 중 오류가 발생했습니다. 다시 시도해주세요."); }
-          finally { setIsLoading(false); }
-        }, 300);
+    // 결제 완료 플래그 즉시 제거
+    localStorage.removeItem("palmistry_done");
+
+    const palmSaved = localStorage.getItem("pendingPalmistryData");
+    const savedImage = localStorage.getItem("pendingPalmistryImage");
+
+    // 저장된 데이터 복구
+    if (palmSaved) {
+      try {
+        const parsed = JSON.parse(palmSaved);
+        if (parsed.hand) savedHandRef.current = parsed.hand;
+        if (parsed.freeResult) setFreeResult(parsed.freeResult);
+      } catch(e) {}
+      localStorage.removeItem("pendingPalmistryData");
+    }
+    if (savedImage) {
+      savedImageBase64Ref.current = savedImage;
+      setImagePreview(savedImage);
+    }
+    localStorage.removeItem("pendingPaymentType");
+    localStorage.removeItem("pendingPaymentAmount");
+
+    // 즉시 로딩 표시 + 분석 실행
+    setIsLoading(true);
+    (async () => {
+      const img = savedImage || savedImageBase64Ref.current;
+      if (!img) {
+        setIsLoading(false);
+        setIsPremiumUnlocked(true);
+        localStorage.removeItem("pendingPalmistryImage");
+        alert("✅ 결제 완료!\n손금 이미지를 다시 업로드하면 즉시 심층 분석합니다.");
+        return;
       }
+      try {
+        const fetchRes = await fetch(img);
+        const blob = await fetchRes.blob();
+        const file = new File([blob], "palm.jpg", { type: blob.type || "image/jpeg" });
+        setImageFile(file);
+        const formData = new FormData();
+        formData.append("image", file);
+        formData.append("hand", savedHandRef.current || "right");
+        formData.append("isPremium", "true");
+        const apiRes = await fetch("/api/palmistry", { method: "POST", body: formData });
+        const data = await apiRes.json();
+        if (data.error) { alert(data.error); return; }
+        if (!data.result) { alert("분석 결과를 받지 못했습니다."); return; }
+        setPremiumResult(data.result);
+        setIsPremiumUnlocked(true);
+        localStorage.removeItem("pendingPalmistryImage");
+      } catch { alert("분석 중 오류가 발생했습니다. 다시 시도해주세요."); }
+      finally { setIsLoading(false); }
+    })();
   }, [isVisible]);
 
   useEffect(() => {
@@ -6211,7 +6210,7 @@ export default function Home() {
             amount: localStorage.getItem("pendingPaymentAmount"),
           },
           () => {
-            localStorage.setItem("palmistry_payment_done", "1");
+            localStorage.setItem("palmistry_done", "1");
             setActiveTab("palmistry");
           },
         );
