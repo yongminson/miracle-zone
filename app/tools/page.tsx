@@ -2693,9 +2693,9 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       } catch {
         alert("결제 검증 오류: 네트워크 또는 서버 응답을 확인해 주세요.");
       }
-    } catch(e) {
+    } catch(e: any) {
       console.error("관상 결제 오류:", e);
-      alert(`결제 오류: ${e instanceof Error ? e.message : "결제 중 오류가 발생했습니다."}`);
+      alert(`🚨 결제 오류: ${e?.message ?? String(e)}`);
       localStorage.removeItem("pendingFaceData");
       localStorage.removeItem("pendingPaymentType");
       localStorage.removeItem("pendingPaymentAmount");
