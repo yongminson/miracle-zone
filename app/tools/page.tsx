@@ -2660,17 +2660,16 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
         redirectUrl: isMobile ? `${toolsOrigin}?tab=saju` : undefined,
       });
-      // 🔧 모바일은 리다이렉트 방식 → response가 undefined이므로 portOneFail 체크 전에 먼저 반환
       if (isMobile) return;
 
       const portOneFail = getPortOnePaymentFailureReason(response, { isMobile });
       if (portOneFail) {
-        alert("결제가 취소되었습니다.");
         localStorage.removeItem("pendingFaceData");
         localStorage.removeItem("pendingPaymentType");
         localStorage.removeItem("pendingPaymentAmount");
         clearPendingPaymentData();
         clearPendingPaymentState();
+        setShowPhysiognomyPaymentModal(false);
         return;
       }
       try {
