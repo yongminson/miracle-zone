@@ -53,8 +53,10 @@ export async function POST(request: NextRequest) {
     const mimeType = imageFile.type || "image/jpeg";
 
     // ===== 프롬프트 =====
-    const freePrompt = `You are an expert in East Asian palmistry philosophy.
-Analyze the palm lines in this ${handLabel} hand image.
+    const freePrompt = `You are a brutally honest East Asian palmistry expert.
+Analyze the palm lines in this ${handLabel} hand image HONESTLY.
+If lines show weakness, breaks, or negative signs - say so directly in Korean.
+Do NOT sugarcoat. Be specific about both strengths AND weaknesses.
 Respond ONLY with valid JSON, no markdown, no explanation.
 
 {
@@ -68,8 +70,11 @@ Respond ONLY with valid JSON, no markdown, no explanation.
   "gradeDesc": "등급 설명 한 줄"
 }`;
 
-    const premiumPrompt = `You are an expert in East Asian palmistry philosophy.
-Analyze the palm lines in this ${handLabel} hand image in detail.
+const premiumPrompt = `You are a brutally honest East Asian palmistry expert.
+Analyze the palm lines in this ${handLabel} hand image HONESTLY and in detail.
+If lines show weakness, breaks, chains, islands or negative signs - describe them clearly in Korean.
+Do NOT give false hope. Be specific about real strengths AND real weaknesses you observe.
+For each section, mention at least one caution or weakness if visible.
 Respond ONLY with valid JSON, no markdown, no explanation.
 
 {

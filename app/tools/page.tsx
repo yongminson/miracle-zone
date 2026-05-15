@@ -5529,14 +5529,34 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
               </div>
             )}
 
-            {/* 다시 하기 */}
-            <button
-              type="button"
-              onClick={() => { setFreeResult(null); setPremiumResult(null); setImageFile(null); setImagePreview(null); setIsPremiumUnlocked(false); savedImageBase64Ref.current = null; }}
-              className="w-full rounded-2xl border border-white/20 bg-white/5 py-3 text-sm font-medium text-white/70 transition-colors hover:bg-white/10"
-            >
-              다른 손 분석하기
-            </button>
+            {/* 공유 + 다시하기 버튼 */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={async () => {
+                  const grade = freeResult?.overallGrade ?? "";
+                  const personality = freeResult?.personality ?? "";
+                  const shareText = `✋ 손금 분석 결과\n\n등급: ${grade}\n${personality}\n\n명운(命運)에서 내 손금 분석하기\n${window.location.origin}/tools?tab=palmistry`;
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({ title: "손금 분석 결과 — 명운(命運)", text: shareText });
+                    } catch { navigator.clipboard.writeText(shareText).then(() => alert("클립보드에 복사됐습니다!")); }
+                  } else {
+                    navigator.clipboard.writeText(shareText).then(() => alert("클립보드에 복사됐습니다!"));
+                  }
+                }}
+                className="rounded-2xl border border-sky-500/40 bg-sky-500/10 py-3 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20"
+              >
+                🔗 결과 공유하기
+              </button>
+              <button
+                type="button"
+                onClick={() => { setFreeResult(null); setPremiumResult(null); setImageFile(null); setImagePreview(null); setIsPremiumUnlocked(false); savedImageBase64Ref.current = null; }}
+                className="rounded-2xl border border-white/20 bg-white/5 py-3 text-sm font-medium text-white/70 transition-colors hover:bg-white/10"
+              >
+                다른 손 분석하기
+              </button>
+            </div>
 
             <SeoAccordion title="손금(手相)이란 무엇인가요? ▾" items={[
               { q: "손금학(手相學)의 원리", a: "손금은 손바닥의 선과 구릉의 형태를 분석하여 성격, 건강, 운명을 파악하는 동서양 공통의 전통 학문입니다. 생명선·감정선·두뇌선·운명선의 4대 주요선을 중심으로 분석합니다." },
