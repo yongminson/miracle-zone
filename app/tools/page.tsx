@@ -5303,7 +5303,6 @@ function ZodiacTab({ isVisible }: { isVisible: boolean }) {
                       await navigator.share({
                         title: `${selectedZodiac.label} 운세 — 명운(命運)`,
                         text: shareText,
-                        url: `${window.location.origin}/tools?tab=zodiac`,
                       });
                     } catch {
                       navigator.clipboard.writeText(shareText).then(() => alert("클립보드에 복사됐습니다!"));
