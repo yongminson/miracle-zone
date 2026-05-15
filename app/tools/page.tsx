@@ -3038,7 +3038,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       aria-hidden={!isVisible}
       className={isVisible ? "relative w-full" : "hidden"}
     >
-      <div className="relative isolate min-h-[100svh] w-full">
+      <div className="relative min-h-[100svh] w-full">
         <div className="pointer-events-none absolute inset-0 z-0 bg-slate-950">
           <div className="absolute inset-0 bg-cover bg-center opacity-60 mix-blend-screen" style={{ backgroundImage: "url('/bg_face_name.png')" }} />
           <div className="absolute inset-0 bg-black/50" />
