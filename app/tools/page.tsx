@@ -3680,7 +3680,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                       {nameResultData.renameNeeded && nameResultData.renameNeeded !== "낮음" && (
                         <button
                           type="button"
-                          onClick={() => alert("VIP 전체 대운분석과 함께 전문가 개명 상담을 받아보세요!\n\n준비 중인 서비스입니다.")}
+                          onClick={() => alert("전문가 개명 상담 서비스\n\n현재 전문 작명가 섭외 중입니다.\n빠른 시일 내에 오픈 예정이니 기대해주세요! 🙏\n\n문의: support@ymstudio.co.kr")}
                           className="w-full rounded-lg bg-gradient-to-r from-purple-500 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg transition-all hover:scale-[1.02] active:scale-95"
                         >
                           👑 전문가 개명 상담 받기 (VIP 서비스)
@@ -5525,7 +5525,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
                 >
                   {isLoading ? "🔮 분석 중..." : "✨ 상세 손금 분석 보기 (4,900원)"}
                 </button>
-                <p className="text-[10px] text-white/30 mt-2">결제 즉시 분석 결과 제공 · 1회 이용권</p>
+                <p className="text-[10px] text-white/30 mt-2">결제 즉시 분석 결과 제공 · 이용권</p>
               </div>
             )}
 
@@ -5577,7 +5577,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
             {/* 단건 가격 */}
             <div className="rounded-xl border border-yellow-400/30 bg-yellow-400/5 p-4 text-center mb-4">
               <p className="text-3xl font-bold text-yellow-400">4,900원</p>
-              <p className="text-xs text-white/55 mt-1">1회 손금 심층 분석 · 결제 즉시 결과 제공</p>
+              <p className="text-xs text-white/55 mt-1">손금 심층 분석 · 결제 즉시 결과 제공</p>
             </div>
 
             <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />
