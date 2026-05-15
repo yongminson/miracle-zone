@@ -67,7 +67,7 @@ export default function Home() {
                 { href: "/tools?tab=fortune", emoji: "✨", title: "오늘의 운세", desc: "음양오행 기반 금전·직장·애정운 분석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=zodiac", emoji: "🐉", title: "띠별 운세", desc: "12띠 오행 기운 · 재물·연애·직업운 분석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=saju", emoji: "👁️", title: "관상 / 이름 풀이", desc: "AI 관상 분석 · 성명학 이름풀이", badge: "4,900원", badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
-                { href: "/tools?tab=palmistry", emoji: "✋", title: "손금 분석", desc: "AI 손금 분석 · 재물·결혼·건강·직업운", badge: "무료~", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" }, desc: "AI 관상 분석 · 성명학 이름풀이", badge: "4,900원", badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+                { href: "/tools?tab=palmistry", emoji: "✋", title: "손금 분석", desc: "AI 손금 분석 · 재물·결혼·건강·직업운", badge: "무료~", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=match", emoji: "❤️", title: "소름 돋는 궁합", desc: "오행 기반 두 사람의 인연 깊이 분석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=mbti", emoji: "🧠", title: "MBTI 심층 검사", desc: "사주 × MBTI 맞춤 연애·직업 솔루션", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=dream", emoji: "📖", title: "꿈 해몽", desc: "무의식이 보내는 메시지 해석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
