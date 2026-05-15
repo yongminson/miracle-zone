@@ -5090,9 +5090,10 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
   const [premiumResult, setPremiumResult] = useState<any>(null);
   const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
-  const [premiumPeriod, setPremiumPeriod] = useState<"24h" | "10d">("24h");
   const [selectedPayMethod, setSelectedPayMethod] = useState<PayMethodPg>("kpn");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const savedImageBase64Ref = useRef<string | null>(null);
+  const savedHandRef = useRef<"left" | "right">("right");
 
   useEffect(() => {
     if (isVisible) {
@@ -5115,7 +5116,12 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
     setFreeResult(null);
     setPremiumResult(null);
     const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string;
+      setImagePreview(base64);
+      savedImageBase64Ref.current = base64; // 결제 후에도 유지
+      savedHandRef.current = hand;
+    };
     reader.readAsDataURL(file);
   };
 
@@ -5143,18 +5149,31 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const doPremiumAnalyze = async () => {
-    if (!imageFile) return;
+    // imageFile이 없으면 저장된 base64로 File 복원
+    let targetFile = imageFile;
+    if (!targetFile && savedImageBase64Ref.current) {
+      const res = await fetch(savedImageBase64Ref.current);
+      const blob = await res.blob();
+      targetFile = new File([blob], "palm.jpg", { type: blob.type });
+      setImageFile(targetFile);
+    }
+    if (!targetFile) {
+      alert("이미지를 찾을 수 없습니다. 다시 업로드해주세요.");
+      return;
+    }
+    const targetHand = savedHandRef.current || hand;
     setIsLoading(true);
     try {
       const formData = new FormData();
-      formData.append("image", imageFile);
-      formData.append("hand", hand);
+      formData.append("image", targetFile);
+      formData.append("hand", targetHand);
       formData.append("isPremium", "true");
       const res = await fetch("/api/palmistry", { method: "POST", body: formData });
       const data = await res.json();
       if (data.error) { alert(data.error); return; }
       setPremiumResult(data.result);
       setShowPremiumModal(false);
+      setIsPremiumUnlocked(true);
     } catch {
       alert("분석 중 오류가 발생했습니다. 다시 시도해주세요.");
     } finally {
@@ -5180,7 +5199,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
     if (!PortOne) { alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!"); return; }
 
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const amount = premiumPeriod === "24h" ? 4900 : 6900;
+    const amount = 4900;
 
     // 이미지를 localStorage에 임시 저장 (모바일 리다이렉트 대비)
     if (imageFile) {
@@ -5200,7 +5219,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
         storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
         channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
         paymentId: `palm${Date.now()}`,
-        orderName: `손금 심층 분석 (${premiumPeriod === "24h" ? "24시간" : "10일"})`,
+        orderName: "손금 심층 분석",
         totalAmount: amount,
         currency: "KRW",
         payMethod: selectedPayMethod === "kakaopay" ? "EASY_PAY" : selectedPayMethod === "tosspay" ? "EASY_PAY" : "CARD",
@@ -5416,12 +5435,18 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
                       {index === 0 ? (
                         <p className="text-sm text-white/75">{freeResult[line.key]}</p>
                       ) : (
-                        <div className="relative">
-                          <p className="text-sm text-white/75 blur-sm select-none">{freeResult[line.key]}</p>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="rounded-full bg-yellow-400/20 border border-yellow-400/40 px-3 py-1 text-[11px] font-bold text-yellow-400">
-                              🔒 상세 분석 보기
-                            </span>
+                        <div className="relative rounded-lg overflow-hidden">
+                          <p className="text-sm text-white/75 blur-md select-none pointer-events-none">
+                            {freeResult[line.key]}
+                          </p>
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                            <button
+                              type="button"
+                              onClick={() => setShowPremiumModal(true)}
+                              className="flex items-center gap-1.5 rounded-full border border-yellow-400/50 bg-slate-900/80 px-3 py-1.5 text-[11px] font-bold text-yellow-400 hover:bg-slate-800"
+                            >
+                              🔒 잠금 해제 (4,900원)
+                            </button>
                           </div>
                         </div>
                       )}
@@ -5495,14 +5520,10 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
             <h3 className="mb-2 text-center text-lg font-bold text-yellow-400">✋ 심층 손금 분석</h3>
             <p className="mb-5 text-center text-sm text-white/60">재물·결혼·건강·직업·종합 운명 리포트</p>
 
-            <div className="flex flex-col gap-2 mb-4">
-              {([["24h", "24시간 이용권", "4,900원"], ["10d", "10일 이용권", "6,900원"]] as const).map(([val, label, price]) => (
-                <label key={val} className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all ${premiumPeriod === val ? "border-yellow-400/60 bg-yellow-400/10" : "border-white/10 bg-white/5"}`}>
-                  <input type="radio" checked={premiumPeriod === val} onChange={() => setPremiumPeriod(val)} className="accent-yellow-400" />
-                  <span className="text-sm text-white/80">{label}</span>
-                  <span className="ml-auto text-sm font-bold text-yellow-400">{price}</span>
-                </label>
-              ))}
+            {/* 단건 결제 안내 */}
+            <div className="rounded-xl border border-yellow-400/30 bg-yellow-400/5 p-4 text-center mb-4">
+              <p className="text-2xl font-bold text-yellow-400">4,900원</p>
+              <p className="text-xs text-white/55 mt-1">1회 손금 심층 분석 · 즉시 결과 제공</p>
             </div>
 
             <PaymentMethodSelector selected={selectedPayMethod} onChange={setSelectedPayMethod} />
@@ -5513,7 +5534,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
               disabled={isLoading}
               className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3.5 font-bold text-slate-900 transition-all hover:from-yellow-400 disabled:opacity-40 mt-4"
             >
-              {isLoading ? "분석 중..." : `결제하고 손금 분석받기 (${premiumPeriod === "24h" ? "4,900원" : "6,900원"})`}
+              {isLoading ? "🔮 분석 중..." : "결제하고 손금 분석받기 (4,900원)"}
             </button>
             <button type="button" onClick={() => setShowPremiumModal(false)} className="mt-3 w-full rounded-xl border border-white/20 bg-white/5 py-3 text-sm text-white/70">
               취소
