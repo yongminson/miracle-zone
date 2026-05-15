@@ -5187,7 +5187,9 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
       formData.append("isPremium", "true");
       const res = await fetch("/api/palmistry", { method: "POST", body: formData });
       const data = await res.json();
+      console.log("손금 API 응답:", JSON.stringify(data).slice(0, 500));
       if (data.error) { alert(data.error); return; }
+      if (!data.result) { alert("분석 결과가 없습니다: " + JSON.stringify(data).slice(0, 200)); return; }
       setPremiumResult(data.result);
       setShowPremiumModal(false);
       setIsPremiumUnlocked(true);
