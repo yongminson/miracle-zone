@@ -5245,13 +5245,42 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
               onChange={handleImageChange}
             />
 
-            {/* 촬영 팁 */}
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-1.5">
+            {/* 촬영 팁 + 참고 이미지 */}
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
               <p className="text-xs font-bold text-yellow-400/90">📸 잘 나오는 촬영 방법</p>
-              <p className="text-[11px] text-white/55">• 밝은 조명 아래에서 촬영하세요</p>
-              <p className="text-[11px] text-white/55">• 손가락을 자연스럽게 펼쳐주세요</p>
-              <p className="text-[11px] text-white/55">• 손바닥 전체가 사진에 담기도록 하세요</p>
-              <p className="text-[11px] text-white/55">• 오른손: 현재·미래 운세 / 왼손: 타고난 운명</p>
+
+              {/* 올바른 예시 이미지 */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl overflow-hidden border border-emerald-500/30">
+                  <div className="bg-emerald-500/10 py-1 text-center">
+                    <span className="text-[10px] font-bold text-emerald-400">✅ 좋은 예시</span>
+                  </div>
+                  <div className="bg-white/5 h-28 flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-4xl">🖐️</p>
+                      <p className="text-[10px] text-white/50 mt-1">손바닥 전체 노출<br/>밝은 단색 배경</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-xl overflow-hidden border border-red-500/30">
+                  <div className="bg-red-500/10 py-1 text-center">
+                    <span className="text-[10px] font-bold text-red-400">❌ 나쁜 예시</span>
+                  </div>
+                  <div className="bg-white/5 h-28 flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-4xl">✊</p>
+                      <p className="text-[10px] text-white/50 mt-1">손이 잘림·어두움<br/>손금 미노출</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[11px] text-white/55">• <span className="text-white/80 font-medium">손목~손가락 끝</span> 전체가 사진에 담겨야 합니다</p>
+                <p className="text-[11px] text-white/55">• <span className="text-white/80 font-medium">밝은 자연광</span> 또는 형광등 아래에서 촬영하세요</p>
+                <p className="text-[11px] text-white/55">• <span className="text-white/80 font-medium">흰 종이나 밝은 배경</span> 위에 손을 올리면 더 정확합니다</p>
+                <p className="text-[11px] text-white/55">• 오른손: 현재·미래 운세 / 왼손: 타고난 운명</p>
+              </div>
             </div>
 
             {/* 분석 버튼 */}
