@@ -2406,6 +2406,56 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
   // 🚀 모바일 결제 복귀 시 1:1 데이터 매칭 복구 및 무한 결제 방지 (버그 수정 완료)
   useEffect(() => {
+    // 결제 성공 커스텀 이벤트 리스너
+    const handlePaySuccess = () => {
+      const lastImpUid = localStorage.getItem("last_authorized_imp_uid");
+      const pendingType = localStorage.getItem("pendingPaymentType");
+      if (!lastImpUid) return;
+
+      const faceSaved = localStorage.getItem("pendingFaceData");
+      if (faceSaved && pendingType === "physiognomy") {
+        try {
+          const parsed = JSON.parse(faceSaved);
+          if (parsed.faceImage) setFaceImage(parsed.faceImage);
+          if (parsed.faceResultData) {
+            setFaceResultData(parsed.faceResultData);
+            setShowFaceResult(true);
+            setIsPhysiognomyPremiumUnlocked(true);
+          }
+        } catch(e) {}
+        setActiveSajuMode("face");
+        localStorage.removeItem("last_authorized_imp_uid");
+        localStorage.removeItem("pendingFaceData");
+        localStorage.removeItem("pendingPaymentType");
+        localStorage.removeItem("pendingPaymentAmount");
+      }
+
+      const nameSaved = localStorage.getItem("pendingNameData");
+      if (nameSaved && pendingType === "name") {
+        try {
+          const parsed = JSON.parse(nameSaved);
+          if (parsed.nameInput) setNameInput(parsed.nameInput);
+          if (parsed.nameHanja) setNameHanja(parsed.nameHanja);
+          if (parsed.nameBirthDate) setNameBirthDate(parsed.nameBirthDate);
+          if (parsed.nameBirthTime) setNameBirthTime(parsed.nameBirthTime);
+          if (parsed.nameGender) setNameGender(parsed.nameGender);
+          if (parsed.hanjaSelections) setHanjaSelections(parsed.hanjaSelections);
+          if (parsed.nameResultData) {
+            setNameResultData(parsed.nameResultData as NameResultData);
+            setShowNameResult(true);
+            setIsNamePremiumUnlocked(true);
+          }
+        } catch(e) {}
+        setActiveSajuMode("name");
+        localStorage.removeItem("last_authorized_imp_uid");
+        localStorage.removeItem("pendingNameData");
+        localStorage.removeItem("pendingPaymentType");
+        localStorage.removeItem("pendingPaymentAmount");
+      }
+    };
+
+    window.addEventListener("palmistryPaymentSuccess", handlePaySuccess);
+
     if (typeof window !== "undefined" && isVisible) {
       const lastImpUid = localStorage.getItem("last_authorized_imp_uid");
       const pendingType = localStorage.getItem("pendingPaymentType");
@@ -2461,6 +2511,7 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         }
       }
     }
+    return () => window.removeEventListener("palmistryPaymentSuccess", handlePaySuccess);
   }, [isVisible]);
   // 💡 기존에 혼자서 자물쇠를 잠가버리던 오작동 감시자(useEffect 2개)는 완전히 삭제했습니다!
 
@@ -5420,7 +5471,12 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
               disabled={!imageFile || isLoading}
               className="w-full rounded-2xl bg-gradient-to-r from-yellow-500 to-amber-600 py-4 text-base font-bold text-slate-900 shadow-lg transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isLoading ? "🔮 손금 분석 중..." : `${hand === "right" ? "🖐️ 오른손" : "🤚 왼손"} 손금 무료 분석하기`}
+              {isLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
+                손금 분석 중... (10~20초 소요)
+              </span>
+            ) : `${hand === "right" ? "🖐️ 오른손" : "🤚 왼손"} 손금 무료 분석하기`}
             </button>
           </>
         ) : (
@@ -5523,7 +5579,12 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
                   disabled={isLoading}
                   className="w-full rounded-2xl bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-400 bg-size-200 py-4 text-base font-bold text-slate-900 shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-all hover:shadow-[0_0_40px_rgba(245,158,11,0.7)] hover:scale-[1.03] active:scale-[0.98] disabled:opacity-40 animate-pulse"
                 >
-                  {isLoading ? "🔮 분석 중..." : "✨ 상세 손금 분석 보기 (4,900원)"}
+                  {isLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
+                      AI 분석 중... (10~20초 소요)
+                    </span>
+                  ) : "✨ 상세 손금 분석 보기 (4,900원)"}
                 </button>
                 <p className="text-[10px] text-white/30 mt-2">결제 즉시 분석 결과 제공 · 이용권</p>
               </div>
@@ -5588,7 +5649,12 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
               disabled={isLoading}
               className="mt-4 w-full rounded-2xl bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-400 py-4 font-bold text-slate-900 shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all hover:shadow-[0_0_35px_rgba(245,158,11,0.6)] hover:scale-[1.02] disabled:opacity-40"
             >
-              {isLoading ? "🔮 분석 중..." : "결제하고 손금 분석받기 (4,900원)"}
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
+                  AI 분석 중... (10~20초 소요)
+                </span>
+              ) : "결제하고 손금 분석받기 (4,900원)"}
             </button>
             <button type="button" onClick={() => setShowPremiumModal(false)} className="mt-3 w-full rounded-xl border border-white/20 bg-white/5 py-3 text-sm text-white/70">
               취소
@@ -6087,9 +6153,15 @@ export default function Home() {
             amount: localStorage.getItem("pendingPaymentAmount"),
           },
           () => {
-            alert("✨ 결제가 완료되었습니다. 결과를 확인하세요!");
+            // last_authorized_imp_uid 먼저 저장 후 탭 이동
             localStorage.setItem("last_authorized_imp_uid", returnPayId);
+            // 탭 이동 전 약간의 딜레이로 isVisible 트리거 보장
             setActiveTab("saju");
+            setTimeout(() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              // isVisible 재트리거를 위해 강제 리렌더
+              window.dispatchEvent(new CustomEvent("palmistryPaymentSuccess"));
+            }, 300);
           },
         );
         return;
@@ -6255,6 +6327,7 @@ export default function Home() {
                 onClick={(e) => {
                   if (!tab.isReady) return;
                   setActiveTab(tab.id);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
 supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
                   
                   // 🚀 클릭 시 해당 버튼을 스크롤 박스의 중앙으로 이동시키는 매직 로직
