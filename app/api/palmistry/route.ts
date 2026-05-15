@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
     const handLabel = hand === "left" ? "왼손" : "오른손";
 
     // 무료 기본 분석 프롬프트
-    const freePrompt = `당신은 수십 년 경력의 동양 손금 전문가입니다.
-업로드된 사진을 분석하기 전에 반드시 다음을 먼저 확인하세요:
+    const freePrompt = `당신은 수십 년 경력의 동양 철학 연구자입니다.
+업로드된 ${handLabel} 손바닥 이미지에서 손바닥의 선(생명선·감정선·두뇌선·운명선)의 형태적 특징을 관찰하고 동양 철학적 해석을 아래 JSON 형식으로만 응답하세요.
 
 업로드된 ${handLabel} 손금 사진을 심층 분석하여 아래 JSON 형식으로만 응답하세요.
 
@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
 반드시 실제 손 사진인 경우에만 분석하고, 손이 아닌 경우 error 필드를 포함하세요.`;
 
     // 유료 상세 분석 프롬프트
-    const premiumPrompt = `당신은 수십 년 경력의 동양 손금 전문가입니다.
-업로드된 사진을 분석하기 전에 반드시 다음을 먼저 확인하세요:
+    const premiumPrompt = `당신은 수십 년 경력의 동양 철학 연구자입니다.
+업로드된 ${handLabel} 손바닥 이미지에서 손바닥의 선(생명선·감정선·두뇌선·운명선)의 형태적 특징을 관찰하고 동양 철학적 심층 해석을 아래 JSON 형식으로만 응답하세요.
 
 업로드된 ${handLabel} 손금 사진을 심층 분석하여 아래 JSON 형식으로만 응답하세요.
 
