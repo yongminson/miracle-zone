@@ -5105,9 +5105,12 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
       if (palmSaved && pendingType === "palmistry" && lastImpUid) {
         try {
           const parsed = JSON.parse(palmSaved);
-          if (parsed.imageBase64) {
-            savedImageBase64Ref.current = parsed.imageBase64;
-            setImagePreview(parsed.imageBase64);
+          // 이미지는 sessionStorage에서 복구
+          const savedImage = sessionStorage.getItem("pendingPalmistryImage");
+          if (savedImage) {
+            savedImageBase64Ref.current = savedImage;
+            setImagePreview(savedImage);
+            sessionStorage.removeItem("pendingPalmistryImage");
           }
           if (parsed.hand) savedHandRef.current = parsed.hand;
           if (parsed.freeResult) {
@@ -5224,11 +5227,16 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
     const amount = 4900;
 
     // 모바일 리다이렉트 대비 데이터 저장
-    localStorage.setItem("pendingPalmistryData", JSON.stringify({
-      imageBase64: savedImageBase64Ref.current,
-      hand: savedHandRef.current || hand,
-      freeResult,
-    }));
+    // 이미지는 sessionStorage에 별도 저장 (localStorage 용량 초과 방지)
+    try {
+      sessionStorage.setItem("pendingPalmistryImage", savedImageBase64Ref.current || "");
+    } catch { console.warn("sessionStorage 저장 실패"); }
+    try {
+      localStorage.setItem("pendingPalmistryData", JSON.stringify({
+        hand: savedHandRef.current || hand,
+        freeResult,
+      }));
+    } catch { console.warn("localStorage 저장 실패"); }
     localStorage.setItem("pendingPaymentType", "palmistry");
     localStorage.setItem("pendingPaymentAmount", String(amount));
     savePendingPaymentData({ v: 1, tab: "palmistry", flow: "palmistry" });
