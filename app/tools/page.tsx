@@ -5163,7 +5163,9 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
     const palmSaved = localStorage.getItem("pendingPalmistryData");
 
     // last_authorized_imp_uid 있으면 = 결제 성공 복귀 → pendingPaymentType 무관하게 처리
-    if (lastImpUid) {
+    const paymentDone = localStorage.getItem("palmistry_payment_done");
+    if (paymentDone && palmSaved) {
+      localStorage.removeItem("palmistry_payment_done");
         try {
           const parsed = JSON.parse(palmSaved);
           // 이미지는 sessionStorage에서 복구
@@ -5179,7 +5181,6 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
             setIsPremiumUnlocked(true);
           }
         } catch(e) {}
-        localStorage.removeItem("last_authorized_imp_uid");
         localStorage.removeItem("pendingPalmistryData");
         localStorage.removeItem("pendingPaymentType");
         localStorage.removeItem("pendingPaymentAmount");
@@ -6210,15 +6211,8 @@ export default function Home() {
             amount: localStorage.getItem("pendingPaymentAmount"),
           },
           () => {
-            // clearAllReturnArtifacts 보다 먼저 저장 후, 재저장으로 덮어쓰기 방지
-            localStorage.setItem("last_authorized_imp_uid", returnPayId);
-            localStorage.setItem("pendingPaymentType", "palmistry");
+            localStorage.setItem("palmistry_payment_done", "1");
             setActiveTab("palmistry");
-            // clearAllReturnArtifacts 실행 후 지워졌을 수 있으므로 재저장
-            Promise.resolve().then(() => {
-              localStorage.setItem("last_authorized_imp_uid", returnPayId);
-              localStorage.setItem("pendingPaymentType", "palmistry");
-            });
           },
         );
         return;
