@@ -5156,20 +5156,22 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
 
   // 모바일 결제 복귀 처리
   useEffect(() => {
-    if (typeof window !== "undefined" && isVisible) {
-      const lastImpUid = localStorage.getItem("last_authorized_imp_uid");
-      const pendingType = localStorage.getItem("pendingPaymentType");
-      const palmSaved = localStorage.getItem("pendingPalmistryData");
+    if (typeof window === "undefined" || !isVisible) return;
 
-      if (palmSaved && pendingType === "palmistry" && lastImpUid) {
+    const lastImpUid = localStorage.getItem("last_authorized_imp_uid");
+    const pendingType = localStorage.getItem("pendingPaymentType");
+    const palmSaved = localStorage.getItem("pendingPalmistryData");
+
+    // last_authorized_imp_uid 있으면 = 결제 성공 복귀 → pendingPaymentType 무관하게 처리
+    if (lastImpUid) {
         try {
           const parsed = JSON.parse(palmSaved);
           // 이미지는 sessionStorage에서 복구
-          const savedImage = sessionStorage.getItem("pendingPalmistryImage");
+          const savedImage = localStorage.getItem("pendingPalmistryImage");
           if (savedImage) {
             savedImageBase64Ref.current = savedImage;
             setImagePreview(savedImage);
-            sessionStorage.removeItem("pendingPalmistryImage");
+            localStorage.removeItem("pendingPalmistryImage");
           }
           if (parsed.hand) savedHandRef.current = parsed.hand;
           if (parsed.freeResult) {
@@ -5184,7 +5186,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
         // 결제 후 자동으로 심층 분석 실행 — 로딩 즉시 표시 후 API 직접 호출
         setIsLoading(true);
         setTimeout(async () => {
-          const img = savedImageBase64Ref.current || sessionStorage.getItem("pendingPalmistryImage");
+          const img = savedImageBase64Ref.current || localStorage.getItem("pendingPalmistryImage");
           if (!img) {
             setIsLoading(false);
             setIsPremiumUnlocked(true);
@@ -5210,10 +5212,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
           } catch { alert("분석 중 오류가 발생했습니다. 다시 시도해주세요."); }
           finally { setIsLoading(false); }
         }, 300);
-      } else if (palmSaved && !(pendingType === "palmistry" && !lastImpUid)) {
-        localStorage.removeItem("pendingPalmistryData");
       }
-    }
   }, [isVisible]);
 
   useEffect(() => {
@@ -5249,7 +5248,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
     // imageFile 없으면 savedImageBase64Ref에서 복구
     if (!targetFile) {
       // sessionStorage에서도 시도
-      const sessionImage = sessionStorage.getItem("pendingPalmistryImage");
+      const sessionImage = localStorage.getItem("pendingPalmistryImage");
       const base64 = savedImageBase64Ref.current || sessionImage;
       if (base64) {
         try {
@@ -5258,7 +5257,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
           targetFile = new File([blob], "palm.jpg", { type: blob.type || "image/jpeg" });
           setImageFile(targetFile);
           savedImageBase64Ref.current = base64;
-          if (sessionImage) sessionStorage.removeItem("pendingPalmistryImage");
+          if (sessionImage) localStorage.removeItem("pendingPalmistryImage");
         } catch (e) {
           alert("이미지 복구에 실패했습니다. 다시 업로드해주세요."); return;
         }
@@ -5328,7 +5327,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
     // 모바일 리다이렉트 대비 데이터 저장
     // 이미지는 sessionStorage에 별도 저장 (localStorage 용량 초과 방지)
     try {
-      sessionStorage.setItem("pendingPalmistryImage", savedImageBase64Ref.current || "");
+      localStorage.setItem("pendingPalmistryImage", savedImageBase64Ref.current || "");
     } catch { console.warn("sessionStorage 저장 실패"); }
     try {
       localStorage.setItem("pendingPalmistryData", JSON.stringify({
@@ -6211,9 +6210,15 @@ export default function Home() {
             amount: localStorage.getItem("pendingPaymentAmount"),
           },
           () => {
+            // clearAllReturnArtifacts 보다 먼저 저장 후, 재저장으로 덮어쓰기 방지
             localStorage.setItem("last_authorized_imp_uid", returnPayId);
             localStorage.setItem("pendingPaymentType", "palmistry");
             setActiveTab("palmistry");
+            // clearAllReturnArtifacts 실행 후 지워졌을 수 있으므로 재저장
+            Promise.resolve().then(() => {
+              localStorage.setItem("last_authorized_imp_uid", returnPayId);
+              localStorage.setItem("pendingPaymentType", "palmistry");
+            });
           },
         );
         return;
