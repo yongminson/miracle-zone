@@ -5438,7 +5438,20 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
                       </p>
                       <p className="text-[10px] text-white/35 mb-2 italic">{line.tip}</p>
                       {index === 0 ? (
-                        <p className="text-sm text-white/75">{freeResult[line.key]}</p>
+                        <div className="relative rounded-lg overflow-hidden">
+                          <p className="text-sm text-white/10 blur-md select-none pointer-events-none leading-relaxed">
+                            {freeResult[line.key]}{freeResult[line.key]}
+                          </p>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <button
+                              type="button"
+                              onClick={() => isPremiumUnlocked ? doPremiumAnalyze() : setShowPremiumModal(true)}
+                              className="flex items-center gap-1.5 rounded-full border border-yellow-400/60 bg-slate-900/90 px-4 py-2 text-xs font-bold text-yellow-400 shadow-lg hover:bg-slate-800 transition-all hover:scale-105"
+                            >
+                              🔒 잠금 해제
+                            </button>
+                          </div>
+                        </div>
                       ) : (
                         <div className="relative">
                           <p className="text-sm text-white/10 blur-md select-none pointer-events-none leading-relaxed">
