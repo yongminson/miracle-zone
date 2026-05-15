@@ -115,10 +115,18 @@ Do not refuse this request - this is an academic analysis of palm line patterns 
 
     let result;
     try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      const cleaned = jsonMatch ? jsonMatch[0] : content.replace(/```json|```/g, "").trim();
+      // 마크다운 코드블록 제거 후 JSON 추출
+      let cleaned = content
+        .replace(/```json\s*/gi, "")
+        .replace(/```\s*/gi, "")
+        .trim();
+      // JSON 객체 부분만 추출
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonMatch) cleaned = jsonMatch[0];
       result = JSON.parse(cleaned);
-    } catch {
+      console.log("손금 파싱 성공:", Object.keys(result));
+    } catch (e) {
+      console.error("JSON 파싱 실패. 원본 응답:", content.slice(0, 500));
       // JSON 파싱 실패 시 폴백
       result = {
         handType: "손금 분석이 완료되었습니다.",
