@@ -6175,6 +6175,27 @@ export default function Home() {
         return;
       }
 
+      if (pendingType === "palmistry") {
+        await verifyAndAct(
+          {
+            paymentType: "saju",
+            imp_uid: returnPayId,
+            paymentId: returnPayId,
+            amount: localStorage.getItem("pendingPaymentAmount"),
+          },
+          () => {
+            localStorage.setItem("last_authorized_imp_uid", returnPayId);
+            localStorage.setItem("pendingPaymentType", "palmistry");
+            setActiveTab("palmistry");
+            setTimeout(() => {
+              localStorage.setItem("last_authorized_imp_uid", returnPayId);
+              localStorage.setItem("pendingPaymentType", "palmistry");
+            }, 100);
+          },
+        );
+        return;
+      }
+
       alert(
         "결제 복귀 처리: 저장된 결제 종류와 일치하지 않습니다. 같은 브라우저에서 결제를 완료했는지 확인해 주세요.",
       );
