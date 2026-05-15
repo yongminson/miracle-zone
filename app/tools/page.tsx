@@ -5275,7 +5275,9 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
       } else {
         alert(`결제 검증 오류: ${verifyData.message || "서버 설정을 확인해 주세요."}`);
       }
-    } catch {
+    } catch (err) {
+      console.error("손금 결제 오류:", err);
+      alert(`결제 오류: ${err instanceof Error ? err.message : String(err)}`);
       localStorage.removeItem("pendingPalmistryData");
       localStorage.removeItem("pendingPaymentType");
       localStorage.removeItem("pendingPaymentAmount");
