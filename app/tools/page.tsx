@@ -5091,6 +5091,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
   const [isPremiumUnlocked, setIsPremiumUnlocked] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [premiumPeriod, setPremiumPeriod] = useState<"24h" | "10d">("24h");
+  const [selectedPayMethod, setSelectedPayMethod] = useState<PayMethodPg>("kpn");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -5141,7 +5142,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
-  const handlePremiumAnalyze = async () => {
+  const doPremiumAnalyze = async () => {
     if (!imageFile) return;
     setIsLoading(true);
     try {
@@ -5149,7 +5150,6 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
       formData.append("image", imageFile);
       formData.append("hand", hand);
       formData.append("isPremium", "true");
-
       const res = await fetch("/api/palmistry", { method: "POST", body: formData });
       const data = await res.json();
       if (data.error) { alert(data.error); return; }
@@ -5159,6 +5159,87 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
       alert("분석 중 오류가 발생했습니다. 다시 시도해주세요.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePremiumPayment = async () => {
+    // 마스터 어드민 프리패스
+    if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
+      await doPremiumAnalyze();
+      return;
+    }
+
+    let PortOne = (window as any).PortOne;
+    if (!PortOne) {
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        PortOne = (window as any).PortOne;
+        if (PortOne) break;
+      }
+    }
+    if (!PortOne) { alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!"); return; }
+
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const amount = premiumPeriod === "24h" ? 4900 : 6900;
+
+    // 이미지를 localStorage에 임시 저장 (모바일 리다이렉트 대비)
+    if (imageFile) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        localStorage.setItem("pendingPalmistryImage", e.target?.result as string);
+        localStorage.setItem("pendingPalmistryHand", hand);
+      };
+      reader.readAsDataURL(imageFile);
+    }
+    savePendingPaymentData({ v: 1, tab: "palmistry", flow: "palmistry" });
+    savePendingPaymentState({ tab: "palmistry", flow: "palmistry" });
+
+    try {
+      const toolsOrigin = `${window.location.origin}/tools`;
+      const response = await PortOne.requestPayment({
+        storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
+        channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
+        paymentId: `palm${Date.now()}`,
+        orderName: `손금 심층 분석 (${premiumPeriod === "24h" ? "24시간" : "10일"})`,
+        totalAmount: amount,
+        currency: "KRW",
+        payMethod: selectedPayMethod === "kakaopay" ? "EASY_PAY" : selectedPayMethod === "tosspay" ? "EASY_PAY" : "CARD",
+        customer: { email: "test@ymstudio.co.kr", fullName: "명운 사용자" },
+        redirectUrl: isMobile ? `${toolsOrigin}?tab=palmistry` : undefined,
+      });
+
+      const portOneFail = getPortOnePaymentFailureReason(response, { isMobile });
+      if (portOneFail) {
+        alert("결제가 취소되었습니다.");
+        clearPendingPaymentData();
+        clearPendingPaymentState();
+        return;
+      }
+      if (isMobile) return;
+
+      // PC 결제 검증
+      const verifyRes = await fetch(PAYMENT_VERIFY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentType: "saju",
+          imp_uid: (response as { paymentId: string }).paymentId,
+          paymentId: (response as { paymentId: string }).paymentId,
+          merchant_uid: (response as { paymentId: string }).paymentId,
+          amount,
+        }),
+      });
+      const verifyData = (await verifyRes.json()) as { success?: boolean; message?: string };
+      if (verifyRes.ok && verifyData.success) {
+        setIsPremiumUnlocked(true);
+        setShowPremiumModal(false);
+        await doPremiumAnalyze();
+      } else {
+        alert(`결제 검증 오류: ${verifyData.message || "서버 설정을 확인해 주세요."}`);
+      }
+    } catch {
+      clearPendingPaymentData();
+      clearPendingPaymentState();
     }
   };
 
@@ -5372,7 +5453,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
                 </p>
                 <button
                   type="button"
-                  onClick={() => isPremiumUnlocked ? handlePremiumAnalyze() : setShowPremiumModal(true)}
+                  onClick={() => isPremiumUnlocked ? doPremiumAnalyze() : setShowPremiumModal(true)}
                   disabled={isLoading}
                   className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3.5 text-sm font-bold text-slate-900 shadow-lg transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-40"
                 >
@@ -5414,7 +5495,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
             <h3 className="mb-2 text-center text-lg font-bold text-yellow-400">✋ 심층 손금 분석</h3>
             <p className="mb-5 text-center text-sm text-white/60">재물·결혼·건강·직업·종합 운명 리포트</p>
 
-            <div className="flex flex-col gap-2 mb-5">
+            <div className="flex flex-col gap-2 mb-4">
               {([["24h", "24시간 이용권", "4,900원"], ["10d", "10일 이용권", "6,900원"]] as const).map(([val, label, price]) => (
                 <label key={val} className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-all ${premiumPeriod === val ? "border-yellow-400/60 bg-yellow-400/10" : "border-white/10 bg-white/5"}`}>
                   <input type="radio" checked={premiumPeriod === val} onChange={() => setPremiumPeriod(val)} className="accent-yellow-400" />
@@ -5424,13 +5505,15 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
               ))}
             </div>
 
+            <PaymentMethodSelector selected={selectedPayMethod} onChange={setSelectedPayMethod} />
+
             <button
               type="button"
-              onClick={handlePremiumAnalyze}
+              onClick={handlePremiumPayment}
               disabled={isLoading}
-              className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3.5 font-bold text-slate-900 transition-all hover:from-yellow-400 disabled:opacity-40"
+              className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3.5 font-bold text-slate-900 transition-all hover:from-yellow-400 disabled:opacity-40 mt-4"
             >
-              {isLoading ? "분석 중..." : "결제하고 분석받기"}
+              {isLoading ? "분석 중..." : `결제하고 손금 분석받기 (${premiumPeriod === "24h" ? "4,900원" : "6,900원"})`}
             </button>
             <button type="button" onClick={() => setShowPremiumModal(false)} className="mt-3 w-full rounded-xl border border-white/20 bg-white/5 py-3 text-sm text-white/70">
               취소
