@@ -5535,7 +5535,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
               <p className="text-xs text-white/55 mt-1">1회 손금 심층 분석 · 결제 즉시 결과 제공</p>
             </div>
 
-            <PaymentMethodSelector selected={selectedPayMethod} onChange={setSelectedPayMethod} />
+            <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />
 
             <button
               type="button"
