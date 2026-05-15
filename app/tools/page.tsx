@@ -22,6 +22,7 @@ import {
   Camera,
   FileText,
   Bell, // 🚀 종 아이콘 추가
+  Star, // 🚀 띠별 운세 아이콘
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -125,7 +126,7 @@ function AdminDashboard() {
 }
 
 // 🚀 mbti와 match(궁합) 탭 추가
-type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match";
+type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match" | "zodiac";
 
 async function captureAndShareElement(
   target: HTMLElement | null,
@@ -246,6 +247,7 @@ const pushSecret = (char: string, callback?: () => void) => {
 // 🚀 사람들을 홀리는 마법의 네이밍 & 완벽한 탭 순서 배치
 const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, isReady: true },
+  { id: "zodiac", label: "띠별 운세", icon: Star, isReady: true },
   { id: "saju", label: "관상/이름 풀이", icon: FileText, isReady: true },
   { id: "match", label: "소름돋는 궁합", icon: Heart, isReady: true }, 
   { id: "mbti", label: "MBTI - 심층 성격 검사", icon: Activity, isReady: true },
@@ -5076,6 +5078,222 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
 );
 }
 
+// ===== 띠별 운세 탭 =====
+const ZODIAC_LIST = [
+  { id: "rat",     label: "쥐띠",    year: "1948·1960·1972·1984·1996·2008·2020", img: "/images/zodiac-rat.png",
+    lucky: "흰색·검정색", direction: "북쪽",
+    general: "쥐띠는 영리하고 순발력이 뛰어난 기운을 지닙니다. 수(水)의 기운을 타고나 지혜롭고 상황 적응력이 뛰어나며, 대인관계에서 센스 있는 처세를 발휘합니다.",
+    wealth: "재물운은 꾸준한 저축과 작은 기회를 놓치지 않는 데서 빛을 발합니다. 큰 한 방보다 안정적인 복리형 재테크가 맞습니다.",
+    love: "연애운은 섬세한 감성이 매력으로 작용합니다. 다만 지나친 계산이 관계를 어색하게 만들 수 있으니 솔직한 표현이 중요합니다.",
+    career: "직업운은 분석과 기획 분야에서 탁월한 역량을 발휘합니다. IT, 금융, 전략 기획 분야와 잘 맞습니다.",
+    caution: "지나친 걱정과 소심함이 기회를 놓치게 만들 수 있습니다. 결정을 미루지 말고 과감히 실행에 옮기세요." },
+  { id: "ox",      label: "소띠",    year: "1949·1961·1973·1985·1997·2009·2021", img: "/images/zodiac-ox.png",
+    lucky: "노란색·갈색", direction: "중앙",
+    general: "소띠는 성실하고 인내심이 강한 토(土)의 기운을 지닙니다. 묵묵히 자신의 길을 걸으며 신뢰를 쌓는 타입으로, 주변으로부터 든든한 기둥 같은 존재로 여겨집니다.",
+    wealth: "재물운은 근면성실함에서 나옵니다. 한 번에 크게 벌기보다 꾸준한 노력이 장기적으로 큰 자산을 만들어줍니다.",
+    love: "연애운은 느리지만 깊은 관계를 형성합니다. 처음에는 표현이 서툴지만 한 번 마음을 열면 진심으로 상대를 지키는 타입입니다.",
+    career: "직업운은 전문성이 요구되는 분야에서 빛납니다. 농업, 건설, 제조, 의료 등 실물 기반 직종과 잘 맞습니다.",
+    caution: "고집스러운 면이 팀워크를 방해할 수 있습니다. 타인의 의견에 유연하게 열린 자세를 유지하세요." },
+  { id: "tiger",   label: "호랑이띠", year: "1950·1962·1974·1986·1998·2010·2022", img: "/images/zodiac-tiger.png",
+    lucky: "빨간색·주황색", direction: "동쪽",
+    general: "호랑이띠는 목(木)과 화(火)의 기운을 동시에 지닌 카리스마 넘치는 존재입니다. 강한 정의감과 리더십으로 주변을 이끌며 도전을 즐기는 성격입니다.",
+    wealth: "재물운은 과감한 투자와 도전에서 빛을 발합니다. 다만 충동적인 결정은 손실로 이어질 수 있으니 신중함이 필요합니다.",
+    love: "연애운은 열정적이고 강렬합니다. 상대를 강하게 끌어당기는 매력이 있지만, 지배적인 성향을 조심해야 합니다.",
+    career: "직업운은 리더십이 필요한 분야에서 탁월합니다. 정치, 군인, 스포츠, 창업가 등 도전적인 분야와 잘 맞습니다.",
+    caution: "충동적인 결정과 과도한 자신감이 화를 부를 수 있습니다. 실행 전 한 번 더 점검하는 습관을 들이세요." },
+  { id: "rabbit",  label: "토끼띠",  year: "1951·1963·1975·1987·1999·2011·2023", img: "/images/zodiac-rabbit.png",
+    lucky: "초록색·청색", direction: "동쪽",
+    general: "토끼띠는 목(木)의 부드러운 기운을 지닌 온화하고 감성적인 존재입니다. 세심하고 예술적 감각이 뛰어나며 주변을 편안하게 만드는 능력이 있습니다.",
+    wealth: "재물운은 안정적인 방향을 선호합니다. 위험 자산보다 부동산이나 안정형 금융 상품이 잘 맞습니다.",
+    love: "연애운은 섬세하고 낭만적입니다. 감수성이 풍부해 좋은 파트너가 되지만 상처를 잘 받으니 소통이 중요합니다.",
+    career: "직업운은 예술, 디자인, 교육, 상담 분야에서 빛납니다. 사람을 돕고 아름다움을 만드는 일에서 보람을 느낍니다.",
+    caution: "우유부단함과 회피 성향이 기회를 놓치게 만들 수 있습니다. 결단력을 기르는 것이 중요합니다." },
+  { id: "dragon",  label: "용띠",    year: "1952·1964·1976·1988·2000·2012·2024", img: "/images/zodiac-dragon.png",
+    lucky: "금색·노란색", direction: "남동쪽",
+    general: "용띠는 12띠 중 가장 강력한 기운을 지닌 존재입니다. 토(土)와 화(火)의 기운이 결합되어 카리스마와 창의성, 추진력이 넘칩니다.",
+    wealth: "재물운은 대담한 투자와 사업 확장에서 빛납니다. 큰 그림을 그리고 실행하는 능력이 재물을 끌어모읍니다.",
+    love: "연애운은 압도적인 매력으로 상대를 사로잡습니다. 다만 자기중심적 성향을 조절해야 장기적인 관계가 유지됩니다.",
+    career: "직업운은 리더, 기업가, 예술가, 정치가 등 무대가 큰 분야에서 최고의 역량을 발휘합니다.",
+    caution: "완벽주의와 고집으로 인한 갈등을 주의하세요. 때로는 양보와 협력이 더 큰 성과를 만듭니다." },
+  { id: "snake",   label: "뱀띠",    year: "1953·1965·1977·1989·2001·2013·2025", img: "/images/zodiac-snake.png",
+    lucky: "빨간색·금색", direction: "남쪽",
+    general: "뱀띠는 화(火)의 음적 기운을 지닌 신비롭고 지혜로운 존재입니다. 깊은 통찰력과 직관력으로 남들이 보지 못하는 것을 꿰뚫어 봅니다.",
+    wealth: "재물운은 정보력과 직관에서 나옵니다. 투자 시 철저한 분석 후 결정하면 큰 이익을 얻을 수 있습니다.",
+    love: "연애운은 신비롭고 매혹적인 매력이 상대를 끌어당깁니다. 질투심이 강한 면이 있어 신뢰 관계 형성이 중요합니다.",
+    career: "직업운은 연구, 철학, 의학, 심리학, 법률 등 깊이 있는 전문성이 요구되는 분야와 잘 맞습니다.",
+    caution: "의심과 집착이 관계를 망칠 수 있습니다. 신뢰를 바탕으로 한 열린 소통을 실천하세요." },
+  { id: "horse",   label: "말띠",    year: "1954·1966·1978·1990·2002·2014·2026", img: "/images/zodiac-horse.png",
+    lucky: "빨간색·주황색", direction: "남쪽",
+    general: "말띠는 화(火)의 기운이 강렬하게 발현된 자유롭고 활동적인 존재입니다. 열정과 에너지가 넘치며 변화와 모험을 즐깁니다.",
+    wealth: "재물운은 활발한 사회 활동과 네트워킹에서 나옵니다. 영업, 유통, 서비스업에서 뛰어난 수완을 발휘합니다.",
+    love: "연애운은 열정적이고 로맨틱합니다. 다만 자유를 중시하는 성향으로 헌신적인 관계에 부담을 느낄 수 있습니다.",
+    career: "직업운은 스포츠, 여행, 엔터테인먼트, 영업 등 활동적인 분야에서 최고의 역량을 발휘합니다.",
+    caution: "성급함과 끈기 부족이 약점입니다. 한 가지에 집중하는 능력을 키우면 더 큰 성과를 이룰 수 있습니다." },
+  { id: "goat",    label: "양띠",    year: "1955·1967·1979·1991·2003·2015·2027", img: "/images/zodiac-goat.png",
+    lucky: "초록색·흰색", direction: "남서쪽",
+    general: "양띠는 토(土)와 목(木)의 기운이 조화된 온화하고 예술적인 존재입니다. 감성이 풍부하고 창의적이며 평화로운 환경을 추구합니다.",
+    wealth: "재물운은 창작 활동과 예술적 재능에서 나옵니다. 안정적인 수입보다 자신이 좋아하는 일에서 가치를 찾을 때 재물도 따라옵니다.",
+    love: "연애운은 다정하고 헌신적입니다. 상대를 깊이 배려하지만 우유부단함이 관계 진전을 늦출 수 있습니다.",
+    career: "직업운은 예술, 음악, 디자인, 요식업, 꽃집 등 감성과 미적 감각이 필요한 분야와 잘 맞습니다.",
+    caution: "의존성과 우유부단함이 발목을 잡을 수 있습니다. 스스로 결정하는 힘을 기르는 것이 중요합니다." },
+  { id: "monkey",  label: "원숭이띠", year: "1956·1968·1980·1992·2004·2016·2028", img: "/images/zodiac-monkey.png",
+    lucky: "흰색·금색", direction: "서쪽",
+    general: "원숭이띠는 금(金)의 날카로운 기운과 뛰어난 두뇌가 결합된 영리하고 재치 있는 존재입니다. 다재다능하고 응용력이 탁월합니다.",
+    wealth: "재물운은 뛰어난 두뇌와 응용력에서 나옵니다. 부업이나 다중 수입원을 만드는 데 탁월한 능력을 발휘합니다.",
+    love: "연애운은 유머와 재치로 상대를 사로잡습니다. 다만 변덕스러운 성향이 상대에게 불안감을 줄 수 있습니다.",
+    career: "직업운은 IT, 연구개발, 언론, 교육 등 두뇌를 활용하는 분야에서 빛납니다.",
+    caution: "자만심과 변덕이 신뢰를 잃게 만들 수 있습니다. 한 우물을 깊이 파는 집중력을 키우세요." },
+  { id: "rooster", label: "닭띠",    year: "1957·1969·1981·1993·2005·2017·2029", img: "/images/zodiac-rooster.png",
+    lucky: "금색·노란색", direction: "서쪽",
+    general: "닭띠는 금(金)의 기운이 강하게 발현된 분석적이고 완벽주의적인 존재입니다. 꼼꼼하고 원칙적이며 정직함을 중요하게 여깁니다.",
+    wealth: "재물운은 철저한 계획과 분석에서 나옵니다. 가계부 관리와 체계적인 저축으로 안정적인 자산을 구축합니다.",
+    love: "연애운은 솔직하고 직접적인 표현이 특징입니다. 완벽을 추구하는 성향이 상대에게 부담을 줄 수 있으니 여유가 필요합니다.",
+    career: "직업운은 회계, 의료, 법률, 군인 등 정확성과 원칙이 요구되는 분야에서 최고의 역량을 발휘합니다.",
+    caution: "지나친 완벽주의와 비판적 성향이 대인관계를 어렵게 만들 수 있습니다. 타인의 단점보다 장점을 보는 연습이 필요합니다." },
+  { id: "dog",     label: "개띠",    year: "1958·1970·1982·1994·2006·2018·2030", img: "/images/zodiac-dog.png",
+    lucky: "갈색·빨간색", direction: "북서쪽",
+    general: "개띠는 토(土)와 금(金)의 기운이 결합된 충직하고 의리 있는 존재입니다. 정의감이 강하고 신뢰할 수 있는 친구이자 동반자입니다.",
+    wealth: "재물운은 꾸준한 성실함에서 나옵니다. 갑작스러운 횡재보다 안정적인 직장과 꾸준한 저축이 장기적으로 큰 자산을 만듭니다.",
+    love: "연애운은 헌신적이고 변함없는 사랑이 특징입니다. 한 번 마음을 주면 끝까지 지키는 타입으로 신뢰받는 파트너입니다.",
+    career: "직업운은 사회복지, 의료, 법률, 경찰 등 정의와 봉사가 필요한 분야에서 큰 보람을 느낍니다.",
+    caution: "지나친 걱정과 비관적 사고가 에너지를 소진시킵니다. 긍정적인 시각을 유지하는 노력이 필요합니다." },
+  { id: "pig",     label: "돼지띠",  year: "1959·1971·1983·1995·2007·2019·2031", img: "/images/zodiac-pig.png",
+    lucky: "노란색·금색", direction: "북쪽",
+    general: "돼지띠는 수(水)의 풍요로운 기운을 지닌 복덩이 존재입니다. 낙천적이고 솔직하며 물질적 풍요와 즐거움을 사랑합니다.",
+    wealth: "재물운은 12띠 중 손꼽히는 복재(福財)를 지닙니다. 돈이 자연스럽게 모이는 기운이 있으며 투자 운도 좋습니다.",
+    love: "연애운은 순수하고 헌신적입니다. 상대에게 아낌없이 베푸는 사랑을 하지만 때로는 너무 순해서 이용당할 수 있습니다.",
+    career: "직업운은 요식업, 유통, 부동산, 엔터테인먼트 등 사람과 풍요가 연결된 분야에서 두각을 나타냅니다.",
+    caution: "지나친 낙천주의와 게으름이 기회를 놓치게 만듭니다. 구체적인 목표와 계획을 세우는 습관이 필요합니다." },
+];
+
+function ZodiacTab({ isVisible }: { isVisible: boolean }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<"general" | "wealth" | "love" | "career" | "caution">("general");
+
+  useEffect(() => {
+    if (isVisible) {
+      supabase.rpc('increment_tab_click', { target_tab_id: 'zodiac' }).catch(() => {});
+    }
+  }, [isVisible]);
+
+  const selectedZodiac = ZODIAC_LIST.find(z => z.id === selected);
+
+  const SECTIONS = [
+    { id: "general" as const, label: "총운" },
+    { id: "wealth"  as const, label: "재물운" },
+    { id: "love"    as const, label: "연애운" },
+    { id: "career"  as const, label: "직업운" },
+    { id: "caution" as const, label: "주의사항" },
+  ];
+
+  return (
+    <div className={`w-full ${isVisible ? "block" : "hidden"}`}>
+      <div className="mx-auto max-w-md px-4 py-6 space-y-6">
+
+        {/* 헤더 */}
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-yellow-400 mb-1">띠별 운세</h2>
+          <p className="text-xs text-white/50">나의 띠를 선택하여 운세를 확인하세요</p>
+        </div>
+
+        {/* 띠 선택 그리드 */}
+        <div className="grid grid-cols-4 gap-2">
+          {ZODIAC_LIST.map((z) => (
+            <button
+              key={z.id}
+              type="button"
+              onClick={() => { setSelected(z.id); setActiveSection("general"); }}
+              className={`flex flex-col items-center gap-1 rounded-2xl border p-2 transition-all ${
+                selected === z.id
+                  ? "border-yellow-400/70 bg-yellow-400/15 scale-105"
+                  : "border-white/10 bg-white/5 hover:border-yellow-400/30"
+              }`}
+            >
+              <div className="relative h-14 w-14 overflow-hidden rounded-xl">
+                <Image src={z.img} alt={z.label} fill className="object-cover" />
+              </div>
+              <span className="text-[11px] font-medium text-white/80">{z.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* 선택된 띠 결과 */}
+        {selectedZodiac && (
+          <div className="space-y-4">
+
+            {/* 띠 기본 정보 */}
+            <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/5 p-5">
+              <div className="flex items-center gap-4">
+                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-yellow-400/20">
+                  <Image src={selectedZodiac.img} alt={selectedZodiac.label} fill className="object-cover" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-yellow-400 mb-1">{selectedZodiac.label}</h3>
+                  <p className="text-[11px] text-white/45 mb-2">{selectedZodiac.year}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/60">
+                      🎨 {selectedZodiac.lucky}
+                    </span>
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/60">
+                      🧭 {selectedZodiac.direction}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 운세 섹션 탭 */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {SECTIONS.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setActiveSection(s.id)}
+                  className={`shrink-0 rounded-xl px-3 py-2 text-xs font-medium transition-all ${
+                    activeSection === s.id
+                      ? "bg-yellow-400 text-slate-900"
+                      : "bg-white/10 text-white/60 hover:bg-white/15"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 운세 내용 */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <h4 className="mb-3 text-sm font-bold text-yellow-400">
+                {selectedZodiac.label} — {SECTIONS.find(s => s.id === activeSection)?.label}
+              </h4>
+              <p className="text-sm leading-relaxed text-white/80">
+                {selectedZodiac[activeSection]}
+              </p>
+            </div>
+
+            {/* 다른 띠 보기 버튼 */}
+            <button
+              type="button"
+              onClick={() => setSelected(null)}
+              className="w-full rounded-2xl border border-white/20 bg-white/5 py-3 text-sm font-medium text-white/70 transition-colors hover:bg-white/10"
+            >
+              다른 띠 선택하기
+            </button>
+
+          </div>
+        )}
+
+        {/* SEO 아코디언 */}
+        <SeoAccordion title="띠별 운세란 무엇인가요? ▾" items={[
+          { q: "12띠(地支)와 운세의 원리", a: "12띠는 명리학의 12지지(地支)에서 비롯된 개념으로, 각 동물이 상징하는 오행의 기운이 타고난 성격과 운명에 영향을 미친다고 봅니다. 쥐·소·호랑이 등 12가지 동물은 단순한 상징이 아니라, 우주의 기운이 12년 주기로 순환하는 원리를 담고 있습니다." },
+          { q: "삼합(三合)과 띠 궁합의 원리", a: "인·오·술(화火), 신·자·진(수水), 해·묘·미(목木), 사·유·축(금金)의 삼합 관계는 서로 기운을 도와주는 가장 좋은 조합입니다. 반대로 자·오, 축·미 등의 충(沖) 관계는 서로 기운이 충돌하여 갈등이 생길 수 있습니다." },
+          { q: "띠별 운세를 삶에 활용하는 방법", a: "띠별 운세는 타고난 기운의 특성을 이해하고 강점을 극대화하는 데 활용합니다. 내 띠의 부족한 오행을 보완하는 색깔, 방향, 음식을 일상에 적용하면 긍정적인 에너지 흐름을 만들 수 있습니다." },
+        ]} />
+
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const pathname = usePathname() || "/tools";
@@ -5131,9 +5349,9 @@ export default function Home() {
       !!returnPayId ||
       params.get("imp_success") === "true" ||
       params.get("success") === "true";
-    const validTabs: TabId[] = ["fortune", "dream", "lotto", "altar", "saju", "mbti", "match"];
-    const tabFromUrl = params.get("tab") as TabId | null;
-    if (tabFromUrl && validTabs.includes(tabFromUrl)) {
+      const validTabs: TabId[] = ["fortune", "dream", "lotto", "altar", "saju", "mbti", "match", "zodiac"];
+      const tabFromUrl = params.get("tab") as TabId | null;
+      if (tabFromUrl && validTabs.includes(tabFromUrl)) {
       setActiveTab(tabFromUrl);
     } else if (paymentEcho) {
       const st = readPendingPaymentState();
@@ -5520,6 +5738,7 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
           if (tab.id === "lotto") return <LottoTab key={tab.id} isVisible={isVisible} />;
           if (tab.id === "mbti") return <MbtiTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
           if (tab.id === "match") return <MatchTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
+          if (tab.id === "zodiac") return <ZodiacTab key={tab.id} isVisible={isVisible} />;
 
           return (
             <div
