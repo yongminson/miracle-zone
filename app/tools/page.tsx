@@ -5158,38 +5158,43 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
   useEffect(() => {
     if (typeof window === "undefined" || !isVisible) return;
 
-    const runPalmistryAnalysis = async () => {
-      const paymentDone = localStorage.getItem("palmistry_done");
-      if (!paymentDone) return;
-      localStorage.removeItem("palmistry_done");
+    const paymentDone = localStorage.getItem("palmistry_done");
+    if (!paymentDone) return;
 
-      const palmSaved = localStorage.getItem("pendingPalmistryData");
-      const savedImage = localStorage.getItem("pendingPalmistryImage");
+    // 즉시 제거 (중복 실행 방지)
+    localStorage.removeItem("palmistry_done");
 
-      if (palmSaved) {
-        try {
-          const parsed = JSON.parse(palmSaved);
-          if (parsed.hand) savedHandRef.current = parsed.hand;
-          if (parsed.freeResult) setFreeResult(parsed.freeResult);
-        } catch(e) {}
-        localStorage.removeItem("pendingPalmistryData");
-      }
-      if (savedImage) {
-        savedImageBase64Ref.current = savedImage;
-        setImagePreview(savedImage);
-      }
-      localStorage.removeItem("pendingPaymentType");
-      localStorage.removeItem("pendingPaymentAmount");
+    // 저장된 데이터 복구
+    const palmSaved = localStorage.getItem("pendingPalmistryData");
+    const savedImage = localStorage.getItem("pendingPalmistryImage");
 
-      setIsLoading(true);
-      const img = savedImage || savedImageBase64Ref.current;
-      if (!img) {
-        setIsLoading(false);
-        setIsPremiumUnlocked(true);
-        localStorage.removeItem("pendingPalmistryImage");
-        alert("✅ 결제 완료!\n손금 이미지를 다시 업로드하면 즉시 심층 분석합니다.");
-        return;
-      }
+    if (palmSaved) {
+      try {
+        const parsed = JSON.parse(palmSaved);
+        if (parsed.hand) savedHandRef.current = parsed.hand;
+        if (parsed.freeResult) setFreeResult(parsed.freeResult);
+      } catch(e) {}
+      localStorage.removeItem("pendingPalmistryData");
+    }
+    if (savedImage) {
+      savedImageBase64Ref.current = savedImage;
+      setImagePreview(savedImage);
+    }
+    localStorage.removeItem("pendingPaymentType");
+    localStorage.removeItem("pendingPaymentAmount");
+
+    // 이미지 없으면 재업로드 안내
+    const img = savedImage || savedImageBase64Ref.current;
+    if (!img) {
+      setIsPremiumUnlocked(true);
+      localStorage.removeItem("pendingPalmistryImage");
+      alert("✅ 결제 완료!\n손금 이미지를 다시 업로드하면 즉시 심층 분석합니다.");
+      return;
+    }
+
+    // 즉시 로딩 표시 후 분석
+    setIsLoading(true);
+    (async () => {
       try {
         const fetchRes = await fetch(img);
         const blob = await fetchRes.blob();
@@ -5208,12 +5213,7 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
         localStorage.removeItem("pendingPalmistryImage");
       } catch { alert("분석 중 오류가 발생했습니다. 다시 시도해주세요."); }
       finally { setIsLoading(false); }
-    };
-
-    // 최초 실행 + 모바일 결제 후 pageshow(캐시 복원) 이벤트 대응
-    runPalmistryAnalysis();
-    window.addEventListener("pageshow", runPalmistryAnalysis);
-    return () => window.removeEventListener("pageshow", runPalmistryAnalysis);
+    })();
   }, [isVisible]);
 
   useEffect(() => {
@@ -5418,6 +5418,29 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
       style={{ backgroundImage: "url('/images/bg-palmistry.png')", backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}
     >
       <div className="absolute inset-0 bg-black/65 pointer-events-none" />
+
+      {/* 결제 후 분석중 로딩 오버레이 */}
+      {isLoading && (
+        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-5 rounded-2xl border border-yellow-400/40 bg-slate-900/95 px-10 py-10 shadow-2xl">
+            <div className="relative h-20 w-20">
+              <div className="absolute inset-0 animate-spin rounded-full border-4 border-yellow-400/20 border-t-yellow-400" />
+              <span className="absolute inset-0 flex items-center justify-center text-3xl">✋</span>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-yellow-400">손금 AI 분석 중</p>
+              <p className="mt-1 text-sm text-white/60">손금선을 정밀 분석하고 있습니다</p>
+              <p className="text-sm text-white/60">10~20초 정도 소요됩니다</p>
+            </div>
+            <div className="flex gap-2">
+              {[0,1,2,3,4].map(i => (
+                <span key={i} className="h-2 w-2 rounded-full bg-yellow-400/70 animate-bounce" style={{ animationDelay: `${i * 0.12}s` }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="relative z-10 pt-8 pb-4 text-center">
         <h2 className="text-2xl font-bold text-yellow-400 mb-1">✋ 손금 분석</h2>
         <p className="text-xs text-white/70">손바닥 사진을 업로드하면 AI가 손금을 분석합니다</p>
@@ -6191,16 +6214,12 @@ export default function Home() {
             // last_authorized_imp_uid 먼저 저장 후 탭 이동
             localStorage.setItem("last_authorized_imp_uid", returnPayId);
             // 탭 이동 전 약간의 딜레이로 isVisible 트리거 보장
-            if (pendingType === "palmistry") {
-              localStorage.setItem("palmistry_done", "1");
-              setActiveTab("palmistry");
-            } else {
-              setActiveTab("saju");
-              setTimeout(() => {
-                window.scrollTo({ top: 0, behavior: "smooth" });
-                window.dispatchEvent(new CustomEvent("palmistryPaymentSuccess"));
-              }, 300);
-            }
+            setActiveTab("saju");
+            setTimeout(() => {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              // isVisible 재트리거를 위해 강제 리렌더
+              window.dispatchEvent(new CustomEvent("palmistryPaymentSuccess"));
+            }, 300);
           },
         );
         return;
@@ -6215,15 +6234,9 @@ export default function Home() {
             amount: localStorage.getItem("pendingPaymentAmount"),
           },
           () => {
-            // clearAllReturnArtifacts 보다 먼저 저장 후, 재저장으로 덮어쓰기 방지
-            localStorage.setItem("last_authorized_imp_uid", returnPayId);
-            localStorage.setItem("pendingPaymentType", "palmistry");
+            // clearAllReturnArtifacts가 못 지우는 독립 키 사용
+            localStorage.setItem("palmistry_done", "1");
             setActiveTab("palmistry");
-            // clearAllReturnArtifacts 실행 후 지워졌을 수 있으므로 재저장
-            Promise.resolve().then(() => {
-              localStorage.setItem("last_authorized_imp_uid", returnPayId);
-              localStorage.setItem("pendingPaymentType", "palmistry");
-            });
           },
         );
         return;
