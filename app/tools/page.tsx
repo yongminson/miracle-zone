@@ -2416,7 +2416,8 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       if (faceSaved && pendingType === "physiognomy") {
         try {
           const parsed = JSON.parse(faceSaved);
-          if (parsed.faceImage) setFaceImage(parsed.faceImage);
+          const savedFaceImg = sessionStorage.getItem("pendingFaceImage");
+          if (savedFaceImg) { setFaceImage(savedFaceImg); sessionStorage.removeItem("pendingFaceImage"); }
           if (parsed.faceResultData) {
             setFaceResultData(parsed.faceResultData);
             setShowFaceResult(true);
@@ -2466,7 +2467,8 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
         if (pendingType === "physiognomy" && lastImpUid) {
           try {
             const parsed = JSON.parse(faceSaved);
-            if (parsed.faceImage) setFaceImage(parsed.faceImage);
+            const savedFaceImg = sessionStorage.getItem("pendingFaceImage");
+            if (savedFaceImg) { setFaceImage(savedFaceImg); sessionStorage.removeItem("pendingFaceImage"); }
             if (parsed.faceResultData) {
               setFaceResultData(parsed.faceResultData);
               setShowFaceResult(true);
@@ -2635,7 +2637,9 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
 
     localStorage.setItem("pendingPaymentType", "physiognomy");
     localStorage.setItem("pendingPaymentAmount", String(amount));
-    localStorage.setItem("pendingFaceData", JSON.stringify({ faceImage, faceResultData }));
+    // faceImage는 sessionStorage에 별도 저장 (base64 용량 초과 방지)
+    try { sessionStorage.setItem("pendingFaceImage", faceImage ?? ""); } catch {}
+    try { localStorage.setItem("pendingFaceData", JSON.stringify({ faceResultData })); } catch(e) { console.error("pendingFaceData 저장 실패:", e); }
     savePendingPaymentData({ v: 1, tab: "saju", flow: "physiognomy" });
     savePendingPaymentState({
       tab: "saju",
