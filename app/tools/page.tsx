@@ -5158,34 +5158,30 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
   useEffect(() => {
     if (typeof window === "undefined" || !isVisible) return;
 
-    const paymentDone = localStorage.getItem("palmistry_done");
-    if (!paymentDone) return;
+    const runPalmistryAnalysis = async () => {
+      const paymentDone = localStorage.getItem("palmistry_done");
+      if (!paymentDone) return;
+      localStorage.removeItem("palmistry_done");
 
-    // 결제 완료 플래그 즉시 제거
-    localStorage.removeItem("palmistry_done");
+      const palmSaved = localStorage.getItem("pendingPalmistryData");
+      const savedImage = localStorage.getItem("pendingPalmistryImage");
 
-    const palmSaved = localStorage.getItem("pendingPalmistryData");
-    const savedImage = localStorage.getItem("pendingPalmistryImage");
+      if (palmSaved) {
+        try {
+          const parsed = JSON.parse(palmSaved);
+          if (parsed.hand) savedHandRef.current = parsed.hand;
+          if (parsed.freeResult) setFreeResult(parsed.freeResult);
+        } catch(e) {}
+        localStorage.removeItem("pendingPalmistryData");
+      }
+      if (savedImage) {
+        savedImageBase64Ref.current = savedImage;
+        setImagePreview(savedImage);
+      }
+      localStorage.removeItem("pendingPaymentType");
+      localStorage.removeItem("pendingPaymentAmount");
 
-    // 저장된 데이터 복구
-    if (palmSaved) {
-      try {
-        const parsed = JSON.parse(palmSaved);
-        if (parsed.hand) savedHandRef.current = parsed.hand;
-        if (parsed.freeResult) setFreeResult(parsed.freeResult);
-      } catch(e) {}
-      localStorage.removeItem("pendingPalmistryData");
-    }
-    if (savedImage) {
-      savedImageBase64Ref.current = savedImage;
-      setImagePreview(savedImage);
-    }
-    localStorage.removeItem("pendingPaymentType");
-    localStorage.removeItem("pendingPaymentAmount");
-
-    // 즉시 로딩 표시 + 분석 실행
-    setIsLoading(true);
-    (async () => {
+      setIsLoading(true);
       const img = savedImage || savedImageBase64Ref.current;
       if (!img) {
         setIsLoading(false);
@@ -5212,7 +5208,12 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
         localStorage.removeItem("pendingPalmistryImage");
       } catch { alert("분석 중 오류가 발생했습니다. 다시 시도해주세요."); }
       finally { setIsLoading(false); }
-    })();
+    };
+
+    // 최초 실행 + 모바일 결제 후 pageshow(캐시 복원) 이벤트 대응
+    runPalmistryAnalysis();
+    window.addEventListener("pageshow", runPalmistryAnalysis);
+    return () => window.removeEventListener("pageshow", runPalmistryAnalysis);
   }, [isVisible]);
 
   useEffect(() => {
@@ -6210,8 +6211,15 @@ export default function Home() {
             amount: localStorage.getItem("pendingPaymentAmount"),
           },
           () => {
-            localStorage.setItem("palmistry_done", "1");
+            // clearAllReturnArtifacts 보다 먼저 저장 후, 재저장으로 덮어쓰기 방지
+            localStorage.setItem("last_authorized_imp_uid", returnPayId);
+            localStorage.setItem("pendingPaymentType", "palmistry");
             setActiveTab("palmistry");
+            // clearAllReturnArtifacts 실행 후 지워졌을 수 있으므로 재저장
+            Promise.resolve().then(() => {
+              localStorage.setItem("last_authorized_imp_uid", returnPayId);
+              localStorage.setItem("pendingPaymentType", "palmistry");
+            });
           },
         );
         return;
