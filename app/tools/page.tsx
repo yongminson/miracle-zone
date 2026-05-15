@@ -5324,14 +5324,26 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
 
               {/* 4대 손금선 */}
               <div className="space-y-3">
-                {PALM_LINES.map((line) => (
+                {PALM_LINES.map((line, index) => (
                   freeResult[line.key] && (
-                    <div key={line.key} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div key={line.key} className="relative rounded-xl border border-white/10 bg-white/5 p-3 overflow-hidden">
                       <p className="text-xs font-bold text-white/70 mb-1">
                         {line.label}
                         <span className="ml-1 text-white/35 font-normal">— {line.desc}</span>
                       </p>
-                      <p className="text-sm text-white/75">{freeResult[line.key]}</p>
+                      {/* 생명선만 무료 공개, 나머지는 블러 */}
+                      {index === 0 ? (
+                        <p className="text-sm text-white/75">{freeResult[line.key]}</p>
+                      ) : (
+                        <div className="relative">
+                          <p className="text-sm text-white/75 blur-sm select-none">{freeResult[line.key]}</p>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="rounded-full bg-yellow-400/20 border border-yellow-400/40 px-3 py-1 text-[11px] font-bold text-yellow-400">
+                              🔒 상세 분석 보기
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 ))}
