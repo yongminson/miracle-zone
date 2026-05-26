@@ -6249,21 +6249,17 @@ export default function Home() {
     })();
   }, [pathname, router]);
 
-  // PWA 설치 배너 - 모바일이면 무조건 표시 (한 번 닫으면 7일간 숨김)
+  // PWA 설치 배너 - 모바일이면 2초 후 자동 표시 (닫으면 7일 숨김)
   useEffect(() => {
     const isMobileDevice = /Android|iPhone|iPad/i.test(navigator.userAgent);
-    const dismissed = localStorage.getItem("pwa-banner-dismissed");
-    const dismissedAt = dismissed ? parseInt(dismissed) : 0;
-    const sevenDays = 7 * 24 * 60 * 60 * 1000;
-    
-    // 이미 앱으로 실행 중이면 숨김
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-    
-    if (isMobileDevice && !isStandalone && Date.now() - dismissedAt > sevenDays) {
+    const dismissed = localStorage.getItem("pwa-banner-dismissed");
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    const dismissedRecently = dismissed && Date.now() - parseInt(dismissed) < sevenDays;
+
+    if (isMobileDevice && !isStandalone && !dismissedRecently) {
       setTimeout(() => setShowInstallBanner(true), 2000);
     }
-
-    // beforeinstallprompt 이벤트도 잡아둠
     const handler = () => setShowInstallBanner(true);
     window.addEventListener("pwa-installable", handler);
     return () => window.removeEventListener("pwa-installable", handler);
@@ -6408,26 +6404,33 @@ export default function Home() {
       {showInstallBanner && (
         <div className="fixed bottom-0 left-0 right-0 z-[200] flex items-center justify-between gap-3 bg-slate-900 border-t border-yellow-400/40 px-4 py-3 shadow-2xl">
           <div className="flex items-center gap-3">
-            <img src="/icons/icon-192.png" className="h-10 w-10 rounded-xl" alt="명운 아이콘" />
+            <img src="/icons/icon-192.png" className="h-10 w-10 rounded-xl" alt="명운" />
             <div>
-              <p className="text-sm font-bold text-yellow-400">명운 앱 설치</p>
-              <p className="text-xs text-white/60">홈 화면에 추가하고 빠르게 실행하세요</p>
+              <p className="text-sm font-bold text-yellow-400">명운 앱으로 설치하기</p>
+              <p className="text-xs text-white/60">홈 화면에서 바로 실행하세요</p>
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
-          <button onClick={() => { localStorage.setItem("pwa-banner-dismissed", String(Date.now())); setShowInstallBanner(false); }} className="text-xs text-white/40 px-2 py-1">닫기</button>
+            <button
+              onClick={() => {
+                localStorage.setItem("pwa-banner-dismissed", String(Date.now()));
+                setShowInstallBanner(false);
+              }}
+              className="text-xs text-white/40 px-2 py-1"
+            >✕</button>
             <button
               onClick={async () => {
                 const prompt = (window as any).__installPrompt;
-                if (!prompt) return;
-                prompt.prompt();
-                const { outcome } = await prompt.userChoice;
-                if (outcome === "accepted") setShowInstallBanner(false);
+                if (prompt) {
+                  prompt.prompt();
+                  const { outcome } = await prompt.userChoice;
+                  if (outcome === "accepted") setShowInstallBanner(false);
+                } else {
+                  alert("브라우저 메뉴 → '홈 화면에 추가'를 눌러 설치하세요!");
+                }
               }}
               className="rounded-lg bg-yellow-400 px-4 py-2 text-xs font-bold text-slate-900"
-            >
-              설치
-            </button>
+            >설치</button>
           </div>
         </div>
       )}
