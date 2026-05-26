@@ -133,6 +133,12 @@ export default function RootLayout({
               console.log('SW 등록 완료');
             });
           }
+          // 앱 설치 버튼 이벤트 캐치
+          window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.__installPrompt = e;
+            window.dispatchEvent(new Event('pwa-installable'));
+          });
         `}</Script>
         <CustomAnalytics />
         <Analytics />

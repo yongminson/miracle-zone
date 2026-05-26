@@ -5988,6 +5988,7 @@ export default function Home() {
   const router = useRouter();
   const pathname = usePathname() || "/tools";
   const [activeTab, setActiveTab] = useState<TabId>("fortune");
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
   // 🚀 메뉴 스크롤 제어를 위한 Ref 추가
   const navRef = useRef<HTMLDivElement>(null);
   const [user, setUser] = useState<any>(null);
@@ -6248,6 +6249,14 @@ export default function Home() {
     })();
   }, [pathname, router]);
 
+  // PWA 설치 배너
+  useEffect(() => {
+    const handler = () => setShowInstallBanner(true);
+    window.addEventListener('pwa-installable', handler);
+    if ((window as any).__installPrompt) setShowInstallBanner(true);
+    return () => window.removeEventListener('pwa-installable', handler);
+  }, []);
+
   // 🚀 [추가됨] 로그인 상태 확인 및 감지
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -6382,6 +6391,34 @@ export default function Home() {
           </div>
         }
       />
+
+      {/* PWA 설치 배너 */}
+      {showInstallBanner && (
+        <div className="fixed bottom-0 left-0 right-0 z-[200] flex items-center justify-between gap-3 bg-slate-900 border-t border-yellow-400/40 px-4 py-3 shadow-2xl">
+          <div className="flex items-center gap-3">
+            <img src="/icons/icon-192.png" className="h-10 w-10 rounded-xl" alt="명운 아이콘" />
+            <div>
+              <p className="text-sm font-bold text-yellow-400">명운 앱 설치</p>
+              <p className="text-xs text-white/60">홈 화면에 추가하고 빠르게 실행하세요</p>
+            </div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button onClick={() => setShowInstallBanner(false)} className="text-xs text-white/40 px-2 py-1">닫기</button>
+            <button
+              onClick={async () => {
+                const prompt = (window as any).__installPrompt;
+                if (!prompt) return;
+                prompt.prompt();
+                const { outcome } = await prompt.userChoice;
+                if (outcome === "accepted") setShowInstallBanner(false);
+              }}
+              className="rounded-lg bg-yellow-400 px-4 py-2 text-xs font-bold text-slate-900"
+            >
+              설치
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 🚀 메뉴 클릭 시 자동 중앙 정렬 기능이 탑재된 네비게이션 */}
       <nav className="sticky top-[52px] z-50 w-full border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-sm shadow-md relative">
