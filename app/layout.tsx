@@ -18,13 +18,6 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "명운(命運) - 무료 사주 운세 | 오늘의 운세 관상 궁합 꿈해몽",
-  manifest: "/manifest.json",
-  themeColor: "#f59e0b",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "명운",
-  },
   description: "AI 명리학 기반 무료 사주 운세 서비스. 오늘의 운세, 관상 분석, 이름풀이, 소름돋는 궁합, MBTI 사주, 꿈해몽까지. 지금 바로 무료로 확인하세요.",
 
   keywords: [
@@ -127,21 +120,77 @@ export default function RootLayout({
           <div className="flex-1">{children}</div>
           <GlobalSiteFooter />
         </div>
-        <Script id="sw-register" strategy="afterInteractive">{`
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').then(() => {
-              console.log('SW 등록 완료');
-            });
-          }
-          // 앱 설치 버튼 이벤트 캐치
-          window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            window.__installPrompt = e;
-            window.dispatchEvent(new Event('pwa-installable'));
-          });
-        `}</Script>
         <CustomAnalytics />
         <Analytics />
+
+        {/* PWA 서비스워커 등록 + 설치 배너 */}
+        <Script id="pwa-setup" strategy="afterInteractive">{`
+          // 서비스워커 등록
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+          }
+
+          // beforeinstallprompt 이벤트 저장
+          window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            window.__installPrompt = e;
+          });
+
+          // 모바일이고 standalone 아니고 7일 이내 닫은 적 없으면 배너 표시
+          var isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+          var isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+          var dismissed = localStorage.getItem('pwa-banner-dismissed');
+          var dismissedRecently = dismissed && (Date.now() - parseInt(dismissed)) < 7 * 24 * 60 * 60 * 1000;
+
+          if (isMobile && !isStandalone && !dismissedRecently) {
+            setTimeout(function() {
+              var banner = document.getElementById('pwa-install-banner');
+              if (banner) banner.style.display = 'flex';
+            }, 2000);
+          }
+
+          // 설치 버튼
+          document.addEventListener('click', function(e) {
+            if (e.target && e.target.id === 'pwa-install-btn') {
+              var prompt = window.__installPrompt;
+              if (prompt) {
+                prompt.prompt();
+                prompt.userChoice.then(function(result) {
+                  if (result.outcome === 'accepted') {
+                    var banner = document.getElementById('pwa-install-banner');
+                    if (banner) banner.style.display = 'none';
+                  }
+                });
+              } else {
+                alert('브라우저 메뉴 → 홈 화면에 추가를 눌러 설치하세요!');
+              }
+            }
+            if (e.target && e.target.id === 'pwa-dismiss-btn') {
+              localStorage.setItem('pwa-banner-dismissed', String(Date.now()));
+              var banner = document.getElementById('pwa-install-banner');
+              if (banner) banner.style.display = 'none';
+            }
+          });
+        `}</Script>
+
+        {/* PWA 설치 배너 HTML (초기엔 숨김) */}
+        <div
+          id="pwa-install-banner"
+          style={{ display: 'none' }}
+          className="fixed bottom-0 left-0 right-0 z-[9999] flex items-center justify-between gap-3 border-t border-yellow-400/40 bg-slate-900 px-4 py-3 shadow-2xl"
+        >
+          <div className="flex items-center gap-3">
+            <img src="/icons/icon-192.png" className="h-10 w-10 rounded-xl" alt="명운" />
+            <div>
+              <p className="text-sm font-bold text-yellow-400">명운 앱으로 설치하기</p>
+              <p className="text-xs text-white/60">홈 화면에서 바로 실행하세요</p>
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button id="pwa-dismiss-btn" className="px-2 py-1 text-xs text-white/40">✕</button>
+            <button id="pwa-install-btn" className="rounded-lg bg-yellow-400 px-4 py-2 text-xs font-bold text-slate-900">설치</button>
+          </div>
+        </div>
       </body>
     </html>
   );
