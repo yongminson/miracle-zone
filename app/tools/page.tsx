@@ -6249,12 +6249,24 @@ export default function Home() {
     })();
   }, [pathname, router]);
 
-  // PWA 설치 배너
+  // PWA 설치 배너 - 모바일이면 무조건 표시 (한 번 닫으면 7일간 숨김)
   useEffect(() => {
+    const isMobileDevice = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    const dismissed = localStorage.getItem("pwa-banner-dismissed");
+    const dismissedAt = dismissed ? parseInt(dismissed) : 0;
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    
+    // 이미 앱으로 실행 중이면 숨김
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
+    
+    if (isMobileDevice && !isStandalone && Date.now() - dismissedAt > sevenDays) {
+      setTimeout(() => setShowInstallBanner(true), 2000);
+    }
+
+    // beforeinstallprompt 이벤트도 잡아둠
     const handler = () => setShowInstallBanner(true);
-    window.addEventListener('pwa-installable', handler);
-    if ((window as any).__installPrompt) setShowInstallBanner(true);
-    return () => window.removeEventListener('pwa-installable', handler);
+    window.addEventListener("pwa-installable", handler);
+    return () => window.removeEventListener("pwa-installable", handler);
   }, []);
 
   // 🚀 [추가됨] 로그인 상태 확인 및 감지
@@ -6403,7 +6415,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
-            <button onClick={() => setShowInstallBanner(false)} className="text-xs text-white/40 px-2 py-1">닫기</button>
+          <button onClick={() => { localStorage.setItem("pwa-banner-dismissed", String(Date.now())); setShowInstallBanner(false); }} className="text-xs text-white/40 px-2 py-1">닫기</button>
             <button
               onClick={async () => {
                 const prompt = (window as any).__installPrompt;
