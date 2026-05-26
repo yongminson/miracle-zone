@@ -18,6 +18,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "명운(命運) - 무료 사주 운세 | 오늘의 운세 관상 궁합 꿈해몽",
+  manifest: "/manifest.json",
+  themeColor: "#f59e0b",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "명운",
+  },
   description: "AI 명리학 기반 무료 사주 운세 서비스. 오늘의 운세, 관상 분석, 이름풀이, 소름돋는 궁합, MBTI 사주, 꿈해몽까지. 지금 바로 무료로 확인하세요.",
 
   keywords: [
@@ -120,6 +127,13 @@ export default function RootLayout({
           <div className="flex-1">{children}</div>
           <GlobalSiteFooter />
         </div>
+        <Script id="sw-register" strategy="afterInteractive">{`
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').then(() => {
+              console.log('SW 등록 완료');
+            });
+          }
+        `}</Script>
         <CustomAnalytics />
         <Analytics />
       </body>
