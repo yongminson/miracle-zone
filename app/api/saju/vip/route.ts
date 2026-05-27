@@ -200,10 +200,9 @@ export async function POST(request: NextRequest) {
     try {
       markdown = await generateVipMarkdownReport(sajuData, { clientName, currentYear, mbti });
     } catch (err: any) {
-      console.error("Gemini API 처리 에러 원문:", err);
-      // 에러 메시지를 뭉뚱그리지 않고 화면에 그대로 쏴줍니다!
+      console.error("GPT API 처리 에러 원문:", err);
       return NextResponse.json(
-        { success: false, error: `제미나이 서버 에러: ${err.message || "알 수 없는 오류"}` },
+        { success: false, error: `GPT 서버 에러: ${err.message || "알 수 없는 오류"}` },
         { status: 500 },
       );
     }
