@@ -1,7 +1,7 @@
-/** Vercel · 서버 타임아웃 5분 */
+/** Vercel · 스트리밍 응답은 타임아웃 없음 */
 export const maxDuration = 300;
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import type { VipCalendarType, VipGender } from "@/lib/saju/vip-types";
 import { extractVipSajuData } from "@/lib/saju/vip-saju-data";
@@ -38,12 +38,24 @@ async function persistVipOrderRow(
   const supabaseAdmin = createSupabaseAdminClient();
   if (!supabaseAdmin) return;
   const report_url = resolveVipReportPublicUrlFromRequest(request);
-  const phone = typeof params.phone_number === "string" && params.phone_number.trim() !== "" ? params.phone_number.trim() : null;
-  const row = { user_name: params.user_name, phone_number: phone, imp_uid: imp, amount: VIP_ORDER_AMOUNT_WON, report_url, status: "completed" };
+  const phone =
+    typeof params.phone_number === "string" && params.phone_number.trim() !== ""
+      ? params.phone_number.trim()
+      : null;
+  const row = {
+    user_name: params.user_name,
+    phone_number: phone,
+    imp_uid: imp,
+    amount: VIP_ORDER_AMOUNT_WON,
+    report_url,
+    status: "completed",
+  };
   await upsertVipOrderRow(supabaseAdmin, row);
 }
 
-function parseBirthParts(birthDate: string): { year: number; month: number; day: number } | null {
+function parseBirthParts(
+  birthDate: string,
+): { year: number; month: number; day: number } | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthDate.trim());
   if (!m) return null;
   const year = Number(m[1]);
@@ -66,28 +78,15 @@ const SYSTEM_PROMPT = `당신은 대한민국 최고의 사주·명리학 전문
 2. 절대 요약하거나 생략하지 마세요
 3. 마크다운 표는 반드시 파이프(|) 형식으로 작성`;
 
-async function callClaude(userPrompt: string): Promise<string> {
-  const result = await anthropic.messages.create({
-    model: "claude-sonnet-4-5",
-    max_tokens: 16000,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt }],
-  });
-  const text = result.content[0]?.type === "text" ? result.content[0].text : "";
-  if (!text) throw new Error("CLAUDE_EMPTY_RESPONSE");
-  return text;
-}
-
-async function generateVipMarkdownReport(
+function buildUnifiedPrompt(
   sajuData: ReturnType<typeof extractVipSajuData>,
-  opts: { clientName: string; currentYear: number; mbti: string | null }
-): Promise<string> {
-
+  opts: { clientName: string; currentYear: number; mbti: string | null },
+): string {
   const mbtiInstruction = opts.mbti
     ? `내담자의 MBTI는 ${opts.mbti}입니다. 서양 심리학과 동양 명리학을 결합하여 분석하세요.`
     : `MBTI 정보 없음. 'MBTI' 단어 절대 언급 금지. 순수 명리학으로만 서술.`;
 
-  const baseInfo = `
+  return `
 [내담자 정보]
 - 이름: ${opts.clientName}
 - 현재 기준 연도: ${opts.currentYear}년
@@ -98,11 +97,8 @@ async function generateVipMarkdownReport(
 - "${opts.clientName} 님" 호명하며 서술
 - 인사말, 가격, 시스템 내용 노출 절대 금지
 - 마크다운 표: 파이프(|) 형식, 표 위아래 빈 줄 필수
-`;
 
-const prompt1 = `${baseInfo}
-
-아래 순서대로 작성. 각 챕터 최소 700자 이상.
+아래 10개 챕터를 순서대로 빠짐없이 작성하세요. 각 챕터 최소 700자 이상.
 
 ## 목차
 (1~10장 숫자 리스트, '#' 기호 절대 금지)
@@ -114,14 +110,6 @@ const prompt1 = `${baseInfo}
 | --- | --- | --- | --- | --- |
 | 천간 | O(O) | O(O) | O(O) | O(O) |
 | 지지 | O(O) | O(O) | O(O) | O(O) |
-
-# 제 3장 천직과 직업운
-# 제 4장 재물운 흐름
-# 제 5장 인연법과 애정운`;
-
-  const prompt_ch2 = `${baseInfo}
-
-제 2장만 작성하세요. 아래 내용을 절대 생략 없이 완성하세요.
 
 # 제 2장 10년 대운과 ${opts.currentYear}~2035년 세운 정밀 해부
 
@@ -162,13 +150,11 @@ const prompt1 = `${baseInfo}
 (동일 형식)
 
 ### 2035년 (을묘년 乙卯年)
-(동일 형식)`;
+(동일 형식)
 
-const prompt2 = `${baseInfo}
-
-아래 순서대로 작성. 각 챕터 최소 700자 이상.
-반드시 제10장 마지막에 부적 이미지를 삽입하세요. 절대 빠뜨리지 마세요.
-
+# 제 3장 천직과 직업운
+# 제 4장 재물운 흐름
+# 제 5장 인연법과 애정운
 # 제 6장 건강운
 # 제 7장 귀인과 악연
 # 제 8장 길운을 부르는 행동지침
@@ -183,12 +169,8 @@ const prompt2 = `${baseInfo}
    - 쇠(金): ![맞춤 부적](/images/amulet-metal.jpg)
    - 물(水): ![맞춤 부적](/images/amulet-water.jpg)
 2. 이미지 아래 [부적의 효과 설명] 소제목
-3. 1.사회적 신분 상승 2.재물의 결실 3.인간관계 개선 작성`;
-
-const part1 = await callClaude(prompt1);
-const part2 = await callClaude(prompt2);
-
-return `${part1}\n\n${part2}`;
+3. 1.사회적 신분 상승 2.재물의 결실 3.인간관계 개선 작성
+`;
 }
 
 export async function POST(request: NextRequest) {
@@ -196,16 +178,34 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as VipRequestBody;
     const { gender, birthDate, birthTime } = body;
     const currentYear = 2026;
-    const clientName = typeof body.name === "string" && body.name.trim() !== "" ? body.name.trim() : "내담자";
+    const clientName =
+      typeof body.name === "string" && body.name.trim() !== ""
+        ? body.name.trim()
+        : "내담자";
     const mbti = normalizeMbti(body.mbti);
 
-    if (!birthDate) return NextResponse.json({ success: false, error: "생년월일은 필수입니다." }, { status: 400 });
-    if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ success: false, error: "Anthropic API 키가 없습니다." }, { status: 500 });
+    if (!birthDate)
+      return new Response(
+        JSON.stringify({ success: false, error: "생년월일은 필수입니다." }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    if (!process.env.ANTHROPIC_API_KEY)
+      return new Response(
+        JSON.stringify({ success: false, error: "Anthropic API 키가 없습니다." }),
+        { status: 500, headers: { "Content-Type": "application/json" } },
+      );
 
     const parts = parseBirthParts(birthDate);
-    if (!parts) return NextResponse.json({ success: false, error: "잘못된 날짜 형식입니다." }, { status: 400 });
+    if (!parts)
+      return new Response(
+        JSON.stringify({ success: false, error: "잘못된 날짜 형식입니다." }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
 
-    const calendarType = body.calendarType === "lunar" || body.calendarType === "lunar-leap" ? body.calendarType : "solar";
+    const calendarType =
+      body.calendarType === "lunar" || body.calendarType === "lunar-leap"
+        ? body.calendarType
+        : "solar";
 
     let sajuData;
     try {
@@ -218,27 +218,71 @@ export async function POST(request: NextRequest) {
         mbti,
       });
     } catch (e) {
-      return NextResponse.json({ success: false, error: e instanceof Error ? e.message : "명식 계산 실패" }, { status: 400 });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: e instanceof Error ? e.message : "명식 계산 실패",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
     }
 
-    let markdown: string;
-    try {
-      markdown = await generateVipMarkdownReport(sajuData, { clientName, currentYear, mbti });
-    } catch (err: any) {
-      console.error("Claude API 에러 전체:", JSON.stringify(err, null, 2));
-      const errMsg = err?.message || err?.error?.message || JSON.stringify(err) || "알 수 없는 오류";
-      return NextResponse.json({ success: false, error: `Claude 에러: ${errMsg}` }, { status: 500 });
-    }
+    const userPrompt = buildUnifiedPrompt(sajuData, { clientName, currentYear, mbti });
 
-    await persistVipOrderRow(request, {
-      imp_uid: body.imp_uid,
-      user_name: clientName,
-      phone_number: body.phone_number,
+    // ── 스트리밍 응답 시작 ──────────────────────────────────────────
+    const encoder = new TextEncoder();
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const claudeStream = anthropic.messages.stream({
+            model: "claude-sonnet-4-5",
+            max_tokens: 16000,
+            system: SYSTEM_PROMPT,
+            messages: [{ role: "user", content: userPrompt }],
+          });
+
+          // 청크마다 클라이언트로 전달
+          claudeStream.on("text", (text) => {
+            const chunk = JSON.stringify({ type: "chunk", text }) + "\n";
+            controller.enqueue(encoder.encode(chunk));
+          });
+
+          // 완료 후 DB 저장 + 완료 신호
+          await claudeStream.finalMessage();
+
+          await persistVipOrderRow(request, {
+            imp_uid: body.imp_uid,
+            user_name: clientName,
+            phone_number: body.phone_number,
+          });
+
+          const done = JSON.stringify({ type: "done" }) + "\n";
+          controller.enqueue(encoder.encode(done));
+          controller.close();
+        } catch (err: any) {
+          console.error("Claude 스트리밍 에러:", err);
+          const errMsg = err?.message || JSON.stringify(err) || "알 수 없는 오류";
+          const errChunk = JSON.stringify({ type: "error", error: errMsg }) + "\n";
+          controller.enqueue(encoder.encode(errChunk));
+          controller.close();
+        }
+      },
     });
 
-    return NextResponse.json({ success: true, markdown });
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
+    });
   } catch (error: any) {
     console.error("서버 전체 에러:", error);
-    return NextResponse.json({ success: false, error: `서버 에러: ${error.message || "알 수 없는 오류"}` }, { status: 500 });
+    return new Response(
+      JSON.stringify({ success: false, error: `서버 에러: ${error.message || "알 수 없는 오류"}` }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
   }
 }

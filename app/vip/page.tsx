@@ -18,6 +18,7 @@ import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 
 type VipApiSuccess = { success: true; markdown: string };
 type VipApiFail = { success: false; error?: string };
+type VipStreamChunk = { type: "chunk"; text: string } | { type: "done" } | { type: "error"; error: string };
 
 function buildSajuSummary(params: {
   name: string;
@@ -428,76 +429,104 @@ export default function VipLandingPage() {
         ? { imp_uid: imp, phone_number: "010-0000-0000" as const }
         : {};
 
-    try {
-      // 1. 백엔드에 14페이지 생성 요청 (이 부분은 41초 만에 완벽히 성공하고 있음)
-      const res = await fetch("/api/saju/vip", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: trimmedName,
-          gender: genderEff,
-          birthDate: birthDateEff,
-          birthTime: birthTimeEff || null,
-          mbti: mbtiEff || null,
-          calendarType: "solar",
-          ...paymentPayload,
-        }),
-        signal: controller.signal,
-      });
-
-      let data: VipApiSuccess | VipApiFail;
-      try {
-        data = (await res.json()) as VipApiSuccess | VipApiFail;
-      } catch (parseErr) {
-        const hint = parseErr instanceof Error ? parseErr.message : String(parseErr);
-        const msg = `서버 응답을 JSON으로 해석하지 못했습니다. (${hint})`;
-        setErrorMessage(msg);
-        reportGenAlert(msg);
-        setIsSuccess(false);
-        return;
-      }
-
-      if (!res.ok || !data.success) {
-        const msg = !data.success && "error" in data && data.error ? data.error : "리포트 생성 실패";
-        const full = `API 응답 오류 (HTTP ${res.status}): ${msg}`;
-        setErrorMessage(full);
-        reportGenAlert(full);
-        setIsSuccess(false);
-        return;
-      }
-
-      if (options?.imp_uid) {
-        clearVipCheckoutDraft();
-        setName(trimmedName);
-        setBirthDate(birthDateEff);
-        setBirthTime(birthTimeEff);
-        setGender(genderEff);
-        setMbti(mbtiEff);
-      }
-
-      const summary = buildSajuSummary({
-        name: trimmedName,
-        birthDate: birthDateEff,
-        birthTime: birthTimeEff,
-        gender: genderEff,
-        mbti: mbtiEff,
-      });
-
-      // 2. 텍스트 세팅 완료
-      setPdfUserInfo({ name: trimmedName, sajuSummary: summary });
-      setReportMarkdown(data.markdown);
-
-      const extracted = extractAmuletUrlFromMarkdown(data.markdown);
-      setAmuletUrl(extracted);
-
-      // DOM 업데이트 대기
-      await new Promise<void>((resolve) => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      });
-
-      setIsSuccess(true);
-      setIsDownloaded(true);
-      setReportRevision((r) => r + 1);
+        try {
+          // 1. 백엔드에 스트리밍 요청
+          const res = await fetch("/api/saju/vip", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: trimmedName,
+              gender: genderEff,
+              birthDate: birthDateEff,
+              birthTime: birthTimeEff || null,
+              mbti: mbtiEff || null,
+              calendarType: "solar",
+              ...paymentPayload,
+            }),
+            signal: controller.signal,
+          });
+    
+          if (!res.ok || !res.body) {
+            let errMsg = "리포트 생성 실패";
+            try {
+              const errData = (await res.json()) as VipApiFail;
+              if (!errData.success && errData.error) errMsg = errData.error;
+            } catch {}
+            const full = `API 응답 오류 (HTTP ${res.status}): ${errMsg}`;
+            setErrorMessage(full);
+            reportGenAlert(full);
+            setIsSuccess(false);
+            return;
+          }
+    
+          // 스트리밍 수신
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let fullMarkdown = "";
+          let buffer = "";
+    
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() ?? "";
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try {
+                const parsed = JSON.parse(line) as VipStreamChunk;
+                if (parsed.type === "chunk") {
+                  fullMarkdown += parsed.text;
+                  setReportMarkdown(fullMarkdown);
+                } else if (parsed.type === "error") {
+                  throw new Error(parsed.error);
+                }
+              } catch (parseErr) {
+                // JSON 파싱 실패 라인 무시
+              }
+            }
+          }
+    
+          if (!fullMarkdown.trim()) {
+            const msg = "리포트 내용이 비어 있습니다. 다시 시도해 주세요.";
+            setErrorMessage(msg);
+            reportGenAlert(msg);
+            setIsSuccess(false);
+            return;
+          }
+    
+          if (options?.imp_uid) {
+            clearVipCheckoutDraft();
+            setName(trimmedName);
+            setBirthDate(birthDateEff);
+            setBirthTime(birthTimeEff);
+            setGender(genderEff);
+            setMbti(mbtiEff);
+          }
+    
+          const summary = buildSajuSummary({
+            name: trimmedName,
+            birthDate: birthDateEff,
+            birthTime: birthTimeEff,
+            gender: genderEff,
+            mbti: mbtiEff,
+          });
+    
+          // 2. 텍스트 세팅 완료
+          setPdfUserInfo({ name: trimmedName, sajuSummary: summary });
+          setReportMarkdown(fullMarkdown);
+    
+          const extracted = extractAmuletUrlFromMarkdown(fullMarkdown);
+          setAmuletUrl(extracted);
+    
+          // DOM 업데이트 대기
+          await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          });
+    
+          setIsSuccess(true);
+          setIsDownloaded(true);
+          setReportRevision((r) => r + 1);
 
     } catch (e: unknown) {
       // 여기서 무조건 "네트워크 오류"라고 띄우던 악성 코드를 제거하고 진짜 원인 출력
