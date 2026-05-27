@@ -185,13 +185,10 @@ const prompt2 = `${baseInfo}
 2. 이미지 아래 [부적의 효과 설명] 소제목
 3. 1.사회적 신분 상승 2.재물의 결실 3.인간관계 개선 작성`;
 
-const [part1, part_ch2, part2] = await Promise.all([
-  callClaude(prompt1),
-  callClaude(prompt_ch2),
-  callClaude(prompt2),
-]);
+const part1 = await callClaude(prompt1);
+const part2 = await callClaude(prompt2);
 
-return `${part1}\n\n${part_ch2}\n\n${part2}`;
+return `${part1}\n\n${part2}`;
 }
 
 export async function POST(request: NextRequest) {
