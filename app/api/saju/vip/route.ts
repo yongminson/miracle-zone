@@ -100,7 +100,7 @@ async function generateVipMarkdownReport(
 - 마크다운 표: 파이프(|) 형식, 표 위아래 빈 줄 필수
 `;
 
-  const prompt1 = `${baseInfo}
+const prompt1 = `${baseInfo}
 
 아래 순서대로 작성. 각 챕터 최소 700자 이상.
 
@@ -115,19 +115,54 @@ async function generateVipMarkdownReport(
 | 천간 | O(O) | O(O) | O(O) | O(O) |
 | 지지 | O(O) | O(O) | O(O) | O(O) |
 
-# 제 2장 10년 대운과 ${opts.currentYear}~2035년 세운 정밀 해부
-대운 흐름 표 포함. 2026~2035년 각 연도별 아래 5항목 절대 생략 금지:
-
-### 20XX년 (간지)
-**🔥 종합 운세:** (150자 이상)
-**💰 재물운:** (150자 이상)
-**💼 직장·사업운:** (150자 이상)
-**❤️ 인간관계·애정운:** (100자 이상)
-**⚠️ 주의사항:** (구체적으로)
-
 # 제 3장 천직과 직업운
 # 제 4장 재물운 흐름
 # 제 5장 인연법과 애정운`;
+
+  const prompt_ch2 = `${baseInfo}
+
+제 2장만 작성하세요. 아래 내용을 절대 생략 없이 완성하세요.
+
+# 제 2장 10년 대운과 ${opts.currentYear}~2035년 세운 정밀 해부
+
+먼저 대운 흐름 표를 작성하세요.
+
+그 다음 2026년부터 2035년까지 10개 연도를 각각 아래 형식으로 작성하세요.
+단 하나의 연도도 빠뜨리면 안 됩니다. 절대로 요약하거나 생략하지 마세요.
+
+### 2026년 (병오년 丙午年)
+**🔥 종합 운세:** (200자 이상)
+**💰 재물운:** (200자 이상)
+**💼 직장·사업운:** (200자 이상)
+**❤️ 인간관계·애정운:** (150자 이상)
+**⚠️ 주의사항:** (구체적으로)
+
+### 2027년 (정미년 丁未年)
+(동일 형식)
+
+### 2028년 (무신년 戊申年)
+(동일 형식)
+
+### 2029년 (기유년 己酉年)
+(동일 형식)
+
+### 2030년 (경술년 庚戌年)
+(동일 형식)
+
+### 2031년 (신해년 辛亥年)
+(동일 형식)
+
+### 2032년 (임자년 壬子年)
+(동일 형식)
+
+### 2033년 (계축년 癸丑年)
+(동일 형식)
+
+### 2034년 (갑인년 甲寅年)
+(동일 형식)
+
+### 2035년 (을묘년 乙卯年)
+(동일 형식)`;
 
 const prompt2 = `${baseInfo}
 
@@ -150,12 +185,13 @@ const prompt2 = `${baseInfo}
 2. 이미지 아래 [부적의 효과 설명] 소제목
 3. 1.사회적 신분 상승 2.재물의 결실 3.인간관계 개선 작성`;
 
-  const [part1, part2] = await Promise.all([
-    callClaude(prompt1),
-    callClaude(prompt2),
-  ]);
+const [part1, part_ch2, part2] = await Promise.all([
+  callClaude(prompt1),
+  callClaude(prompt_ch2),
+  callClaude(prompt2),
+]);
 
-  return `${part1}\n\n${part2}`;
+return `${part1}\n\n${part_ch2}\n\n${part2}`;
 }
 
 export async function POST(request: NextRequest) {
