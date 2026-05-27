@@ -11,7 +11,8 @@ import {
 } from "@/lib/payments/vip-order-supabase";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" });
+import { GoogleGenerativeAI } from "@google/generative-ai";
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 type VipRequestBody = {
   name?: string;
@@ -63,20 +64,21 @@ async function streamClaude(
   controller: ReadableStreamDefaultController<Uint8Array>,
   encoder: TextEncoder,
 ): Promise<string> {
-  const claudeStream = anthropic.messages.stream({
-    model: "claude-sonnet-4-5",
-    max_tokens: 16000,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: prompt }],
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-pro",
+    systemInstruction: SYSTEM_PROMPT,
   });
+
+  const result = await model.generateContentStream(prompt);
 
   let fullText = "";
-  claudeStream.on("text", (text) => {
-    fullText += text;
-    controller.enqueue(encoder.encode(JSON.stringify({ type: "chunk", text }) + "\n"));
-  });
-
-  await claudeStream.finalMessage();
+  for await (const chunk of result.stream) {
+    const text = chunk.text();
+    if (text) {
+      fullText += text;
+      controller.enqueue(encoder.encode(JSON.stringify({ type: "chunk", text }) + "\n"));
+    }
+  }
   return fullText;
 }
 
