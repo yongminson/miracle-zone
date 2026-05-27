@@ -18,7 +18,11 @@ import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 
 type VipApiSuccess = { success: true; markdown: string };
 type VipApiFail = { success: false; error?: string };
-type VipStreamChunk = { type: "chunk"; text: string } | { type: "done" } | { type: "error"; error: string };
+type VipStreamChunk =
+  | { type: "chunk"; text: string }
+  | { type: "done" }
+  | { type: "error"; error: string }
+  | { type: "progress"; step: number; total: number; message: string };
 
 function buildSajuSummary(params: {
   name: string;
@@ -195,6 +199,8 @@ export default function VipLandingPage() {
   });
 
   const [isFetchingReport, setIsFetchingReport] = useState(false);
+  const [progressMessage, setProgressMessage] = useState<string>("분석을 시작합니다...");
+  const [progressStep, setProgressStep] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [amuletUrl, setAmuletUrl] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -373,6 +379,13 @@ export default function VipLandingPage() {
 
   const showFullScreenLoader =
     (isFetchingReport && !reportMarkdown.trim()) || (isSuccess && isPdfGenerating && !pdfFallback);
+
+  // 로딩 중 진행 메시지 텍스트 (DynamicLoader에 전달용)
+  const loaderMessage = isFetchingReport
+    ? progressMessage
+    : isPdfGenerating
+    ? "PDF 변환 중..."
+    : "잠시만 기다려 주세요...";
   const isBusy = isFetchingReport || isPdfGenerating;
 
   const handleIssueReport = useCallback(async (options?: { imp_uid?: string | null }) => {
@@ -460,6 +473,9 @@ export default function VipLandingPage() {
           }
     
           // 스트리밍 수신
+          setProgressMessage("1단계: 사주 원국 및 직업·재물·애정운 분석 중...");
+          setProgressStep(1);
+    
           const reader = res.body.getReader();
           const decoder = new TextDecoder();
           let fullMarkdown = "";
@@ -478,6 +494,9 @@ export default function VipLandingPage() {
                 if (parsed.type === "chunk") {
                   fullMarkdown += parsed.text;
                   setReportMarkdown(fullMarkdown);
+                } else if (parsed.type === "progress") {
+                  setProgressMessage(parsed.message);
+                  setProgressStep(parsed.step);
                 } else if (parsed.type === "error") {
                   throw new Error(parsed.error);
                 }
