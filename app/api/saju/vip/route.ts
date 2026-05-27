@@ -164,8 +164,8 @@ async function generateVipMarkdownReport(
 `;
 
 const result = await openai.chat.completions.create({
-  model: "gpt-4o",
-  max_tokens: 32000,
+  model: "gpt-4-turbo",
+    max_tokens: 16000,
   messages: [
     {
       role: "system",
