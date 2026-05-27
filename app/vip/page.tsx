@@ -334,8 +334,7 @@ export default function VipLandingPage() {
 
     return () => {
       cancelled = true;
-    };
-  }, [isSuccess, reportMarkdown, reportRevision, buildPdfBlob]);
+    };  }, [isSuccess, reportMarkdown, reportRevision, buildPdfBlob]);
 
   useEffect(() => {
     if (!isSuccess || !amuletUrl) {

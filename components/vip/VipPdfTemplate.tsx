@@ -485,7 +485,8 @@ export const VipPdfTemplate = forwardRef<HTMLDivElement, VipPdfTemplateProps>(fu
 
   const displayPages = useMemo(() => {
     if (!markdownData.trim()) return ["_리포트 본문이 비어 있습니다._"];
-    return packedPages.length > 0 ? packedPages : [];
+    // packedPages 계산 전엔 마크다운 전체를 1페이지로 fallback (무한 대기 방지)
+    return packedPages.length > 0 ? packedPages : [markdownData];
   }, [markdownData, packedPages]);
 
   const measureTreeStyle = useMemo(
