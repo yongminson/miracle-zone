@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/altar-cron?type=free",
-      "schedule": "0 */2 * * *"
+      "schedule": "*/48 * * * *"
     },
     {
       "path": "/api/altar-cron?type=paid_1d",

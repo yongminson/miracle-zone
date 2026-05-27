@@ -7,12 +7,12 @@ import { NextResponse } from "next/server";
 // ─── 크론 타입별 설정 ─────────────────────────────────────────────────
 // type 파라미터 → "free" | "paid_1d" | "paid_10d"
 const CONFIG = {
-  free: {
-    // 하루 10번 → 약 2.4시간마다 1개
-    // vercel.json: "0 */2 * * *"  (2시간마다)
-    count: 1,
-    duration: "1h",
-  },
+    free: {
+        // 하루 30번 → 48분마다 1개
+        // vercel.json: "*/48 * * * *"
+        count: 1,
+        duration: "1h",
+      },
   paid_1d: {
     // 하루 3번 → 08:00 / 13:00 / 20:00 KST
     // vercel.json: "0 23,4,11 * * *" (UTC 기준: KST-9)
