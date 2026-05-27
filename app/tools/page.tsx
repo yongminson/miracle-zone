@@ -74,6 +74,7 @@ function SeoAccordion({ title, items }: { title: string; items: { q: string; a: 
 function AdminDashboard() {
   const [stats, setStats] = useState({ daily: 0, total: 0, tabs: [] });
   const [isAdmin, setIsAdmin] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
@@ -101,27 +102,45 @@ function AdminDashboard() {
   if (!isAdmin) return null;
 
   return (
-    <div className="fixed bottom-6 left-6 z-[100] bg-slate-900/95 border-2 border-yellow-500 p-5 rounded-2xl backdrop-blur-xl shadow-2xl max-w-[240px]">
-      <h3 className="text-yellow-400 font-bold text-sm mb-3 flex items-center gap-2 border-b border-white/10 pb-2">👑 실시간 운영 현황</h3>
-      <div className="space-y-1 mb-4 text-[11px]">
-        <p className="flex justify-between"><span>오늘 방문:</span> <span className="text-yellow-300 font-bold">{stats.daily}명</span></p>
-        <p className="flex justify-between"><span>누적 방문:</span> <span className="text-white/60">{stats.total}명</span></p>
-      </div>
-      <div className="space-y-1 text-[10px]">
-        <p className="text-white/40 mb-2 mt-3 font-bold border-t border-white/5 pt-2">📊 탭별 인기 순위</p>
-        {stats.tabs.map((t: any) => (
-          <p key={t.tab_id} className="flex justify-between">
-            <span className="text-white/70">{t.tab_id === 'fortune' ? '운세' : t.tab_id === 'saju' ? '관상' : t.tab_id === 'match' ? '궁합' : t.tab_id}</span>
-            <span className="text-teal-400 font-mono">{t.click_count}회</span>
-          </p>
-        ))}
-      </div>
-      {/* 🚀 잃어버렸던 종료 버튼 완벽 복구! */}
-      <div className="mt-4 pt-3 border-t border-white/10 text-center">
-        <button onClick={() => { localStorage.removeItem("MASTER_ADMIN"); window.location.reload(); }} className="text-[10px] font-bold text-red-400/80 hover:text-red-400 transition-colors">
-          ❌ 관리자 모드 종료
+    <div className="fixed bottom-6 left-6 z-[100]">
+      {/* 접혔을 때: 작은 버튼만 표시 */}
+      {!panelOpen ? (
+        <button
+          onClick={() => setPanelOpen(true)}
+          className="flex items-center gap-1 bg-slate-900/95 border-2 border-yellow-500 text-yellow-400 font-bold text-xs px-3 py-2 rounded-xl backdrop-blur-xl shadow-2xl hover:bg-slate-800 transition-colors"
+        >
+          👑 ▼
         </button>
-      </div>
+      ) : (
+        /* 펼쳐졌을 때: 기존 패널 전체 표시 */
+        <div className="bg-slate-900/95 border-2 border-yellow-500 p-5 rounded-2xl backdrop-blur-xl shadow-2xl max-w-[240px]">
+          <h3
+            onClick={() => setPanelOpen(false)}
+            className="text-yellow-400 font-bold text-sm mb-3 flex items-center justify-between gap-2 border-b border-white/10 pb-2 cursor-pointer hover:text-yellow-300 transition-colors"
+          >
+            <span>👑 실시간 운영 현황</span>
+            <span className="text-xs">▲</span>
+          </h3>
+          <div className="space-y-1 mb-4 text-[11px]">
+            <p className="flex justify-between"><span>오늘 방문:</span> <span className="text-yellow-300 font-bold">{stats.daily}명</span></p>
+            <p className="flex justify-between"><span>누적 방문:</span> <span className="text-white/60">{stats.total}명</span></p>
+          </div>
+          <div className="space-y-1 text-[10px]">
+            <p className="text-white/40 mb-2 mt-3 font-bold border-t border-white/5 pt-2">📊 탭별 인기 순위</p>
+            {stats.tabs.map((t: any) => (
+              <p key={t.tab_id} className="flex justify-between">
+                <span className="text-white/70">{t.tab_id === 'fortune' ? '운세' : t.tab_id === 'saju' ? '관상' : t.tab_id === 'match' ? '궁합' : t.tab_id}</span>
+                <span className="text-teal-400 font-mono">{t.click_count}회</span>
+              </p>
+            ))}
+          </div>
+          <div className="mt-4 pt-3 border-t border-white/10 text-center">
+            <button onClick={() => { localStorage.removeItem("MASTER_ADMIN"); window.location.reload(); }} className="text-[10px] font-bold text-red-400/80 hover:text-red-400 transition-colors">
+              ❌ 관리자 모드 종료
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
