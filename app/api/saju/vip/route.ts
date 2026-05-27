@@ -157,8 +157,14 @@ async function generateVipMarkdownReport(
 
 const result = await openai.chat.completions.create({
   model: "gpt-4o",
-  max_tokens: 8000,
-  messages: [{ role: "user", content: prompt }],
+  max_tokens: 16000,
+  messages: [
+    {
+      role: "system",
+      content: "당신은 사주·명리학 전문가입니다. 반드시 요청한 10개 챕터를 모두 완성하고, 제10장에는 반드시 부적 이미지 마크다운(![맞춤 부적](/images/amulet-xxx.jpg))을 포함해야 합니다. 절대 중간에 끊지 마세요."
+    },
+    { role: "user", content: prompt }
+  ],
 });
 
 const text = result.choices[0]?.message?.content ?? "";
