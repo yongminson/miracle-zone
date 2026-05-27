@@ -191,8 +191,9 @@ export async function POST(request: NextRequest) {
     try {
       markdown = await generateVipMarkdownReport(sajuData, { clientName, currentYear, mbti });
     } catch (err: any) {
-      console.error("Claude API 에러:", err);
-      return NextResponse.json({ success: false, error: `Claude 에러: ${err.message || "알 수 없는 오류"}` }, { status: 500 });
+      console.error("Claude API 에러 전체:", JSON.stringify(err, null, 2));
+      const errMsg = err?.message || err?.error?.message || JSON.stringify(err) || "알 수 없는 오류";
+      return NextResponse.json({ success: false, error: `Claude 에러: ${errMsg}` }, { status: 500 });
     }
 
     await persistVipOrderRow(request, {
