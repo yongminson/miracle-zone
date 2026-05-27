@@ -3,7 +3,7 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 // ✨ 안전 필터 해제를 위해 HarmCategory, HarmBlockThreshold 추가
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import type { VipCalendarType, VipGender } from "@/lib/saju/vip-types";
 import { extractVipSajuData } from "@/lib/saju/vip-saju-data";
 import {
@@ -13,7 +13,7 @@ import {
 } from "@/lib/payments/vip-order-supabase";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" });
 
 type VipRequestBody = {
   name?: string;
@@ -163,25 +163,20 @@ async function generateVipMarkdownReport(
 - 물(水) 용신: ![맞춤 부적](/images/amulet-water.jpg)
 `;
 
-const result = await openai.chat.completions.create({
-  model: "gpt-4-turbo",
-    max_tokens: 16000,
-  messages: [
-    {
-      role: "system",
-      content: `당신은 대한민국 최고의 사주·명리학 전문가입니다. 
+const result = await anthropic.messages.create({
+  model: "claude-sonnet-4-5",
+  max_tokens: 8000,
+  system: `당신은 대한민국 최고의 사주·명리학 전문가입니다.
 규칙을 반드시 지키세요:
-1. 제2장 세운 분석은 2026년부터 2035년까지 10개 연도를 절대 빠짐없이 각각 독립된 섹션으로 작성하세요. [후속 연도] 같은 축약 표현은 즉시 해고 사유입니다.
+1. 제2장 세운 분석은 2026년부터 2035년까지 10개 연도를 절대 빠짐없이 각각 독립된 섹션으로 작성하세요. [후속 연도] 같은 축약 표현은 절대 금지입니다.
 2. 각 챕터는 최소 700자 이상, 구체적인 사례와 조언을 포함하세요.
 3. 제10장에는 반드시 부적 이미지 마크다운을 삽입하세요.
-4. 절대 내용을 요약하거나 생략하지 마세요. 끝까지 완성하세요.`
-    },
-    { role: "user", content: prompt }
-  ],
+4. 절대 내용을 요약하거나 생략하지 마세요. 끝까지 완성하세요.`,
+  messages: [{ role: "user", content: prompt }],
 });
 
-const text = result.choices[0]?.message?.content ?? "";
-if (!text) throw new Error("GPT_EMPTY_RESPONSE");
+const text = result.content[0]?.type === "text" ? result.content[0].text : "";
+if (!text) throw new Error("CLAUDE_EMPTY_RESPONSE");
 return text;
 }
 
@@ -194,7 +189,7 @@ export async function POST(request: NextRequest) {
     const mbti = normalizeMbti(body.mbti);
 
     if (!birthDate) return NextResponse.json({ success: false, error: "생년월일은 필수입니다." }, { status: 400 });
-    if (!process.env.OPENAI_API_KEY) return NextResponse.json({ success: false, error: "OpenAI API 키가 없습니다." }, { status: 500 });
+    if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ success: false, error: "Anthropic API 키가 없습니다." }, { status: 500 });
 
     const parts = parseBirthParts(birthDate);
     if (!parts) return NextResponse.json({ success: false, error: "잘못된 날짜 형식입니다." }, { status: 400 });

@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.99.0",
     "@google/generative-ai": "^0.24.1",
     "@seyoungsong/hanjadict": "^0.4.5",
     "@supabase/supabase-js": "^2.102.1",
