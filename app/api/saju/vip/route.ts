@@ -3,7 +3,7 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 // ✨ 안전 필터 해제를 위해 HarmCategory, HarmBlockThreshold 추가
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import OpenAI from "openai";
 import type { VipCalendarType, VipGender } from "@/lib/saju/vip-types";
 import { extractVipSajuData } from "@/lib/saju/vip-saju-data";
 import {
@@ -13,8 +13,7 @@ import {
 } from "@/lib/payments/vip-order-supabase";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 
-// 구글 제미나이 초기화
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
 type VipRequestBody = {
   name?: string;
@@ -89,24 +88,11 @@ function normalizeMbti(raw: string | null | undefined): string | null {
   return s;
 }
 
-// ✨ 제미나이 Flash (공식 프리뷰) 리포트 생성기
+// ✨ GPT-4o 리포트 생성기
 async function generateVipMarkdownReport(
   sajuData: ReturnType<typeof extractVipSajuData>,
   opts: { clientName: string; currentYear: number; mbti: string | null }
 ): Promise<string> {
-  
-  // 🚨 사주/운세 용어로 인한 구글 AI의 강제 차단을 막기 위해 안전 필터 최하향 조정
-  const safetySettings = [
-    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  ];
-
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash-preview-05-20",
-    safetySettings,
-  });
 
   const mbtiInstruction = opts.mbti 
     ? `내담자의 MBTI는 ${opts.mbti}입니다. 서양 심리학과 동양 명리학을 결합하여 분석하세요.` 
@@ -169,13 +155,15 @@ async function generateVipMarkdownReport(
 - 물(水) 용신: ![맞춤 부적](/images/amulet-water.jpg)
 `;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
-  
-  if (!text) {
-    throw new Error("GEMINI_EMPTY_RESPONSE");
-  }
-  return text;
+const result = await openai.chat.completions.create({
+  model: "gpt-4o",
+  max_tokens: 8000,
+  messages: [{ role: "user", content: prompt }],
+});
+
+const text = result.choices[0]?.message?.content ?? "";
+if (!text) throw new Error("GPT_EMPTY_RESPONSE");
+return text;
 }
 
 export async function POST(request: NextRequest) {
@@ -187,7 +175,7 @@ export async function POST(request: NextRequest) {
     const mbti = normalizeMbti(body.mbti);
 
     if (!birthDate) return NextResponse.json({ success: false, error: "생년월일은 필수입니다." }, { status: 400 });
-    if (!process.env.GEMINI_API_KEY) return NextResponse.json({ success: false, error: "Gemini API 키가 없습니다." }, { status: 500 });
+    if (!process.env.OPENAI_API_KEY) return NextResponse.json({ success: false, error: "OpenAI API 키가 없습니다." }, { status: 500 });
 
     const parts = parseBirthParts(birthDate);
     if (!parts) return NextResponse.json({ success: false, error: "잘못된 날짜 형식입니다." }, { status: 400 });
