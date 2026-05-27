@@ -69,7 +69,7 @@ const SYSTEM_PROMPT = `당신은 대한민국 최고의 사주·명리학 전문
 async function callClaude(userPrompt: string): Promise<string> {
   const result = await anthropic.messages.create({
     model: "claude-sonnet-4-5",
-    max_tokens: 8000,
+    max_tokens: 16000,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
   });
