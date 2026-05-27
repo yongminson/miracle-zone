@@ -380,8 +380,7 @@ export default function VipLandingPage() {
   const showFullScreenLoader =
     (isFetchingReport && !reportMarkdown.trim()) || (isSuccess && isPdfGenerating && !pdfFallback);
 
-  // 로딩 중 진행 메시지 텍스트 (DynamicLoader에 전달용)
-  const loaderMessage = isFetchingReport
+    const loaderMessage = isFetchingReport
     ? progressMessage
     : isPdfGenerating
     ? "PDF 변환 중..."
