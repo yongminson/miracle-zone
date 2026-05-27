@@ -1,0 +1,25 @@
+name: 기적의 제단 자동 소원
+
+on:
+  schedule:
+    - cron: '*/48 * * * *'   # 48분마다 (무료 1h 소원)
+    - cron: '0 23,4,11 * * *' # 하루 3번 (1일 소원 KST 08/13/20시)
+    - cron: '0 0 * * 1'       # 매주 월요일 (10일 소원)
+  workflow_dispatch:           # 수동 실행 버튼도 생김
+
+jobs:
+  generate-wish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 소원 생성
+        run: |
+          TYPE="free"
+          if [ "${{ github.event.schedule }}" = "0 23,4,11 * * *" ]; then
+            TYPE="paid_1d"
+          elif [ "${{ github.event.schedule }}" = "0 0 * * 1" ]; then
+            TYPE="paid_10d"
+          fi
+          
+          curl -X GET \
+            "https://saju.ymstudio.co.kr/api/altar-cron?type=$TYPE" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
