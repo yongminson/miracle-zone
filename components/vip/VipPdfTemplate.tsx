@@ -389,7 +389,9 @@ function useIssuedLabel(issuedAt?: string) {
 
 function usePackedMarkdownPages(markdownData: string) {
   const [blocks, setBlocks] = useState<string[]>(() => splitMarkdownSections(markdownData));
-  const [packedPages, setPackedPages] = useState<string[]>([]);
+  const [packedPages, setPackedPages] = useState<string[]>(() =>
+    markdownData.trim() ? [markdownData] : []
+  );
   const measureRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

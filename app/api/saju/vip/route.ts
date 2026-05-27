@@ -129,9 +129,10 @@ async function generateVipMarkdownReport(
 # 제 4장 재물운 흐름
 # 제 5장 인연법과 애정운`;
 
-  const prompt2 = `${baseInfo}
+const prompt2 = `${baseInfo}
 
 아래 순서대로 작성. 각 챕터 최소 700자 이상.
+반드시 제10장 마지막에 부적 이미지를 삽입하세요. 절대 빠뜨리지 마세요.
 
 # 제 6장 건강운
 # 제 7장 귀인과 악연
