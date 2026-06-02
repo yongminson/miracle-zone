@@ -62,12 +62,13 @@ async function generateWish(): Promise<string> {
 - 1~3문장으로 짧게 작성
 - 실제 사람이 쓴 것처럼 자연스럽게
 - 종교적 내용, 욕설, 혐오, 정치적 내용 절대 금지
-- 이모지 1~2개 자연스럽게 포함 가능
+- 이모지 절대 사용 금지
+- 2~3문장 이내로 짧게
 - 따옴표나 설명 없이 소원 내용만 출력
 
 예시:
-올해는 꼭 좋은 사람 만나게 해주세요. 혼자인 시간이 너무 길었어요 🙏
-건강하게만 있어줘. 그것만으로도 충분해 💛
+올해는 꼭 좋은 사람 만나게 해주세요. 혼자인 시간이 너무 길었어요.
+건강하게만 있어줘. 그것만으로도 충분해.
 이번 시험, 내가 할 수 있는 최선을 다했습니다. 제발 붙게 해주세요.`;
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -88,9 +89,12 @@ async function generateWish(): Promise<string> {
   const text = data.choices?.[0]?.message?.content?.trim() ?? "";
 
   // 안전 필터: 빈 값이면 fallback
-  if (!text || text.length < 5) {
-    return "오늘도 좋은 일이 가득하길 바랍니다 🙏";
+  // 이모지 제거
+  const cleaned = text.replace(/[\u{1F300}-\u{1FFFF}]|\u{200D}|[\u{2600}-\u{27BF}]/gu, "").trim();
+  if (!cleaned || cleaned.length < 5) {
+    return "오늘도 좋은 일이 가득하길 바랍니다.";
   }
+  return cleaned;
   return text;
 }
 
@@ -116,7 +120,7 @@ export async function POST(req: Request) {
       const content = await generateWish();
       const badge = randomPick(NAME_BADGES);
       const displayName =
-        duration === "1h" ? "" : `[✨ ${badge} 님의 ${duration === "24h" ? "24시간" : "특별기원"}]`;
+        duration === "1h" ? "" : `[${badge} 님의 ${duration === "24h" ? "24시간" : "특별기원"}]`;
 
       const { error } = await supabase.from("wishes").insert({
         content,
