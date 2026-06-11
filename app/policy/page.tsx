@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function AppPrivacyPage() {
+export default function PolicyPage() {
   return (
     <div style={{ backgroundColor: '#0F172A', color: '#E2E8F0', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", lineHeight: 1.8, padding: '40px 24px', minHeight: '100vh' }}>
       <div style={{ maxWidth: '720px', margin: '0 auto' }}>
