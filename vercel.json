@@ -1,15 +1,4 @@
 {
-  "cleanUrls": true,
-  "rewrites": [
-    {
-      "source": "/app-privacy",
-      "destination": "/public/app-privacy/index.html"
-    },
-    {
-      "source": "/app-privacy/",
-      "destination": "/public/app-privacy/index.html"
-    }
-  ],
   "crons": [
     {
       "path": "/api/push/send",
