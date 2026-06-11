@@ -3,7 +3,11 @@
   "rewrites": [
     {
       "source": "/app-privacy",
-      "destination": "/app-privacy/index.html"
+      "destination": "/public/app-privacy/index.html"
+    },
+    {
+      "source": "/app-privacy/",
+      "destination": "/public/app-privacy/index.html"
     }
   ],
   "crons": [
