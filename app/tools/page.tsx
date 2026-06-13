@@ -5912,6 +5912,46 @@ const ZODIAC_LIST = [
     caution: "지나친 낙천주의와 게으름이 기회를 놓치게 만듭니다. 구체적인 목표와 계획을 세우는 습관이 필요합니다." },
 ];
 
+function DailyZodiacCard({ zodiacId, zodiacLabel }: { zodiacId: string; zodiacLabel: string }) {
+  const f = getDailyFortune(zodiacId);
+  const today = new Date();
+  const dateLabel = `${today.getMonth() + 1}월 ${today.getDate()}일`;
+  const bestMatch = getBestMatchZodiac(zodiacId, ZODIAC_LIST);
+  return (
+    <div className="rounded-2xl border border-yellow-400/30 bg-gradient-to-b from-yellow-400/10 to-transparent p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-bold text-yellow-400">오늘의 {zodiacLabel} 운세</h4>
+        <span className="text-[11px] text-white/40">{dateLabel}</span>
+      </div>
+      <p className="text-sm leading-relaxed text-white/85">{f.message}</p>
+      <div className="space-y-2">
+        {([["총운", f.total], ["애정운", f.love], ["금전운", f.wealth], ["직장운", f.work]] as [string, number][]).map(([label, value]) => (
+          <div key={label} className="flex items-center gap-2">
+            <span className="w-12 shrink-0 text-xs text-white/60">{label}</span>
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-amber-400" style={{ width: `${value}%` }} />
+            </div>
+            <span className="w-8 shrink-0 text-right text-xs font-bold text-yellow-400">{value}</span>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2 pt-1">
+        {([["행운의 색", f.color], ["행운의 방향", f.direction], ["행운의 시간", f.time], ["행운의 숫자", String(f.number)]] as [string, string][]).map(([label, value]) => (
+          <div key={label} className="rounded-xl bg-white/5 px-3 py-2">
+            <p className="text-[10px] text-white/40">{label}</p>
+            <p className="text-sm font-bold text-white/90">{value}</p>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-xl border border-pink-400/20 bg-pink-400/5 px-3 py-2 text-center">
+        <span className="text-[11px] text-white/50">오늘 나와 잘 맞는 띠 · </span>
+        <span className="text-sm font-bold text-pink-300">{bestMatch}</span>
+      </div>
+      <p className="text-center text-[10px] text-white/30">매일 자정에 새로운 운세로 업데이트됩니다</p>
+    </div>
+  );
+}
+
 function ZodiacTab({ isVisible }: { isVisible: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<"general" | "wealth" | "love" | "career" | "caution">("general");
@@ -6000,64 +6040,7 @@ function ZodiacTab({ isVisible }: { isVisible: boolean }) {
             </div>
 
             {/* 🔥 오늘의 운세 (날짜 기반 매일 변동) */}
-            {(() => {
-              const f = getDailyFortune(selectedZodiac.id);
-              const today = new Date();
-              const dateLabel = `${today.getMonth() + 1}월 ${today.getDate()}일`;
-              const bestMatch = getBestMatchZodiac(selectedZodiac.id, ZODIAC_LIST);
-              const Bar = ({ label, value }: { label: string; value: number }) => (
-                <div className="flex items-center gap-2">
-                  <span className="w-12 shrink-0 text-xs text-white/60">{label}</span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-amber-400" style={{ width: `${value}%` }} />
-                  </div>
-                  <span className="w-8 shrink-0 text-right text-xs font-bold text-yellow-400">{value}</span>
-                </div>
-              );
-              return (
-                <div className="rounded-2xl border border-yellow-400/30 bg-gradient-to-b from-yellow-400/10 to-transparent p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-bold text-yellow-400">오늘의 {selectedZodiac.label} 운세</h4>
-                    <span className="text-[11px] text-white/40">{dateLabel}</span>
-                  </div>
-
-                  <p className="text-sm leading-relaxed text-white/85">{f.message}</p>
-
-                  <div className="space-y-2">
-                    <Bar label="총운" value={f.total} />
-                    <Bar label="애정운" value={f.love} />
-                    <Bar label="금전운" value={f.wealth} />
-                    <Bar label="직장운" value={f.work} />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <div className="rounded-xl bg-white/5 px-3 py-2">
-                      <p className="text-[10px] text-white/40">행운의 색</p>
-                      <p className="text-sm font-bold text-white/90">{f.color}</p>
-                    </div>
-                    <div className="rounded-xl bg-white/5 px-3 py-2">
-                      <p className="text-[10px] text-white/40">행운의 방향</p>
-                      <p className="text-sm font-bold text-white/90">{f.direction}</p>
-                    </div>
-                    <div className="rounded-xl bg-white/5 px-3 py-2">
-                      <p className="text-[10px] text-white/40">행운의 시간</p>
-                      <p className="text-sm font-bold text-white/90">{f.time}</p>
-                    </div>
-                    <div className="rounded-xl bg-white/5 px-3 py-2">
-                      <p className="text-[10px] text-white/40">행운의 숫자</p>
-                      <p className="text-sm font-bold text-white/90">{f.number}</p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-pink-400/20 bg-pink-400/5 px-3 py-2 text-center">
-                    <span className="text-[11px] text-white/50">오늘 나와 잘 맞는 띠 · </span>
-                    <span className="text-sm font-bold text-pink-300">{bestMatch}</span>
-                  </div>
-
-                  <p className="text-center text-[10px] text-white/30">매일 자정에 새로운 운세로 업데이트됩니다</p>
-                </div>
-              );
-            })()}
+            <DailyZodiacCard zodiacId={selectedZodiac.id} zodiacLabel={selectedZodiac.label} />
 
             {/* 운세 섹션 탭 */}
             <div className="flex gap-1.5 overflow-x-auto pb-1">
