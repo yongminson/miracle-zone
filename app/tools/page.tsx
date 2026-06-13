@@ -5913,8 +5913,11 @@ const ZODIAC_LIST = [
 ];
 
 function DailyZodiacCard({ zodiacId, zodiacLabel }: { zodiacId: string; zodiacLabel: string }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const f = getDailyFortune(zodiacId);
   const today = new Date();
+  if (!mounted) return null;
   const dateLabel = `${today.getMonth() + 1}월 ${today.getDate()}일`;
   const bestMatch = getBestMatchZodiac(zodiacId, ZODIAC_LIST);
   return (
