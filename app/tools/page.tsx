@@ -5773,30 +5773,33 @@ function getTodaySeed(zodiacId: string): number {
   return Math.abs(hash);
 }
 
-const LUCKY_COLORS = ["황금색", "은백색", "진홍색", "비취색", "칠흑색", "순백색", "하늘색", "자수정색"];
-const LUCKY_DIRECTIONS = ["정동쪽", "정서쪽", "정남쪽", "정북쪽", "남동쪽", "북서쪽", "남서쪽", "북동쪽"];
-const LUCKY_TIMES = ["새벽 5시~7시", "오전 9시~11시", "낮 12시~1시", "오후 3시~5시", "저녁 7시~9시", "밤 11시~새벽 1시"];
+const LUCKY_COLORS = ["빨강", "주황", "노랑", "초록", "파랑", "보라", "분홍", "하양", "검정", "금색", "은색", "하늘색"];
+const LUCKY_DIRECTIONS = ["동쪽", "서쪽", "남쪽", "북쪽", "동남쪽", "동북쪽", "서남쪽", "서북쪽"];
+const LUCKY_TIMES = ["오전 7~9시", "오전 9~11시", "정오 무렵", "오후 1~3시", "오후 3~5시", "저녁 6~8시", "밤 9~11시"];
 const FORTUNE_MESSAGES = {
   high: [
-    "오늘은 막혔던 혈이 뚫리듯 기운이 활짝 열리는 날입니다. 망설이던 도전을 시작하기에 완벽한 타이밍입니다.",
-    "주변에서 뜻밖의 귀인이 손을 내미는 형국입니다. 독단적인 결정보다 협력을 통해 거대한 결실을 맺게 됩니다.",
-    "자신감이 곧 재물이 되는 하루입니다. 당신의 직감과 능력이 빛을 발하니 과감하게 판을 주도해 보십시오.",
+    "오늘은 기운이 활짝 열리는 날입니다. 미뤄두었던 일에 도전하기 좋습니다.",
+    "주변에서 좋은 소식이 들려올 가능성이 높습니다. 마음을 열어두세요.",
+    "자신감 있게 나아가면 원하는 결과를 얻을 수 있는 하루입니다.",
+    "오늘의 선택이 좋은 흐름을 만듭니다. 직감을 믿어보세요.",
   ],
   mid: [
-    "잔잔한 호수처럼 무난하게 흘러가는 하루입니다. 무리한 확장보다는 현재의 페이스를 유지하는 것이 이롭습니다.",
-    "서두르면 일을 그르치기 쉬우니 한 박자 쉬어가십시오. 오후 늦게 뜻밖의 작은 횡재수가 기다리고 있습니다.",
-    "오늘은 내실을 다지고 에너지를 비축하는 날입니다. 자극적인 변화보다 일상의 평온함 속에서 지혜를 찾으십시오.",
+    "무난하게 흘러가는 하루입니다. 평소의 페이스를 유지하세요.",
+    "급하게 서두르기보다 차분하게 하나씩 처리하면 좋습니다.",
+    "작은 변화에 너무 흔들리지 마세요. 중심을 잡는 것이 중요합니다.",
+    "오늘은 준비하고 다지는 날입니다. 내일을 위한 토대를 쌓으세요.",
   ],
   low: [
-    "기운이 잠시 정체되는 흐름이니 무리한 지출이나 투자는 절대 금물입니다. 매사에 돌다리도 두드려보고 건너십시오.",
-    "예상치 못한 변수가 발생할 수 있으나 유연하게 대처하면 액땜할 수 있습니다. 언행을 무겁게 유지하는 것이 좋습니다.",
-    "컨디션 조절이 최우선인 하루입니다. 스트레스는 멀리하고, 나를 돌보는 온전한 휴식의 시간으로 삼으십시오.",
+    "오늘은 조금 조심스럽게 움직이는 것이 좋습니다. 무리하지 마세요.",
+    "예상치 못한 변수가 있을 수 있으니 여유를 두고 계획하세요.",
+    "감정적인 판단은 잠시 미루고, 한 박자 쉬어가는 하루로 삼으세요.",
+    "작은 휴식이 큰 도움이 됩니다. 자신을 돌보는 데 집중하세요.",
   ],
 };
 
 function getDailyFortune(zodiacId: string) {
   const seed = getTodaySeed(zodiacId);
-  const score = (offset: number) => Math.floor(seededRandom(seed + offset) * 35) + 65; // 65~100점 스케일링
+  const score = (offset: number) => Math.floor(seededRandom(seed + offset) * 40) + 60; // 60~99점
 
   const total = score(1);
   const love = score(2);
@@ -5804,7 +5807,7 @@ function getDailyFortune(zodiacId: string) {
   const work = score(4);
 
   const avg = (total + love + wealth + work) / 4;
-  const msgPool = avg >= 85 ? FORTUNE_MESSAGES.high : avg >= 73 ? FORTUNE_MESSAGES.mid : FORTUNE_MESSAGES.low;
+  const msgPool = avg >= 85 ? FORTUNE_MESSAGES.high : avg >= 72 ? FORTUNE_MESSAGES.mid : FORTUNE_MESSAGES.low;
   const message = msgPool[Math.floor(seededRandom(seed + 5) * msgPool.length)];
 
   const color = LUCKY_COLORS[Math.floor(seededRandom(seed + 6) * LUCKY_COLORS.length)];
@@ -5815,20 +5818,11 @@ function getDailyFortune(zodiacId: string) {
   return { total, love, wealth, work, message, color, direction, time, number };
 }
 
-// 🚀 베스트/워스트 궁합 띠 (날짜 시드 기반)
-function getZodiacMatches(zodiacId: string, zodiacList: typeof ZODIAC_LIST) {
+// 오늘 잘 맞는 띠 (날짜 기반)
+function getBestMatchZodiac(zodiacId: string, zodiacList: typeof ZODIAC_LIST): string {
   const seed = getTodaySeed(zodiacId);
   const others = zodiacList.filter(z => z.id !== zodiacId);
-  
-  const bestIdx = Math.floor(seededRandom(seed + 10) * others.length);
-  let worstIdx = Math.floor(seededRandom(seed + 20) * others.length);
-  if (bestIdx === worstIdx) {
-    worstIdx = (worstIdx + 1) % others.length;
-  }
-  return {
-    best: others[bestIdx].label,
-    worst: others[worstIdx].label
-  };
+  return others[Math.floor(seededRandom(seed + 10) * others.length)].label;
 }
 
 const ZODIAC_LIST = [
@@ -5920,82 +5914,40 @@ const ZODIAC_LIST = [
 
 function DailyZodiacCard({ zodiacId, zodiacLabel }: { zodiacId: string; zodiacLabel: string }) {
   const f = getDailyFortune(zodiacId);
-  const matches = getZodiacMatches(zodiacId, ZODIAC_LIST);
   const today = new Date();
-  const dateLabel = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
-
+  const dateLabel = `${today.getMonth() + 1}월 ${today.getDate()}일`;
+  const bestMatch = getBestMatchZodiac(zodiacId, ZODIAC_LIST);
   return (
-    <div className="rounded-2xl border-2 border-[#C9A84C]/40 bg-gradient-to-b from-[#2D1B69]/40 via-slate-950/80 to-slate-950 p-6 space-y-6 shadow-[0_0_30px_rgba(201,168,76,0.15)] backdrop-blur-md">
-      
-      <div className="flex items-center justify-between border-b border-white/10 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xl animate-pulse">✨</span>
-          <h4 className="text-base font-extrabold text-[#C9A84C] tracking-wide">오늘의 {zodiacLabel} 한줄 천기누설</h4>
-        </div>
-        <span className="text-xs font-medium text-white/40 bg-white/5 px-2.5 py-1 rounded-full">{dateLabel}</span>
+    <div className="rounded-2xl border border-yellow-400/30 bg-gradient-to-b from-yellow-400/10 to-transparent p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-bold text-yellow-400">오늘의 {zodiacLabel} 운세</h4>
+        <span className="text-[11px] text-white/40">{dateLabel}</span>
       </div>
-
-      <div className="p-4 rounded-xl bg-white/5 border border-white/5 shadow-inner">
-        <p className="text-sm leading-relaxed text-slate-200 font-medium break-keep">
-          &ldquo;{f.message}&rdquo;
-        </p>
-      </div>
-
-      <div className="space-y-3 bg-black/30 p-4 rounded-xl border border-white/5">
-        <p className="text-xs font-bold text-[#C9A84C]/80 tracking-widest uppercase mb-1">📊 오늘자 영역별 성향 지수</p>
-        {[
-          { label: "🌟 종합 총운", value: f.total, color: "from-purple-500 to-indigo-500" },
-          { label: "💖 애정 연애", value: f.love, color: "from-pink-500 to-rose-500" },
-          { label: "💰 재물 금전", value: f.wealth, color: "from-yellow-500 to-amber-500" },
-          { label: "🏆 직업 명예", value: f.work, color: "from-blue-500 to-teal-500" },
-        ].map((item) => (
-          <div key={item.label} className="flex items-center gap-3">
-            <span className="w-18 shrink-0 text-xs font-semibold text-white/70">{item.label}</span>
-            <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-800 shadow-inner">
-              <div 
-                className={`h-full bg-gradient-to-r ${item.color} transition-all duration-1000 ease-out rounded-full shadow-[0_0_8px_rgba(255,255,255,0.2)]`} 
-                style={{ width: `${item.value}%` }} 
-              />
+      <p className="text-sm leading-relaxed text-white/85">{f.message}</p>
+      <div className="space-y-2">
+        {([["총운", f.total], ["애정운", f.love], ["금전운", f.wealth], ["직장운", f.work]] as [string, number][]).map(([label, value]) => (
+          <div key={label} className="flex items-center gap-2">
+            <span className="w-12 shrink-0 text-xs text-white/60">{label}</span>
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-gradient-to-r from-yellow-500 to-amber-400" style={{ width: `${value}%` }} />
             </div>
-            <span className="w-10 shrink-0 text-right text-xs font-mono font-bold text-yellow-400">{item.value}%</span>
+            <span className="w-8 shrink-0 text-right text-xs font-bold text-yellow-400">{value}</span>
           </div>
         ))}
       </div>
-
-      <div className="space-y-2">
-        <p className="text-xs font-bold text-[#C9A84C]/80 tracking-widest uppercase px-1">🍀 대운을 이끄는 행운의 이정표</p>
-        <div className="grid grid-cols-2 gap-2.5">
-          {[
-            { label: "🎨 행운의 색상", value: f.color, icon: "🎨" },
-            { label: "🧭 향할 방향", value: f.direction, icon: "🧭" },
-            { label: "⏰ 기운찬 시간", value: f.time, icon: "⏰" },
-            { label: "🔢 행운의 숫자", value: `${f.number}번`, icon: "🔢" },
-          ].map((item) => (
-            <div key={item.label} className="rounded-xl border border-white/5 bg-white/5 p-3 flex items-center gap-3 transition-all hover:bg-white/10 hover:border-white/10">
-              <span className="text-xl bg-black/40 h-9 w-9 rounded-lg flex items-center justify-center shadow-md">{item.icon}</span>
-              <div>
-                <p className="text-[10px] text-white/40 font-medium">{item.label}</p>
-                <p className="text-xs font-bold text-slate-200 mt-0.5">{item.value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="grid grid-cols-2 gap-2 pt-1">
+        {([["행운의 색", f.color], ["행운의 방향", f.direction], ["행운의 시간", f.time], ["행운의 숫자", String(f.number)]] as [string, string][]).map(([label, value]) => (
+          <div key={label} className="rounded-xl bg-white/5 px-3 py-2">
+            <p className="text-[10px] text-white/40">{label}</p>
+            <p className="text-sm font-bold text-white/90">{value}</p>
+          </div>
+        ))}
       </div>
-
-      <div className="grid grid-cols-2 gap-3 pt-1">
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-center transition-all hover:bg-emerald-500/10">
-          <p className="text-[10px] font-bold text-emerald-400 tracking-wider mb-1">😍 최고의 시너지 띠</p>
-          <p className="text-sm font-black text-white drop-shadow-sm">{matches.best}</p>
-        </div>
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 text-center transition-all hover:bg-rose-500/10">
-          <p className="text-[10px] font-bold text-rose-400 tracking-wider mb-1">⚠️ 충돌 주의 워스트 띠</p>
-          <p className="text-sm font-black text-white drop-shadow-sm">{matches.worst}</p>
-        </div>
+      <div className="rounded-xl border border-pink-400/20 bg-pink-400/5 px-3 py-2 text-center">
+        <span className="text-[11px] text-white/50">오늘 나와 잘 맞는 띠 · </span>
+        <span className="text-sm font-bold text-pink-300">{bestMatch}</span>
       </div>
-
-      <p className="text-center text-[10px] text-white/20 tracking-wider">
-        ※ 본 천기는 매일 자정(00:00)에 우주의 흐름에 맞춰 자동으로 초기화됩니다.
-      </p>
+      <p className="text-center text-[10px] text-white/30">매일 자정에 새로운 운세로 업데이트됩니다</p>
     </div>
   );
 }
