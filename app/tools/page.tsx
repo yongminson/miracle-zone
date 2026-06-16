@@ -43,6 +43,16 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+/** 앱 모드 여부 (ReactNative WebView 감지) */
+function useIsAppMode() {
+  const [isApp, setIsApp] = useState(false);
+  useEffect(() => {
+    const ua = navigator.userAgent || "";
+    setIsApp(ua.includes("MyeongunApp"));
+  }, []);
+  return isApp;
+}
+
 /** 애드센스 심사용 SEO 아코디언 — 사용자 눈에 거의 안 띄는 최하단 설명 텍스트 */
 function SeoAccordion({ title, items }: { title: string; items: { q: string; a: string }[] }) {
   const [open, setOpen] = useState(false);
@@ -1348,7 +1358,7 @@ const ALTAR_FOOTER_PRIVACY =
 const ALTAR_FOOTER_REFUND =
   "[디지털 콘텐츠 환불 규정 안내]\n\n본 서비스에서 제공되는 모든 유료 서비스는 '디지털 콘텐츠'에 해당하며, 관련 법령에 의거하여 다음과 같이 환불 정책을 운영합니다.\n\n1. 환불 기준 (청약철회)\n- 이용권을 결제하였으나 실제 서비스를 전혀 이용하지 않은 경우(결과 열람 전), 결제일로부터 7일 이내에 고객센터를 통해 100% 환불을 요청하실 수 있습니다.\n\n2. 시스템 오류 및 서비스 장애\n- 결제는 정상적으로 완료되었으나 시스템 오류로 인해 결과 화면을 전혀 열람하지 못한 경우, 고객센터 확인을 거쳐 즉시 100% 환불 또는 서비스 재제공 처리를 해드립니다.\n\n3. 환불 제한 사항\n- 전자상거래법 제17조 제2항 제5호에 따라, 소비자의 사용 또는 일부 소비로 재화 등의 가치가 현저히 감소한 경우(예: 운세/관상/번호 추출 결과를 이미 열람한 경우)에는 청약철회가 제한됩니다.";
 
-function AltarTab({ isVisible }: { isVisible: boolean }) {
+  function AltarTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) {
   // 🚀 [추가] 촛불 애니메이션 및 사운드 상태 (기존 432Hz BGM과 충돌하지 않음)
   const [isCandleOn, setIsCandleOn] = useState(false);
   const bellAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -1726,6 +1736,21 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
     setPremiumWishText(wishText.trim());
     setShowPremiumModal(true);
   };
+
+  // 앱에서 광고 완료 메시지 수신 → 기적의제단 프리미엄 소원 바로 올리기
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === "AD_REWARD_GRANTED" && msg.feature === "altar") {
+          setPremiumWishText(wishText.trim());
+          setShowPremiumModal(true);
+        }
+      } catch {}
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [wishText]);
   
   const getPremiumBadge = (): string => {
     const periodLabel = premiumPeriod === "24h" ? "24시간" : "특별기원";
@@ -2070,8 +2095,14 @@ function AltarTab({ isVisible }: { isVisible: boolean }) {
               <button type="button" onClick={handleSubmitFree} disabled={isCooldown || isSubmittingFreeWish} className="w-full rounded-lg bg-gradient-to-r from-yellow-500 to-amber-600 px-1 py-2 text-xs font-bold text-slate-900 shadow-md shadow-yellow-500/25 transition-all hover:active:scale-95 disabled:opacity-50 break-keep">
                 {isSubmittingFreeWish ? "진행중.." : isCooldown ? "5초 대기" : "일반 소원 띄우기"}
               </button>
-              <button type="button" onClick={handleOpenPremiumModal} className="w-full rounded-lg bg-gradient-to-r from-amber-500 to-rose-600 px-1 py-2 text-xs font-bold text-white shadow-md shadow-rose-500/25 transition-all hover:active:scale-95 break-keep">
-                ✨ 프리미엄 소원 띄우기
+              <button type="button" onClick={() => {
+                if (isApp && (window as any).ReactNativeWebView) {
+                  (window as any).ReactNativeWebView.postMessage(JSON.stringify({ type: "SHOW_REWARDED_AD", feature: "altar" }));
+                } else {
+                  handleOpenPremiumModal();
+                }
+              }} className="w-full rounded-lg bg-gradient-to-r from-amber-500 to-rose-600 px-1 py-2 text-xs font-bold text-white shadow-md shadow-rose-500/25 transition-all hover:active:scale-95 break-keep">
+                {isApp ? "📺 광고 보고 프리미엄 소원" : "✨ 프리미엄 소원 띄우기"}
               </button>
             </div>
             
@@ -2640,6 +2671,20 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
+  // 앱에서 광고 완료 메시지 수신 → 잠금 해제
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === "AD_REWARD_GRANTED" && msg.feature === "physiognomy") {
+          setIsPhysiognomyPremiumUnlocked(true);
+        }
+      } catch {}
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
+
   // 🚀 관상 심층 리포트 프리미엄 결제 연동 (4,900원)
   const handlePhysiognomyPaymentConfirm = async () => {
     let PortOne = (window as any).PortOne;
@@ -2929,6 +2974,20 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
       setShowNamePaymentModal(true);
     }
   };
+
+  // 앱에서 광고 완료 메시지 수신 → 이름풀이 잠금 해제
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === "AD_REWARD_GRANTED" && msg.feature === "name") {
+          setIsNamePremiumUnlocked(true);
+        }
+      } catch {}
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
 
   // 🚀 이름 풀이 프리미엄 결제 연동 (4,900원)
   const handleNamePaymentConfirm = async () => {
@@ -3318,12 +3377,25 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                     <div className="mt-8 space-y-3 relative">
                       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent rounded-xl">
                         <p className="text-white font-bold mb-4 drop-shadow-md">전문가 수준의 10가지 심층 풀이가 준비되었습니다.</p>
-                        <button 
-                          onClick={(e) => { e.preventDefault(); handleFacePremium(); }}
-                          className="animate-bounce px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-extrabold rounded-full shadow-[0_0_20px_rgba(234,179,8,0.5)]"
-                        >
-                          🔒 프리미엄 심층 분석 열기
-                        </button>
+                        {isApp ? (
+  <button
+    onClick={() => {
+      if ((window as any).ReactNativeWebView) {
+        (window as any).ReactNativeWebView.postMessage(JSON.stringify({ type: "SHOW_REWARDED_AD", feature: "physiognomy" }));
+      }
+    }}
+    className="animate-bounce px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-extrabold rounded-full shadow-[0_0_20px_rgba(139,92,246,0.5)]"
+  >
+    📺 광고 보고 무료로 열기
+  </button>
+) : (
+  <button 
+    onClick={(e) => { e.preventDefault(); handleFacePremium(); }}
+    className="animate-bounce px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-extrabold rounded-full shadow-[0_0_20px_rgba(234,179,8,0.5)]"
+  >
+    🔒 프리미엄 심층 분석 열기
+  </button>
+)}
                       </div>
 
                       {[
@@ -3786,10 +3858,16 @@ function SajuTab({ isVisible }: { isVisible: boolean }) {
                   ) : (
                     <button
                       type="button"
-                      onClick={handleNamePremium}
+                      onClick={() => {
+                        if (isApp && (window as any).ReactNativeWebView) {
+                          (window as any).ReactNativeWebView.postMessage(JSON.stringify({ type: "SHOW_REWARDED_AD", feature: "name" }));
+                        } else {
+                          handleNamePremium();
+                        }
+                      }}
                       className="w-full rounded-xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 px-6 py-4 text-base font-semibold text-slate-900 shadow-lg shadow-yellow-500/30 transition-all hover:scale-[1.02] active:scale-95"
                     >
-                      ✨ 전문가 심층 분석 리포트 잠금 해제 (4,900원)
+                      {isApp ? "📺 광고 보고 무료로 열기" : "✨ 전문가 심층 분석 리포트 잠금 해제 (4,900원)"}
                     </button>
                   )}
                   <button
@@ -5158,7 +5236,7 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
 }
 
 // ===== 손금 분석 탭 =====
-function PalmistryTab({ isVisible }: { isVisible: boolean }) {
+function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) {
   const [hand, setHand] = useState<"left" | "right">("right");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -5171,6 +5249,20 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const savedImageBase64Ref = useRef<string | null>(null);
   const savedHandRef = useRef<"left" | "right">("right");
+
+  // 앱에서 광고 완료 메시지 수신 → 잠금 해제
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === "AD_REWARD_GRANTED" && msg.feature === "palmistry") {
+          setIsPremiumUnlocked(true);
+        }
+      } catch {}
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
 
   // 모바일 결제 복귀 처리
   useEffect(() => {
@@ -5601,7 +5693,17 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
                           <div className="absolute inset-0 flex items-center justify-center">
                             <button
                               type="button"
-                              onClick={() => isPremiumUnlocked ? doPremiumAnalyze() : setShowPremiumModal(true)}
+                              onClick={() => {
+                                if (isPremiumUnlocked) {
+                                  doPremiumAnalyze();
+                                } else if (isApp) {
+                                  if ((window as any).ReactNativeWebView) {
+                                    (window as any).ReactNativeWebView.postMessage(JSON.stringify({ type: "SHOW_REWARDED_AD", feature: "palmistry" }));
+                                  }
+                                } else {
+                                  setShowPremiumModal(true);
+                                }
+                              }}
                               className="flex items-center gap-1.5 rounded-full border border-yellow-400/60 bg-slate-900/90 px-4 py-2 text-xs font-bold text-yellow-400 shadow-lg hover:bg-slate-800 transition-all hover:scale-105"
                             >
                               🔒 잠금 해제
@@ -5660,9 +5762,9 @@ function PalmistryTab({ isVisible }: { isVisible: boolean }) {
                       <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
                       AI 분석 중... (10~20초 소요)
                     </span>
-                  ) : "✨ 상세 손금 분석 보기 (4,900원)"}
-                </button>
-                <p className="text-[10px] text-white/30 mt-2">결제 즉시 분석 결과 제공 · 이용권</p>
+                  ) : isApp ? "📺 광고 보고 무료로 분석하기" : "✨ 상세 손금 분석 보기 (4,900원)"}
+                  </button>
+                  <p className="text-[10px] text-white/30 mt-2">{isApp ? "광고 시청 후 즉시 분석 결과 제공" : "결제 즉시 분석 결과 제공 · 이용권"}</p>
               </div>
             )}
 
@@ -6166,6 +6268,7 @@ function ZodiacTab({ isVisible }: { isVisible: boolean }) {
 }
 
 export default function Home() {
+  const isApp = useIsAppMode();
   const router = useRouter();
   const pathname = usePathname() || "/tools";
   const [activeTab, setActiveTab] = useState<TabId>("fortune");
@@ -6681,12 +6784,12 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
           if (tab.id === "fortune") return <FortuneTab key={tab.id} isVisible={isVisible} />;
           if (tab.id === "dream") return <DreamTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
           if (tab.id === "saju") return <SajuTab key={tab.id} isVisible={isVisible} />;
-          if (tab.id === "altar") return <AltarTab key={tab.id} isVisible={isVisible} />;
+          if (tab.id === "altar") return <AltarTab key={tab.id} isVisible={isVisible} isApp={isApp} />;
           if (tab.id === "lotto") return <LottoTab key={tab.id} isVisible={isVisible} />;
           if (tab.id === "mbti") return <MbtiTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
           if (tab.id === "match") return <MatchTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
           if (tab.id === "zodiac") return <ZodiacTab key={tab.id} isVisible={isVisible} />;
-          if (tab.id === "palmistry") return <PalmistryTab key={tab.id} isVisible={isVisible} />;
+          if (tab.id === "palmistry") return <PalmistryTab key={tab.id} isVisible={isVisible} isApp={isApp} />;
 
           return (
             <div
