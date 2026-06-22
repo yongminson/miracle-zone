@@ -2,7 +2,7 @@ import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Script from "next/script"; // 🚀 포트원 & 구글 애드센스 스크립트 불러오기
+import Script from "next/script";
 import CustomAnalytics from "@/components/Analytics";
 import { GlobalSiteFooter } from "@/components/layout/GlobalSiteFooter";
 
@@ -58,7 +58,6 @@ export const metadata: Metadata = {
     google: "mTatlpiTN0G1CZ1XKfH_gHsYoV183kAtBlZVBxKp4fg",
     other: {
       "naver-site-verification": "6c6aa7651e110462af3e09226fe9a9e8ead3d282",
-      "google-adsense-account": "ca-pub-5451727566627568",
     },
   },
 
@@ -69,14 +68,8 @@ export const metadata: Metadata = {
   },
 
   robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
+    index: false,
+    follow: false,
   },
 };
 
@@ -88,22 +81,9 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#030712] text-slate-100 min-h-screen flex flex-col`}>
-        {/* 🚀 1. 포트원(아임포트) 결제 라이브러리 */}
-        <Script 
-          src="https://cdn.portone.io/v2/browser-sdk.js" 
-          strategy="afterInteractive" 
-        />
-        
-        {/* 🚀 2. 구글 애드센스 자동 광고 및 심사용 스크립트 */}
-        <Script 
-          id="google-adsense"
-          async 
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5451727566627568" 
-          crossOrigin="anonymous" 
-          strategy="afterInteractive"
-        />
+        {/* 앱 전용 빌드: 포트원/애드센스/PWA 미사용 */}
 
-        {/* 🚀 4. 네이버 애널리틱스 스크립트 (명운 전용) */}
+        {/* 🚀 네이버 애널리틱스 */}
         <Script id="naver-analytics" strategy="afterInteractive">
           {`
             if(!wcs_add) var wcs_add = {};
@@ -115,82 +95,13 @@ export default function RootLayout({
         </Script>
         <Script src="//wcs.naver.net/wcslog.js" strategy="afterInteractive" />
 
-        {/* 🚀 3. 메인 콘텐츠 및 분석 툴 */}
+        {/* 메인 콘텐츠 */}
         <div className="flex min-h-screen flex-col">
           <div className="flex-1">{children}</div>
           <GlobalSiteFooter />
         </div>
         <CustomAnalytics />
         <Analytics />
-
-        {/* PWA 서비스워커 등록 + 설치 배너 */}
-        <Script id="pwa-setup" strategy="afterInteractive">{`
-          // 서비스워커 등록
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js');
-          }
-
-          // beforeinstallprompt 이벤트 저장
-          window.addEventListener('beforeinstallprompt', function(e) {
-            e.preventDefault();
-            window.__installPrompt = e;
-          });
-
-          // 모바일이고 standalone 아니고 7일 이내 닫은 적 없으면 배너 표시
-          var isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-          var isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-          var dismissed = localStorage.getItem('pwa-banner-dismissed');
-          var dismissedRecently = dismissed && (Date.now() - parseInt(dismissed)) < 7 * 24 * 60 * 60 * 1000;
-
-          if (isMobile && !isStandalone && !dismissedRecently) {
-            setTimeout(function() {
-              var banner = document.getElementById('pwa-install-banner');
-              if (banner) banner.style.display = 'flex';
-            }, 2000);
-          }
-
-          // 설치 버튼
-          document.addEventListener('click', function(e) {
-            if (e.target && e.target.id === 'pwa-install-btn') {
-              var prompt = window.__installPrompt;
-              if (prompt) {
-                prompt.prompt();
-                prompt.userChoice.then(function(result) {
-                  if (result.outcome === 'accepted') {
-                    var banner = document.getElementById('pwa-install-banner');
-                    if (banner) banner.style.display = 'none';
-                  }
-                });
-              } else {
-                alert('브라우저 메뉴 → 홈 화면에 추가를 눌러 설치하세요!');
-              }
-            }
-            if (e.target && e.target.id === 'pwa-dismiss-btn') {
-              localStorage.setItem('pwa-banner-dismissed', String(Date.now()));
-              var banner = document.getElementById('pwa-install-banner');
-              if (banner) banner.style.display = 'none';
-            }
-          });
-        `}</Script>
-
-        {/* PWA 설치 배너 HTML (초기엔 숨김) */}
-        <div
-          id="pwa-install-banner"
-          style={{ display: 'none' }}
-          className="fixed bottom-0 left-0 right-0 z-[9999] flex items-center justify-between gap-3 border-t border-yellow-400/40 bg-slate-900 px-4 py-3 shadow-2xl"
-        >
-          <div className="flex items-center gap-3">
-            <img src="/icons/icon-192.png" className="h-10 w-10 rounded-xl" alt="명운" />
-            <div>
-              <p className="text-sm font-bold text-yellow-400">명운 앱으로 설치하기</p>
-              <p className="text-xs text-white/60">홈 화면에서 바로 실행하세요</p>
-            </div>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <button id="pwa-dismiss-btn" className="px-2 py-1 text-xs text-white/40">✕</button>
-            <button id="pwa-install-btn" className="rounded-lg bg-yellow-400 px-4 py-2 text-xs font-bold text-slate-900">설치</button>
-          </div>
-        </div>
       </body>
     </html>
   );
