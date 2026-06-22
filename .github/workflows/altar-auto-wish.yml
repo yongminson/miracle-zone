@@ -2,10 +2,16 @@ name: 기적의 제단 자동 소원
 
 on:
   schedule:
-    - cron: '*/48 * * * *'   # 48분마다 (무료 1h 소원)
-    - cron: '0 23,4,11 * * *' # 하루 3번 (1일 소원 KST 08/13/20시)
-    - cron: '0 0 * * 1'       # 매주 월요일 (10일 소원)
-  workflow_dispatch:           # 수동 실행 버튼도 생김
+    # 일반 소원 (하루 4개, 불규칙한 시간대 KST 기준)
+    - cron: '17 1 * * *'                   # KST 10:17
+    - cron: '33 7 * * *'                   # KST 16:33
+    - cron: '51 13 * * *'                  # KST 22:51
+    - cron: '28 20 * * *'                  # KST 05:28
+    # 1일 소원 (하루 1개)
+    - cron: '43 3 * * *'                   # KST 12:43
+    # 10일 소원 (5일마다 1개 = 10일에 2개)
+    - cron: '22 22 1,6,11,16,21,26 * *'   # KST 07:22
+  workflow_dispatch:
 
 jobs:
   generate-wish:
@@ -14,16 +20,16 @@ jobs:
       - name: 소원 생성
         run: |
           TYPE="free"
-          if [ "${{ github.event.schedule }}" = "0 23,4,11 * * *" ]; then
+          if [ "${{ github.event.schedule }}" = "43 3 * * *" ]; then
             TYPE="paid_1d"
-          elif [ "${{ github.event.schedule }}" = "0 0 * * 1" ]; then
+          elif [ "${{ github.event.schedule }}" = "22 22 1,6,11,16,21,26 * *" ]; then
             TYPE="paid_10d"
           fi
-          
+
           curl -X GET \
             "https://saju.ymstudio.co.kr/api/altar-cron?type=$TYPE" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            --retry 3 \
-            --retry-delay 10 \
-            --max-time 30 \
+            --retry 2 \
+            --retry-delay 5 \
+            --max-time 120 \
             --connect-timeout 15
