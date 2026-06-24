@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/tiktok:path*.txt",
+        source: "/:file(tiktok.+\\.txt)",
         headers: [{ key: "Content-Type", value: "text/plain; charset=utf-8" }],
       },
     ];
