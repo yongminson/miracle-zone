@@ -6540,7 +6540,7 @@ export default function Home() {
     const sevenDays = 7 * 24 * 60 * 60 * 1000;
     const dismissedRecently = dismissed && Date.now() - parseInt(dismissed) < sevenDays;
 
-    if (isMobileDevice && !isStandalone && !dismissedRecently) {
+    if (isMobileDevice && !isStandalone && !dismissedRecently && !navigator.userAgent.includes("MyeongunApp")) {
       setTimeout(() => setShowInstallBanner(true), 2000);
     }
     const handler = () => setShowInstallBanner(true);
