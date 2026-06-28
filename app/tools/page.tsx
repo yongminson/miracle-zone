@@ -2388,8 +2388,7 @@ type NameResultData = {
     lifeCycle: string;
   };
 };
-
-function SajuTab({ isVisible }: { isVisible: boolean }) {
+function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) {
   const [activeSajuMode, setActiveSajuMode] = useState<"face" | "name">("face");
   
   const [faceName, setFaceName] = useState("");
@@ -6783,7 +6782,7 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
 
           if (tab.id === "fortune") return <FortuneTab key={tab.id} isVisible={isVisible} />;
           if (tab.id === "dream") return <DreamTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
-          if (tab.id === "saju") return <SajuTab key={tab.id} isVisible={isVisible} />;
+          if (tab.id === "saju") return <SajuTab key={tab.id} isVisible={isVisible} isApp={isApp} />;
           if (tab.id === "altar") return <AltarTab key={tab.id} isVisible={isVisible} isApp={isApp} />;
           if (tab.id === "lotto") return <LottoTab key={tab.id} isVisible={isVisible} />;
           if (tab.id === "mbti") return <MbtiTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
