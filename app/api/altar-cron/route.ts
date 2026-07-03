@@ -17,8 +17,8 @@ export async function GET(req: Request) {
   const cfg = CONFIG[type];
   if (!cfg) return NextResponse.json({ error: "Invalid type" }, { status: 400 });
 
-  // 0~20분 랜덤 딜레이
-  const delayMs = Math.floor(Math.random() * 20) * 60 * 1000;
+  // 0~3분 랜덤 딜레이 (Vercel 함수 타임아웃 회피)
+  const delayMs = Math.floor(Math.random() * 180) * 1000;
   await new Promise((r) => setTimeout(r, delayMs));
 
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://saju.ymstudio.co.kr";

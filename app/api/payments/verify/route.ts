@@ -223,9 +223,10 @@ export async function POST(req: Request) {
     }
 
     if (currentPaymentType === "altar") {
-      const expected = typeof rawAmount === "number" ? rawAmount : Number(rawAmount);
-      if (!Number.isFinite(expected) || expected <= 0) {
-        return NextResponse.json({ success: false, message: "결제 금액(amount)이 올바르지 않습니다." }, { status: 400 });
+      const ALTAR_PRICES: Record<string, number> = { "24h": 1900, "10d": 6900 };
+      const expected = ALTAR_PRICES[String(period)];
+      if (!expected) {
+        return NextResponse.json({ success: false, message: "결제 기간(period)이 올바르지 않습니다." }, { status: 400 });
       }
       const v = await verifyPaidAmountUniversal({ lookupId, expectedAmountWon: expected });
       if (!v.ok) return NextResponse.json({ success: false, message: v.message }, { status: 400 });
@@ -277,8 +278,7 @@ export async function POST(req: Request) {
         }
       }
     } else if (currentPaymentType === "saju") {
-      const expectedFromBody = typeof rawAmount === "number" ? rawAmount : Number(rawAmount);
-      const expected = Number.isFinite(expectedFromBody) && expectedFromBody > 0 ? expectedFromBody : 4900;
+      const expected = 4900;
       const v = await verifyPaidAmountUniversal({ lookupId, expectedAmountWon: expected });
       if (!v.ok) return NextResponse.json({ success: false, message: v.message }, { status: 400 });
       console.log("관상/사주 결제 검증 완료:", lookupId);
