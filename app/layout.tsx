@@ -94,6 +94,7 @@ export default function RootLayout({
           `}
         </Script>
         <Script src="//wcs.naver.net/wcslog.js" strategy="afterInteractive" />
+        <Script src="https://cdn.portone.io/v2/browser-sdk.js" strategy="afterInteractive" />
 
         {/* 메인 콘텐츠 */}
         <div className="flex min-h-screen flex-col">
