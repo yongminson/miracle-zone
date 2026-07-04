@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
+import { captureAttribution, logEvent } from "@/lib/analytics";
 import { clearPendingPaymentData, readPendingPaymentData, savePendingPaymentData } from "@/lib/payments/pending-payment-data";
 import {
   clearPendingPaymentState,
@@ -1869,9 +1870,11 @@ const ALTAR_FOOTER_REFUND =
           },
         });
       }
+      logEvent("payment_start", { product: "altar", amount });
       const response = await PortOne.requestPayment(payData);
       const portOneFail = getPortOnePaymentFailureReason(response, { isMobile });
       if (portOneFail) {
+        logEvent("payment_abandon", { product: "altar", amount });
         alert("결제가 취소되었습니다.");
         localStorage.removeItem("pendingPaymentType");
         localStorage.removeItem("pendingPremiumWish");
@@ -1900,6 +1903,7 @@ const ALTAR_FOOTER_REFUND =
 
             const verifyData = await verifyRes.json();
             if (verifyRes.ok && verifyData.success) {
+                            logEvent("payment_complete", { product: "altar", amount });
                             // 🚀 [추가] PC 환경에서도 결제 즉시 제단에 소원이 짠! 하고 나타나도록 강제 업데이트
                             setLastWish(premiumWishText);
                             const newPremiumWish: PremiumWish = {
@@ -2712,6 +2716,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
 
     try {
       const toolsOrigin = `${window.location.origin}/tools`;
+      logEvent("payment_start", { product: "physiognomy", amount });
       const response = await PortOne.requestPayment({
         storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
         channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
@@ -2727,6 +2732,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
 
       const portOneFail = getPortOnePaymentFailureReason(response, { isMobile });
       if (portOneFail) {
+        logEvent("payment_abandon", { product: "physiognomy", amount });
         localStorage.removeItem("pendingFaceData");
         localStorage.removeItem("pendingPaymentType");
         localStorage.removeItem("pendingPaymentAmount");
@@ -2749,6 +2755,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
         });
         const verifyData = (await verifyRes.json()) as { success?: boolean; message?: string };
         if (verifyRes.ok && verifyData.success) {
+          logEvent("payment_complete", { product: "physiognomy", amount });
           setIsPhysiognomyPremiumUnlocked(true);
           setShowPhysiognomyPaymentModal(false);
         } else {
@@ -3026,6 +3033,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
 
       try {
         const toolsOrigin = `${window.location.origin}/tools`;
+        logEvent("payment_start", { product: "name", amount });
         const response = await PortOne.requestPayment({
           storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
           channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
@@ -3039,6 +3047,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
         });
         const portOneFailName = getPortOnePaymentFailureReason(response, { isMobile });
         if (portOneFailName) {
+          logEvent("payment_abandon", { product: "name", amount });
           alert("결제가 취소되었습니다.");
           localStorage.removeItem("pendingNameData");
           localStorage.removeItem("pendingPaymentType");
@@ -3064,6 +3073,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
           });
           const verifyData = await verifyRes.json();
           if (verifyRes.ok && verifyData.success) {
+            logEvent("payment_complete", { product: "name", amount });
             setShowNamePaymentModal(false);
             setIsNamePremiumUnlocked(true);
           } else {
@@ -5452,6 +5462,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
 
     try {
       const toolsOrigin = `${window.location.origin}/tools`;
+      logEvent("payment_start", { product: "palmistry", amount });
       const response = await PortOne.requestPayment({
         storeId: "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d",
         channelKey: selectedPayMethod === "kpn" ? "channel-key-47b05312-c2e5-4e20-8b76-afb3915eb765" : selectedPayMethod === "tosspay" ? "channel-key-ec9a613e-4407-413c-9ad1-921edb7b694e" : "channel-key-314bb395-3a71-48e6-a2a1-fed1d4ccb8c1",
@@ -5465,6 +5476,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
       });
       const portOneFail = getPortOnePaymentFailureReason(response, { isMobile });
       if (portOneFail) {
+        logEvent("payment_abandon", { product: "palmistry", amount });
         alert("결제가 취소되었습니다.");
         localStorage.removeItem("pendingPalmistryData");
         localStorage.removeItem("pendingPaymentType");
@@ -5486,6 +5498,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
       });
       const verifyData = await verifyRes.json() as { success?: boolean; message?: string };
       if (verifyRes.ok && verifyData.success) {
+        logEvent("payment_complete", { product: "palmistry", amount });
         setShowPremiumModal(false);
         await doPremiumAnalyze();
       } else {
@@ -6293,6 +6306,13 @@ export default function Home() {
     }
   }, [activeTab]);
 
+  // 유입 경로 캡처 + page_view 이벤트
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    captureAttribution();
+    logEvent("page_view");
+  }, []);
+
   // 🚀 방문자 수 측정 로직 (중복 방지는 로컬 스토리지만 사용)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -6738,6 +6758,7 @@ export default function Home() {
                   setActiveTab(tab.id);
                   window.scrollTo({ top: 0, behavior: "smooth" });
 supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
+                  logEvent("tab_click", { tab: tab.id });
                   
                   // 🚀 클릭 시 해당 버튼을 스크롤 박스의 중앙으로 이동시키는 매직 로직
                   const target = e.currentTarget;
