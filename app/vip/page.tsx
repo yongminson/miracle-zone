@@ -184,7 +184,7 @@ export default function VipLandingPage() {
   const router = useRouter();
   const pathname = usePathname();
   const pdfRootRef = useRef<HTMLDivElement>(null);
-  const { buildPdfBlob, isGenerating: isPdfGenerating } = usePdfDownload({ scale: 2 });
+  const { buildPdfBlob, isGenerating: isPdfGenerating } = usePdfDownload({ scale: 1 });
 
   const [name, setName] = useState("");
   const [birthDate, setBirthDate] = useState("");
