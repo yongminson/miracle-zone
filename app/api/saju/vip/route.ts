@@ -230,7 +230,24 @@ export async function POST(request: NextRequest) {
       phone_number: body.phone_number,
     });
 
-    return NextResponse.json({ success: true, markdown });
+    // 스트리밍 응답으로 전송
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        // 청크 단위로 전송 (2000자씩)
+        const chunkSize = 2000;
+        for (let i = 0; i < markdown.length; i += chunkSize) {
+          const chunk = markdown.slice(i, i + chunkSize);
+          const line = JSON.stringify({ type: "chunk", text: chunk }) + "\n";
+          controller.enqueue(encoder.encode(line));
+        }
+        controller.enqueue(encoder.encode(JSON.stringify({ type: "done" }) + "\n"));
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   } catch (error: any) {
     console.error("서버 전체 에러:", error);
     return NextResponse.json(
