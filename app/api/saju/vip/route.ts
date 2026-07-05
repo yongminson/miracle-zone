@@ -169,13 +169,18 @@ async function generateVipMarkdownReport(
 - 물(水) 용신: ![맞춤 부적](/images/amulet-water.jpg)
 `;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
-  
-  if (!text) {
-    throw new Error("GEMINI_EMPTY_RESPONSE");
-  }
-  return text;
+const result = await model.generateContent(prompt);
+const text = result.response.text();
+
+console.log("Gemini response candidates:", JSON.stringify(result.response.candidates?.length));
+console.log("Gemini text length:", text?.length);
+
+if (!text) {
+  const raw = JSON.stringify(result.response);
+  console.error("Gemini 빈 응답 raw:", raw.slice(0, 500));
+  throw new Error("GEMINI_EMPTY_RESPONSE");
+}
+return text;
 }
 
 export async function POST(request: NextRequest) {
