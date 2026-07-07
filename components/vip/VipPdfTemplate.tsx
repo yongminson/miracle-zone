@@ -392,10 +392,12 @@ function usePackedMarkdownPages(markdownData: string) {
   const [packedPages, setPackedPages] = useState<string[]>(() =>
     markdownData.trim() ? [markdownData] : []
   );
+  const [retry, setRetry] = useState(0);
   const measureRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setPackedPages([]);
+    setRetry(0);
     setBlocks(splitMarkdownSections(markdownData));
   }, [markdownData]);
 
@@ -407,7 +409,12 @@ function usePackedMarkdownPages(markdownData: string) {
     }
 
     const els = [...root.querySelectorAll<HTMLElement>("[data-measure-block]")];
-    if (els.length !== blocks.length) return;
+    // 측정용 DOM이 아직 blocks 수만큼 렌더되지 않았으면(이어보기 직후 등)
+    // 다음 프레임에 재시도한다. 그냥 return하면 영영 멈춰 3장만 나온다.
+    if (els.length !== blocks.length) {
+      const id = requestAnimationFrame(() => setRetry((r) => r + 1));
+      return () => cancelAnimationFrame(id);
+    }
 
     const heights = els.map((e) => e.offsetHeight);
 
@@ -471,7 +478,7 @@ function usePackedMarkdownPages(markdownData: string) {
     if (current.length) pages.push(current);
 
     setPackedPages(pages.map((parts) => parts.join("\n\n")));
-  }, [blocks]);
+  }, [blocks, retry]);
 
   return { measureRef, measureBlocks: blocks, packedPages };
 }

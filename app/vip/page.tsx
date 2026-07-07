@@ -308,9 +308,32 @@ export default function VipLandingPage() {
 
     let cancelled = false;
     void (async () => {
+      // 페이지 분할(챕터별 렌더)이 끝날 시간을 준다.
       await new Promise<void>((resolve) => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       });
+      // 페이지 분할이 끝날 때까지 대기: 최소 대기 후, data-pdf-page 개수가
+      // 10장 이상 & 8프레임 안정될 때까지 기다린다 (이어보기·처음생성 모두 안전).
+      await new Promise<void>((resolve) => {
+        let last = -1;
+        let stable = 0;
+        let tries = 0;
+        const tick = () => {
+          const n = pdfRootRef.current?.querySelectorAll("[data-pdf-page]").length ?? 0;
+          if (n >= 10 && n === last) stable += 1;
+          else stable = 0;
+          last = n;
+          tries += 1;
+          // 10장 이상이 8프레임 안정될 때만 통과. 최대 6초까지 대기.
+          if ((n >= 10 && stable >= 8) || tries > 360) {
+            resolve();
+          } else {
+            requestAnimationFrame(tick);
+          }
+        };
+        requestAnimationFrame(tick);
+      });
+
       if (cancelled) return;
 
       setPdfFallback((prev) => {
@@ -341,7 +364,7 @@ export default function VipLandingPage() {
 
     return () => {
       cancelled = true;
-    };  }, [isSuccess, reportMarkdown, reportRevision, buildPdfBlob]);
+    };  }, [isSuccess, reportMarkdown, reportRevision, buildPdfBlob, pdfUserInfo.sajuSummary]);
 
   useEffect(() => {
     if (!isSuccess || !amuletUrl) {
@@ -737,7 +760,8 @@ export default function VipLandingPage() {
     amuletBlobRevokeRef.current?.();
     amuletBlobRevokeRef.current = null;
     setAmuletBlobUrl(null);
-    setReportMarkdown(saved.markdown);
+    setReportMarkdown("");
+    setTimeout(() => setReportMarkdown(saved.markdown), 50);
     setPdfUserInfo(saved.pdfUserInfo);
     setAmuletUrl(saved.amuletUrl);
     if (saved.name) setName(saved.name);
@@ -747,7 +771,8 @@ export default function VipLandingPage() {
     setMbti(saved.mbti);
     setIsDownloaded(true);
     setIsSuccess(true);
-    setReportRevision((r) => r + 1);
+    // reportMarkdown이 이전과 같아도 PDF 재생성이 확실히 트리거되도록 revision을 시간값으로 강제
+    setReportRevision(Date.now());
   }, []);
 
   const handleNewReportClick = useCallback(() => {
