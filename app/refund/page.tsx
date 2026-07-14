@@ -3,15 +3,15 @@ export default function RefundPage() {
       <div className="min-h-screen bg-[#030712] text-slate-100 px-6 py-12 max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold text-yellow-400 mb-8">환불정책</h1>
         <div className="space-y-6 text-sm text-white/80 leading-relaxed">
-          <section>
-            <h2 className="text-base font-bold text-white mb-2">인앱결제 환불 규정 안내</h2>
-            <p>본 앱에서 제공되는 유료 서비스는 구글 플레이스토어 및 원스토어를 통한 인앱결제로 진행됩니다.</p>
-          </section>
-          <section>
-            <h2 className="text-base font-bold text-white mb-2">1. 환불 기준</h2>
-            <p>구글 플레이: 결제 후 48시간 이내 구글 플레이 고객센터를 통해 환불 요청 가능</p>
-            <p>원스토어: 원스토어 환불 정책에 따라 처리</p>
-          </section>
+        <section>
+          <h2 className="text-base font-bold text-white mb-2">환불 규정 안내</h2>
+          <p>본 서비스의 유료 결제는 포트원(PortOne) 결제 시스템을 통해 한국결제네트웍스, 카카오페이, 토스페이로 처리됩니다.</p>
+        </section>
+        <section>
+          <h2 className="text-base font-bold text-white mb-2">1. 환불 기준</h2>
+          <p>결제 후 7일 이내 미사용(미열람) 시: 전액 환불 가능</p>
+          <p>디지털 콘텐츠 특성상 사용(열람) 후에는 환불이 제한됩니다</p>
+        </section>
           <section>
             <h2 className="text-base font-bold text-white mb-2">2. 환불 문의</h2>
             <p>이메일: support@ymstudio.co.kr</p>

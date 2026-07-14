@@ -32,8 +32,8 @@ export default function TermsPage() {
             <p>회사는 관련 법령 및 개인정보처리방침에 따라 이용자의 개인정보를 보호합니다.</p>
           </section>
           <section>
-            <h2 className="text-base font-bold text-white mb-2">제7조 (인앱결제 환불)</h2>
-            <p>인앱결제 환불은 구글 플레이스토어 및 원스토어 환불 정책을 따릅니다.</p>
+          <h2 className="text-base font-bold text-white mb-2">제7조 (결제 및 환불)</h2>
+          <p>유료 서비스 결제는 포트원(PortOne) 결제 시스템을 통해 한국결제네트웍스, 카카오페이, 토스페이로 처리됩니다. 환불은 결제 후 7일 이내 미사용 시 전액 환불이 가능하며, 디지털 콘텐츠 특성상 사용(열람) 후에는 환불이 제한됩니다. 환불 문의: support@ymstudio.co.kr</p>
           </section>
           <section>
             <h2 className="text-base font-bold text-white mb-2">제8조 (분쟁 해결)</h2>
