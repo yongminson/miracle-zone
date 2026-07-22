@@ -115,16 +115,16 @@ VAPID-based web push. Service worker at `public/sw.js`; subscribe via `app/api/p
   | `/api/physiognomy` | POST | 관상 분석(이미지 → OpenAI 비전) |
   | `/api/palmistry` | POST | 손금 분석(OpenAI) |
   | `/api/name` | POST | 성명학 이름풀이(OpenAI) |
-  | `/api/hanja` | POST | 한자 사전 조회 |
+  | `/api/hanja` | POST | 한자 사전 조회 (로컬 `@seyoungsong/hanjadict` 테이블 + 점수 휴리스틱, **AI 없음**) |
   | `/api/match` | POST | 궁합 분석(OpenAI) |
   | `/api/mbti` | POST | MBTI × 사주 분석(OpenAI) |
   | `/api/dream` | POST | 꿈 해몽(OpenAI) |
-  | `/api/lotto` | POST | 행운 로또 번호 추출 |
+  | `/api/lotto` | POST | 행운 로또 번호 추출 (알고리즘, **AI 없음** — 랜딩의 "AI 통계 기반"은 마케팅 문구) |
   | `/api/lotto-winning` | GET | 로또 당첨 번호 조회(`force-dynamic`) |
   | `/api/altar-auto-wish` | POST | 제단 자동 소원 등록(크론 내부 호출, `x-cron-secret`) |
   | `/api/altar-cron` | GET | 제단 크론 진입점(`?type=free\|paid_1d\|paid_10d`, `Bearer CRON_SECRET`) |
   | `/api/cron` | GET | 일일 AI 블로그 글 생성(`Bearer CRON_SECRET`) |
-  | `/api/cron/push` | GET·POST | 푸시 관련 크론 |
+  | `/api/cron/push` | GET·POST | 푸시 관련 크론 (`web-push` + Supabase, **AI 없음**) |
   | `/api/push/subscribe` | POST | 웹푸시 구독 등록 |
   | `/api/push/send` | POST | 웹푸시 발송(일일 크론) |
   | `/api/payments/verify` | POST | 포트원/아임포트 결제 서버 검증(정본) |

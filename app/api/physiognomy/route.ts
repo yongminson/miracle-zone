@@ -73,7 +73,14 @@ export async function POST(request: NextRequest) {
     if (!content) throw new Error("OpenAI 응답이 없습니다.");
 
     const parsed = JSON.parse(content);
-    if (parsed.error || parsed.isHuman === false) return NextResponse.json({ error: parsed.error || "사람 사진을 올려주세요." }, { status: 400 });
+    // isHuman이 명시적으로 false이고 premiumReport도 없을 때만 거부
+    // (GPT가 얼굴을 인식했지만 isHuman을 빠뜨리는 경우 허용)
+    if (parsed.isHuman === false && !parsed.premiumReport) {
+      return NextResponse.json({ error: parsed.error || "얼굴이 잘 보이게 사진을 다시 찍어주세요." }, { status: 400 });
+    }
+    if (parsed.error && !parsed.premiumReport) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
 
     return NextResponse.json(parsed);
   } catch (error) {
