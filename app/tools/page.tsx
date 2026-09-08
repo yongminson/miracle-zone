@@ -39,6 +39,7 @@ import { extractPaymentReturnId } from "@/lib/payments/return-params";
 import { getPortOnePaymentFailureReason } from "@/lib/payments/portone-response-guards";
 import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 import { PaymentMethodSelector, type PayMethodPg } from "@/components/payments/PaymentMethodSelector";
+import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -706,6 +707,21 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
             <h2 className="text-center text-lg font-medium text-yellow-400 mb-6">
               오늘의 운세
             </h2>
+
+            {/* 저장해 둔 가족 프로필 — 누르면 아래 입력값이 채워진다 */}
+            <ProfileQuickPicker
+              source="fortune"
+              accent="amber"
+              className="mb-5"
+              draft={{ name, gender, birthDate, birthTime, calendar: calendarType }}
+              onApply={(profile) => {
+                setName(profile.name);
+                setGender(profile.gender);
+                setBirthDate(profile.birthDate);
+                setBirthTime(profile.birthTime);
+                setCalendarType(profile.calendar);
+              }}
+            />
 
             <div className="space-y-5">
               <div>
@@ -4998,6 +5014,20 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
               {/* 👤 나의 정보 */}
               <div className="rounded-3xl border border-rose-500/30 bg-slate-900/80 p-6 backdrop-blur-md shadow-lg">
                 <h3 className="text-rose-400 font-bold mb-4 flex items-center gap-2"><span>👤</span> 나의 정보</h3>
+                <ProfileQuickPicker
+                  source="match_self"
+                  accent="rose"
+                  className="mb-4"
+                  draft={myInfo}
+                  onApply={(profile) => setMyInfo({
+                    ...myInfo,
+                    name: profile.name,
+                    gender: profile.gender,
+                    calendar: profile.calendar,
+                    birthDate: profile.birthDate,
+                    birthTime: profile.birthTime,
+                  })}
+                />
                 <div className="space-y-4">
                   <div className="flex gap-3">
                     <input type="text" placeholder="내 이름" value={myInfo.name} onChange={e=>setMyInfo({...myInfo, name: e.target.value})} className="flex-1 rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-white focus:border-rose-400 focus:outline-none" />
@@ -5023,6 +5053,20 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
               {/* ❤️ 상대방 정보 */}
               <div className="rounded-3xl border border-orange-500/30 bg-slate-900/80 p-6 backdrop-blur-md shadow-lg">
                 <h3 className="text-orange-400 font-bold mb-4 flex items-center gap-2"><span>❤️</span> 상대방 정보</h3>
+                <ProfileQuickPicker
+                  source="match_partner"
+                  accent="orange"
+                  className="mb-4"
+                  draft={partnerInfo}
+                  onApply={(profile) => setPartnerInfo({
+                    ...partnerInfo,
+                    name: profile.name,
+                    gender: profile.gender,
+                    calendar: profile.calendar,
+                    birthDate: profile.birthDate,
+                    birthTime: profile.birthTime,
+                  })}
+                />
                 <div className="space-y-4">
                   <div className="flex gap-3">
                     <input type="text" placeholder="상대방 이름" value={partnerInfo.name} onChange={e=>setPartnerInfo({...partnerInfo, name: e.target.value})} className="flex-1 rounded-xl bg-black/40 border border-white/10 px-4 py-3 text-white focus:border-orange-400 focus:outline-none" />

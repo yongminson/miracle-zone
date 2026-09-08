@@ -17,6 +17,7 @@ import { extractPaymentReturnId } from "@/lib/payments/return-params";
 import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 import { appendVipSymbolicAmulet } from "@/lib/saju/vip-symbolic-amulet";
 import { logEvent } from "@/lib/analytics";
+import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 
 type VipApiSuccess = { success: true; markdown: string };
 type VipApiFail = { success: false; error?: string };
@@ -1089,6 +1090,21 @@ export default function VipLandingPage() {
             <Sparkles className="h-5 w-5 shrink-0" aria-hidden />
             <h2 className="font-serif text-lg font-semibold text-amber-50">정보 입력</h2>
           </div>
+
+          {/* 저장해 둔 가족 프로필 — 누르면 아래 입력값이 채워진다 */}
+          <ProfileQuickPicker
+            source="vip"
+            accent="amber"
+            className="mb-5"
+            draft={{ name, gender, birthDate, birthTime, mbti }}
+            onApply={(profile) => {
+              setName(profile.name);
+              setGender(profile.gender);
+              setBirthDate(profile.birthDate);
+              setBirthTime(profile.birthTime);
+              if (profile.mbti) setMbti(profile.mbti);
+            }}
+          />
 
           <div className="space-y-5">
             <label className="block">
