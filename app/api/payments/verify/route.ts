@@ -9,6 +9,10 @@ import {
   upsertVipOrderRow,
   VIP_ORDER_AMOUNT_WON,
 } from "@/lib/payments/vip-order-supabase";
+import {
+  createVipReportEntitlement,
+  webVipPaymentRef,
+} from "@/lib/payments/vip-report-entitlement";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 
 type IamportTokenJson = {
@@ -187,15 +191,26 @@ export async function POST(req: Request) {
       const reportUrl = resolveVipReportPublicUrlFromRequest(req);
 
       if (!supabaseAdmin) {
-        console.error(
-          "[vip_orders] 결제 검증은 성공했으나 Supabase Admin 클라이언트를 만들 수 없습니다. " +
-            "SUPABASE_SERVICE_ROLE_KEY·NEXT_PUBLIC_SUPABASE_URL을 Vercel에 설정했는지 확인하세요.",
+        console.error("[vip-entitlement] Supabase Admin client unavailable after payment verification");
+        return NextResponse.json(
+          { success: false, message: "결제는 확인했지만 리포트 지급권을 저장하지 못했습니다. 고객센터에 문의해 주세요." },
+          { status: 503 },
         );
-        return NextResponse.json({
-          success: true,
-          message: "결제 확인 완료(vip_orders DB 기록 생략: Service Role 미설정)",
-          vipOrderDbSkipped: true,
-        });
+      }
+
+      const paymentRef = webVipPaymentRef(lookupId);
+      const entitlement = await createVipReportEntitlement(supabaseAdmin, {
+        payment_ref: paymentRef,
+        platform: "web",
+        provider_reference: lookupId,
+        subject_key: null,
+        amount: VIP_ORDER_AMOUNT_WON,
+      });
+      if (!entitlement.ok) {
+        return NextResponse.json(
+          { success: false, message: entitlement.message },
+          { status: 503 },
+        );
       }
 
       const dbResult = await upsertVipOrderRow(supabaseAdmin, {
@@ -219,11 +234,11 @@ export async function POST(req: Request) {
         });
       }
 
-      return NextResponse.json({ success: true, message: "결제 확인 및 처리 완료" });
+      return NextResponse.json({ success: true, message: "결제 확인 및 처리 완료", paymentRef });
     }
 
     if (currentPaymentType === "altar") {
-      const ALTAR_PRICES: Record<string, number> = { "24h": 1900, "10d": 6900 };
+      const ALTAR_PRICES: Record<string, number> = { "24h": 900, "10d": 2200 };
       const expected = ALTAR_PRICES[String(period)];
       if (!expected) {
         return NextResponse.json({ success: false, message: "결제 기간(period)이 올바르지 않습니다." }, { status: 400 });
@@ -278,7 +293,7 @@ export async function POST(req: Request) {
         }
       }
     } else if (currentPaymentType === "saju") {
-      const expected = 4900;
+      const expected = 1900;
       const v = await verifyPaidAmountUniversal({ lookupId, expectedAmountWon: expected });
       if (!v.ok) return NextResponse.json({ success: false, message: v.message }, { status: 400 });
       console.log("관상/사주 결제 검증 완료:", lookupId);

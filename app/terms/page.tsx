@@ -11,7 +11,7 @@ export default function TermsPage() {
             <h2 className="text-base font-bold text-white mb-2">제2조 (용어의 정의)</h2>
             <p>① &quot;서비스&quot;란 회사가 제공하는 사주, 운세, 관상, 이름 풀이, 궁합, 로또 번호 추출 등 명리학 기반 디지털 콘텐츠를 말합니다.</p>
             <p>② &quot;이용자&quot;란 본 약관에 동의하고 서비스를 이용하는 모든 자를 말합니다.</p>
-            <p>③ &quot;유료 서비스&quot;란 광고 시청 또는 인앱결제 완료 후 이용 가능한 프리미엄 분석 결과, VIP 리포트 등 디지털 콘텐츠를 말합니다.</p>
+            <p>③ &quot;유료 서비스&quot;란 광고 시청 또는 결제 완료 후 이용 가능한 프리미엄 분석 결과, 사주 인사이트 리포트 등 디지털 콘텐츠를 말합니다.</p>
           </section>
           <section>
             <h2 className="text-base font-bold text-white mb-2">제3조 (서비스의 성격 및 면책)</h2>

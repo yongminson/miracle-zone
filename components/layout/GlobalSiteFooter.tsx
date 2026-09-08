@@ -8,7 +8,7 @@ const TERMS_TEXT = `제1조 (목적)
 제2조 (용어의 정의)
 ① "서비스"란 회사가 제공하는 사주, 운세, 관상, 이름 풀이, 궁합, 로또 번호 추출 등 명리학 기반 디지털 콘텐츠를 말합니다.
 ② "이용자"란 본 약관에 동의하고 서비스를 이용하는 모든 자를 말합니다.
-③ "유료 서비스"란 광고 시청 또는 인앱결제 완료 후 이용 가능한 프리미엄 분석 결과, VIP 리포트 등 디지털 콘텐츠를 말합니다.
+③ "유료 서비스"란 광고 시청 또는 결제 완료 후 이용 가능한 프리미엄 분석 결과, 사주 인사이트 리포트 등 디지털 콘텐츠를 말합니다.
 
 제3조 (서비스의 성격 및 면책)
 ① 본 서비스에서 제공하는 모든 결과는 정통 명리학에 기반한 통계적·학술적 해석으로, 절대적인 미래를 예측하거나 보장하지 않습니다.
@@ -90,9 +90,10 @@ export function GlobalSiteFooter() {
   const [showPolicy, setShowPolicy] = useState<"terms" | "privacy" | "refund" | null>(null);
   const [showCompanyInfo, setShowCompanyInfo] = useState(false);
 
-  const handleCopyrightDoubleClick = () => {
+  const handleCopyrightDoubleClick = async () => {
     if (localStorage.getItem("MASTER_ADMIN") === "true") {
       if (confirm("현재 운영자 모드입니다. 종료할까요?")) {
+        await fetch("/api/admin/session", { method: "DELETE" }).catch(() => null);
         localStorage.removeItem("MASTER_ADMIN");
         alert("운영자 모드가 종료되었습니다.");
         window.location.reload();
@@ -100,11 +101,18 @@ export function GlobalSiteFooter() {
       return;
     }
     const pwd = prompt("운영자 비밀번호를 입력하세요.");
-    if (pwd === "s1223534") {
+    if (pwd === null) return;
+    const response = await fetch("/api/admin/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pwd }),
+    }).catch(() => null);
+    if (response?.ok) {
       localStorage.setItem("MASTER_ADMIN", "true");
       alert("✨ 운영자 모드 활성화!");
       window.location.reload();
-    } else if (pwd !== null) {
+    } else {
+      localStorage.removeItem("MASTER_ADMIN");
       alert("비밀번호가 일치하지 않습니다.");
     }
   };

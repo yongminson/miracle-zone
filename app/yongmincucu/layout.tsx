@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "VIP CS | 명운",
+  title: "사주 인사이트 CS | 명운",
   robots: { index: false, follow: false },
 };
 

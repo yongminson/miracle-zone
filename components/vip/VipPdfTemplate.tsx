@@ -332,17 +332,22 @@ const vipMarkdownComponents: MdComponents = {
   },
 };
 
-function Watermark() {
+function Watermark({ pageNumber }: { pageNumber?: number }) {
   return (
     <div className="pointer-events-none absolute bottom-5 left-0 right-0 text-center">
       <span style={{ color: COL.watermark }} className="font-serif text-[10px] tracking-[0.35em]">
         saju.ymstudio.co.kr
       </span>
+      {pageNumber ? (
+        <span style={{ color: COL.watermark }} className="absolute right-10 font-serif text-[10px]">
+          {pageNumber}
+        </span>
+      ) : null}
     </div>
   );
 }
 
-function PdfPageShell({ children }: { children: React.ReactNode }) {
+function PdfPageShell({ children, pageNumber }: { children: React.ReactNode; pageNumber?: number }) {
   return (
     <section
       data-pdf-page
@@ -355,7 +360,7 @@ function PdfPageShell({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
-      <Watermark />
+      <Watermark pageNumber={pageNumber} />
     </section>
   );
 }
@@ -378,9 +383,12 @@ function useIssuedLabel(issuedAt?: string) {
 
   useEffect(() => {
     if (issuedAt) {
+      // issuedAt 변경 시 이미 표시 중인 PDF 발급일도 동기화한다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLabel(issuedAt);
       return;
     }
+    // 서버 렌더링과 관계없이 브라우저가 PDF 생성을 시작한 시각을 사용한다.
     setLabel(formatKstIssued(new Date()));
   }, [issuedAt]);
 
@@ -396,6 +404,8 @@ function usePackedMarkdownPages(markdownData: string) {
   const measureRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
+    // 새 마크다운의 DOM 높이를 다시 측정하기 전에 이전 페이지 계산을 초기화한다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPackedPages([]);
     setRetry(0);
     setBlocks(splitMarkdownSections(markdownData));
@@ -404,6 +414,7 @@ function usePackedMarkdownPages(markdownData: string) {
   useLayoutEffect(() => {
     const root = measureRef.current;
     if (!root || blocks.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPackedPages([]);
       return;
     }
@@ -418,8 +429,8 @@ function usePackedMarkdownPages(markdownData: string) {
 
     const heights = els.map((e) => e.offsetHeight);
 
-    let expanded = [...blocks];
-    let heightsWorking = [...heights];
+    const expanded = [...blocks];
+    const heightsWorking = [...heights];
 
     for (let i = 0; i < heightsWorking.length; i += 1) {
       if (heightsWorking[i] <= MAX_INNER_HEIGHT_PX) continue;
@@ -488,8 +499,6 @@ export const VipPdfTemplate = forwardRef<HTMLDivElement, VipPdfTemplateProps>(fu
   ref,
 ) {
   const issuedLabel = useIssuedLabel(userInfo.issuedAt);
-  const showSummaryPage = userInfo.sajuSummary.trim().length > 0;
-
   const { measureRef, measureBlocks, packedPages } = usePackedMarkdownPages(markdownData);
 
   const displayPages = useMemo(() => {
@@ -528,7 +537,6 @@ export const VipPdfTemplate = forwardRef<HTMLDivElement, VipPdfTemplateProps>(fu
       }}
       aria-hidden
     >
-      {/* eslint-disable-next-line react/no-danger -- PDF/인쇄용 스코프 스타일만 주입 */}
       <style dangerouslySetInnerHTML={{ __html: VIP_MARKDOWN_H1_PRINT_CSS }} />
       <div ref={measureRef} className="flex flex-col" style={measureTreeStyle}>
         {measureBlocks.map((block, i) => (
@@ -553,7 +561,7 @@ export const VipPdfTemplate = forwardRef<HTMLDivElement, VipPdfTemplateProps>(fu
         <div
           className="flex h-full flex-col justify-between px-10 pb-14 pt-16"
           style={{
-            background: `linear-gradient(to bottom, #050810 0%, #0a1628 50%, #03060c 100%)`,
+            backgroundColor: "#050810",
             color: COL.textMain,
           }}
         >
@@ -565,11 +573,11 @@ export const VipPdfTemplate = forwardRef<HTMLDivElement, VipPdfTemplateProps>(fu
             <div
               className="mx-auto my-10 h-px w-32"
               style={{
-                background: `linear-gradient(to right, transparent, ${COL.coverLine}, transparent)`,
+                backgroundColor: COL.coverLine,
               }}
             />
             <h1 style={{ color: COL.amberHi }} className="font-serif text-[26px] font-semibold tracking-[0.12em]">
-              VIP 대운 종합 분석 리포트
+              명운 사주 인사이트 리포트
             </h1>
             <p style={{ color: "rgba(253, 230, 138, 0.75)" }} className="mt-6 font-serif text-[13px] tracking-[0.2em]">
               Miracle Zone · Premium Destiny Insight
@@ -595,44 +603,13 @@ export const VipPdfTemplate = forwardRef<HTMLDivElement, VipPdfTemplateProps>(fu
             </div>
           </div>
           <p style={{ color: COL.slateFoot }} className="text-center font-serif text-[10px] tracking-[0.4em]">
-            CONFIDENTIAL · VIP ONLY
+            PERSONAL INSIGHT REPORT
           </p>
         </div>
       </PdfPageShell>
 
-      {showSummaryPage ? (
-        <PdfPageShell>
-          <div className="box-border flex h-full flex-col px-10 pb-14 pt-10" style={{ color: COL.textMain }}>
-            <h2
-              style={{
-                color: COL.amberHi,
-                borderBottomWidth: 1,
-                borderBottomStyle: "solid",
-                borderBottomColor: COL.amberBorder25,
-              }}
-              className="pb-3 font-serif text-[18px] font-semibold"
-            >
-              내담자 명식 요약
-            </h2>
-            <div
-              className="mt-6 flex-1 rounded-xl p-6"
-              style={{
-                borderWidth: 1,
-                borderStyle: "solid",
-                borderColor: COL.amberBorder20,
-                background: `linear-gradient(to bottom right, ${COL.black35}, rgba(69, 26, 3, 0.1))`,
-              }}
-            >
-              <p style={{ color: "rgba(226, 232, 240, 0.9)" }} className="whitespace-pre-wrap font-serif text-[15px] leading-relaxed sm:text-[16px]">
-                {userInfo.sajuSummary}
-              </p>
-            </div>
-          </div>
-        </PdfPageShell>
-      ) : null}
-
       {displayPages.map((pageMd, idx) => (
-        <PdfPageShell key={`doc-${idx}`}>
+        <PdfPageShell key={`doc-${idx}`} pageNumber={idx + 2}>
           <div
             className="box-border h-full overflow-hidden px-10 pb-14 pt-10"
             style={{ width: VIP_PDF_PAGE_WIDTH_PX, backgroundColor: COL.pageBg, color: COL.textMain }}

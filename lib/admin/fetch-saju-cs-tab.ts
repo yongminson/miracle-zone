@@ -7,7 +7,7 @@ export type FetchSajuCsPagedResult = {
 };
 
 /**
- * 사주·관상·이름(4,900원) 등은 현재 `/api/payments/verify`(paymentType: `saju`)에서
+ * 사주·관상·이름(1,900원) 등은 현재 `/api/payments/verify`(paymentType: `saju`)에서
  * 검증만 하고 Supabase에 별도 테이블로 적재하지 않습니다.
  */
 export async function fetchSajuCsPaginated(_params: {

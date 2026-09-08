@@ -15,6 +15,8 @@ import { clearPendingPaymentData, readPendingPaymentData } from "@/lib/payments/
 import { clearPendingPaymentState } from "@/lib/payments/pending-payment-state";
 import { extractPaymentReturnId } from "@/lib/payments/return-params";
 import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
+import { appendVipSymbolicAmulet } from "@/lib/saju/vip-symbolic-amulet";
+import { logEvent } from "@/lib/analytics";
 
 type VipApiSuccess = { success: true; markdown: string };
 type VipApiFail = { success: false; error?: string };
@@ -224,25 +226,25 @@ export default function VipLandingPage() {
 
   const REVIEWS = [
     {
-      name: "김*현",
-      date: "2025.12",
-      star: "★★★★★",
-      job: "30대 직장인",
-      text: "사주 책도 여러 권 읽어봤는데, 이렇게 구체적으로 제 상황에 맞게 풀어준 건 처음이에요. 2026년 이직 타이밍 조언이 정말 소름이었습니다. 실제로 그 시기에 좋은 제안이 왔어요.",
+      name: "활용 예시 1",
+      date: "성향 정리",
+      star: "①",
+      job: "자기이해",
+      text: "입력한 생년월일과 선택 정보를 바탕으로 현재 확인 가능한 성향과 생활 패턴을 읽기 쉽게 정리합니다.",
     },
     {
-      name: "이*진",
-      date: "2026.01",
-      star: "★★★★★",
-      job: "40대 사업가",
-      text: "재물운 파트에서 '편재가 강해 큰 흐름을 읽는 능력이 있다'는 분석이 딱 맞았어요. 투자 타이밍 조언도 구체적이고 실용적이었습니다. PDF로 저장해두고 계속 보고 있어요.",
+      name: "활용 예시 2",
+      date: "선택 점검",
+      star: "②",
+      job: "생활 인사이트",
+      text: "일·관계·생활 습관을 돌아볼 질문과 실천 아이디어를 제공하며 중요한 결정은 사용자가 직접 판단하도록 돕습니다.",
     },
     {
-      name: "박*은",
-      date: "2026.02",
-      star: "★★★★☆",
-      job: "20대 취준생",
-      text: "솔직히 반신반의하며 결제했는데 제 고민을 정확히 짚어줘서 놀랐어요. 취업 방향성이 흔들리던 시기였는데 천직 분석 파트 읽고 방향을 잡았습니다. 가격 아깝지 않아요.",
+      name: "활용 예시 3",
+      date: "PDF 보관",
+      star: "③",
+      job: "실천 가이드",
+      text: "결과를 PDF로 저장해 두고 목표와 행동 계획을 정리하는 참고 자료로 활용할 수 있습니다.",
     },
   ];
 
@@ -253,21 +255,34 @@ export default function VipLandingPage() {
     }, 4000);
     return () => clearInterval(timer);
   }, []);
+
+  // 📊 계측 — 사주 인사이트 페이지 도달. 유입량·진입 경로 판단용
+  useEffect(() => {
+    void logEvent("page_view", { page: "vip" });
+  }, []);
   const [isAdminMode, setIsAdminMode] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsAdminMode(localStorage.getItem("MASTER_ADMIN") === "true");
-    }
+    let cancelled = false;
+    void fetch("/api/admin/session", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { active?: boolean } | null) => {
+        if (cancelled) return;
+        const active = data?.active === true;
+        setIsAdminMode(active);
+        if (!active) localStorage.removeItem("MASTER_ADMIN");
+      })
+      .catch(() => {
+        if (!cancelled) setIsAdminMode(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // GlobalSiteFooter에서 운영자 모드 활성화 감지
   useEffect(() => {
-    const handleStorageChange = () => {
-      if (typeof window !== "undefined") {
-        setIsAdminMode(localStorage.getItem("MASTER_ADMIN") === "true");
-      }
-    };
+    const handleStorageChange = () => window.location.reload();
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
@@ -614,11 +629,15 @@ export default function VipLandingPage() {
 
         if (!verifyRes.ok || !verifyData.success) {
           const msg = (verifyData.message && verifyData.message.trim()) || "결제 검증에 실패했습니다.";
+          // 📊 계측 — 서버 검증 실패(퍼널 이탈 지점)
+          void logEvent("payment_fail", { product: "vip", amount: 4400, reason: "verify" });
           setErrorMessage(msg);
           alert(`결제 검증 오류: ${msg}\n서버 키·IAMPORT 설정을 확인해 주세요.`);
           return;
         }
 
+        // 📊 계측 — 서버 검증 통과(퍼널 3단계)
+        void logEvent("payment_complete", { product: "vip", amount: 4400 });
         setShowPaymentModal(false);
         await handleIssueReport({ imp_uid });
       } catch (e: unknown) {
@@ -679,7 +698,7 @@ export default function VipLandingPage() {
 
     if (!canProcessVip) {
       if (returnPayId && (vipMobile || impSuccess)) {
-        alert("VIP 결제 복귀 오류: 주문번호(merchant_uid)가 없거나 세션이 만료되었습니다. 다시 결제를 시도해 주세요.");
+        alert("리포트 결제 복귀 오류: 주문번호(merchant_uid)가 없거나 세션이 만료되었습니다. 다시 결제를 시도해 주세요.");
         localStorage.removeItem("vip_mobile_payment_pending");
         localStorage.removeItem("pendingVipMerchantUid");
       }
@@ -735,6 +754,8 @@ export default function VipLandingPage() {
       gender,
       mbti: mbti.trim(),
     });
+    // 📊 계측 — 입력 완료 후 결제창 진입(퍼널 2단계)
+    void logEvent("payment_start", { product: "vip", amount: 4400 });
     setShowPaymentModal(true);
   }, [birthDate, birthTime, gender, mbti, name]);
 
@@ -752,6 +773,7 @@ export default function VipLandingPage() {
   const handleResumeSavedVip = useCallback(() => {
     const saved = readSavedVipResult();
     if (!saved) return;
+    const restored = appendVipSymbolicAmulet(saved.markdown, `${saved.name}|${saved.birthDate}`);
     setErrorMessage(null);
     setPdfFallback((p) => {
       p?.revoke();
@@ -761,9 +783,9 @@ export default function VipLandingPage() {
     amuletBlobRevokeRef.current = null;
     setAmuletBlobUrl(null);
     setReportMarkdown("");
-    setTimeout(() => setReportMarkdown(saved.markdown), 50);
+    setTimeout(() => setReportMarkdown(restored.markdown), 50);
     setPdfUserInfo(saved.pdfUserInfo);
-    setAmuletUrl(saved.amuletUrl);
+    setAmuletUrl(saved.amuletUrl ?? restored.url);
     if (saved.name) setName(saved.name);
     setBirthDate(saved.birthDate);
     setBirthTime(saved.birthTime);
@@ -812,9 +834,6 @@ export default function VipLandingPage() {
     "inline-flex min-h-[48px] cursor-not-allowed items-center justify-center rounded-2xl bg-slate-800/90 px-5 py-3.5 text-sm font-bold text-slate-500 sm:min-w-[200px] sm:px-6";
   const linkButtonAmulet =
     "inline-flex min-h-[48px] items-center justify-center rounded-2xl border-2 border-amber-400/60 bg-amber-500/15 px-5 py-3.5 text-sm font-bold text-amber-100 transition hover:bg-amber-500/25 sm:min-w-[200px] sm:px-6";
-  const linkButtonAmuletDisabled =
-    "inline-flex min-h-[48px] cursor-not-allowed items-center justify-center rounded-2xl border-2 border-slate-700/80 bg-slate-900/60 px-5 py-3.5 text-sm font-bold text-slate-500 sm:min-w-[200px] sm:px-6";
-
   const renderVipDownloadButtonRow = (placement: "top" | "bottom") => {
     const pdfHref = pdfFallback?.blobUrl;
     return (
@@ -826,10 +845,21 @@ export default function VipLandingPage() {
           <a href={pdfHref} download={VIP_PDF_FILENAME} className={linkButtonPdf}>
             [📥 PDF 다운로드]
           </a>
-        ) : (
+        ) : isPdfGenerating ? (
           <span className={linkButtonPdfDisabled} aria-disabled>
-            {isPdfGenerating ? "PDF 생성 중…" : "PDF 준비 중…"}
+            PDF 생성 중…
           </span>
+        ) : (
+          <button
+            type="button"
+            className={linkButtonPdf}
+            onClick={() => {
+              setErrorMessage(null);
+              setReportRevision(Date.now());
+            }}
+          >
+            [📄 PDF 만들기 · 다시 시도]
+          </button>
         )}
         {amuletUrl ? (
           amuletBlobUrl ? (
@@ -843,14 +873,10 @@ export default function VipLandingPage() {
               rel="noopener noreferrer"
               className={linkButtonAmulet}
             >
-              [🖼️ 부적 열기 · 저장]
+              [🖼️ 상징 이미지 열기 · 저장]
             </a>
           )
-        ) : (
-          <span className={linkButtonAmuletDisabled} aria-disabled>
-            부적 없음
-          </span>
-        )}
+        ) : null}
       </div>
     );
   };
@@ -880,13 +906,13 @@ export default function VipLandingPage() {
         onClose={() => {
           if (!isPaymentPending) setShowPaymentModal(false);
         }}
-        amount={29900}
-        productName="명운 VIP 대운 종합 분석 리포트"
+        amount={4400}
+        productName="명운 사주 인사이트 리포트"
         pendingPaymentType="vip"
-        buyerName={name.trim().slice(0, 32) || "명운 VIP 고객"}
+        buyerName={name.trim().slice(0, 32) || "명운 리포트 고객"}
         buyerTel="010-0000-0000"
         buyerEmail="vip@ymstudio.co.kr"
-        confirmLabel="결제하고 VIP 리포트 받기"
+        confirmLabel="결제하고 사주 인사이트 리포트 받기"
         onPaymentSuccess={async ({ imp_uid, merchant_uid }) => {
           setShowPaymentModal(false);
           await completeVipAfterPayment(imp_uid, merchant_uid);
@@ -914,7 +940,7 @@ export default function VipLandingPage() {
         {isSuccess ? (
           <section className="rounded-3xl border border-amber-500/30 bg-slate-950/75 px-6 py-12 text-center shadow-2xl shadow-black/40 backdrop-blur-sm sm:px-10">
             <p className="font-serif text-2xl font-semibold text-amber-50 sm:text-3xl">
-              🎉 VIP 대운 리포트가 완성되었습니다! 아래 생성된 PDF를 확인해 주세요.
+              🎉 사주 인사이트 리포트가 완성되었습니다! 아래 생성된 PDF를 확인해 주세요.
             </p>
             <p className="mx-auto mt-6 max-w-lg text-sm leading-relaxed text-slate-300">
               리포트 본문은 이 기기에 <strong className="text-amber-200">자동 저장</strong>되어, 나중에 이 페이지에서 다시 열 수 있습니다. PDF 파일은{" "}
@@ -925,22 +951,28 @@ export default function VipLandingPage() {
             {renderVipDownloadButtonRow("top")}
             {vipMobileSaveHint}
 
+            {errorMessage ? (
+              <p className="mx-auto mt-4 max-w-lg rounded-xl border border-red-500/30 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                {errorMessage}
+              </p>
+            ) : null}
+
             {amuletUrl ? (
               <div className="mt-12">
-                <p className="font-serif text-base font-medium text-amber-200/90">나만의 맞춤 디지털 부적</p>
+                <p className="font-serif text-base font-medium text-amber-200/90">리포트 상징 이미지</p>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={amuletUrl}
-                  alt="맞춤 부적"
+                  alt="리포트 상징 이미지"
                   className="mx-auto mt-6 max-h-80 w-auto max-w-full rounded-3xl object-contain shadow-[0_0_40px_rgba(245,158,11,0.45),0_25px_50px_-12px_rgba(0,0,0,0.6)] ring-2 ring-amber-500/35"
                 />
                 <p className="mx-auto mt-4 max-w-md text-xs leading-relaxed text-amber-200/60">
-                  부적은 상단·하단 <strong className="text-amber-200/90">[🖼️ 이미지 저장]</strong> 링크를 길게 눌러 앨범에 저장해 주세요.
+                  상징 이미지는 상단·하단 <strong className="text-amber-200/90">[🖼️ 이미지 저장]</strong> 링크를 길게 눌러 앨범에 저장해 주세요.
                 </p>
               </div>
             ) : null}
 
-            {renderVipDownloadButtonRow("bottom")}
+            {amuletUrl ? renderVipDownloadButtonRow("bottom") : null}
 
             <div className="mt-12 flex flex-wrap items-center justify-center gap-4 border-t border-white/10 pt-10">
               <Link
@@ -963,14 +995,14 @@ export default function VipLandingPage() {
         {hasSavedVipRestore ? (
           <div className="mb-8 rounded-2xl border border-amber-500/40 bg-amber-950/40 px-4 py-4 shadow-lg shadow-amber-950/20 sm:px-5">
             <p className="text-center text-xs text-amber-100/85 sm:text-sm">
-              이 기기에 저장된 VIP 리포트가 있습니다. 결제를 다시 하지 않고 이어서 볼 수 있습니다.
+              이 기기에 저장된 사주 인사이트 리포트가 있습니다. 결제를 다시 하지 않고 이어서 볼 수 있습니다.
             </p>
             <button
               type="button"
               onClick={handleResumeSavedVip}
               className="mt-3 flex w-full min-h-[48px] items-center justify-center rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-500 px-4 py-3 text-sm font-bold text-stone-950 shadow-[0_0_20px_-6px_rgba(245,158,11,0.45)] transition hover:brightness-105"
             >
-              [최근 결제한 VIP 리포트 이어보기]
+              [최근 결제한 사주 인사이트 리포트 이어보기]
             </button>
           </div>
         ) : null}
@@ -978,10 +1010,11 @@ export default function VipLandingPage() {
 {isAdminMode && (
           <div className="fixed bottom-6 left-6 z-[100] bg-slate-900/95 border-2 border-yellow-500 p-4 rounded-2xl backdrop-blur-xl shadow-2xl max-w-[200px]">
             <h3 className="text-yellow-400 font-bold text-sm mb-2 border-b border-white/10 pb-2">👑 운영자 모드</h3>
-            <p className="text-[11px] text-white/60 mb-3">VIP 결제 없이 리포트 생성 가능</p>
+            <p className="text-[11px] text-white/60 mb-3">운영 점검용 리포트 생성</p>
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
+                await fetch("/api/admin/session", { method: "DELETE" }).catch(() => null);
                 localStorage.removeItem("MASTER_ADMIN");
                 setIsAdminMode(false);
                 alert("운영자 모드가 종료되었습니다.");
@@ -997,19 +1030,19 @@ export default function VipLandingPage() {
           Miracle Zone Premium
         </p>
         <h1 className="mt-4 text-center font-serif text-[1.65rem] font-semibold leading-snug tracking-tight text-amber-50 sm:text-3xl sm:leading-tight">
-          🔥 당신의 10년 대운과 재물 길방을
-          <br className="sm:hidden" /> 완벽히 해부합니다
+          🔥 입력 정보로 살펴보는 나의 성향과 생활 인사이트
+          <br className="sm:hidden" /> 이해하기 쉬운 PDF로 정리합니다
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-center text-sm leading-relaxed text-slate-400">
-          만세력 명식과 AI 심층 해설을 한 장의 프리미엄 PDF로 압축합니다. 지금 입력하면 리포트가 바로 준비됩니다.
+          절기 기준 명식·시주·십성·대운과 향후 5개년 흐름을 계산하고, 재물·직장·연애·관계·생활 관리까지 14장 PDF로 정리합니다.
         </p>
 
-        {/* 신뢰 수치 배지 */}
+        {/* 제공 방식 배지 */}
         <div className="mt-10 grid grid-cols-3 gap-3">
           {[
-            { number: "4,800+", label: "누적 분석" },
-            { number: "4.9★", label: "평균 만족도" },
-            { number: "100%", label: "보안 결제" },
+            { number: "PDF", label: "다운로드 제공" },
+            { number: "1회", label: "결제당 리포트 발급" },
+            { number: "참고용", label: "자기이해 콘텐츠" },
           ].map((item) => (
             <div key={item.label} className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-center">
               <p className="text-lg font-bold text-amber-300">{item.number}</p>
@@ -1019,24 +1052,33 @@ export default function VipLandingPage() {
         </div>
 
         <section className="mt-14 space-y-4">
-          <h2 className="text-center font-serif text-lg text-amber-200/90">VIP 리포트 시그니처</h2>
-          <div className="mx-auto grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+          <h2 className="text-center font-serif text-lg text-amber-200/90">사주 인사이트 리포트 구성</h2>
+          <div className="mx-auto grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5">
+            <article className="rounded-2xl border border-amber-500/20 bg-gradient-to-b from-slate-900/90 to-black/40 p-5 shadow-lg shadow-amber-950/20">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/15 text-amber-400">
+                <BrainCircuit className="h-5 w-5" aria-hidden />
+              </div>
+              <h3 className="mt-4 font-serif text-base font-semibold text-amber-100">명식·십성·대운 지도</h3>
+              <p className="mt-2 text-xs leading-relaxed text-slate-400">
+                입력한 생년월일시를 절기 기준으로 계산해 네 기둥과 십성, 현재 대운과 다음 대운, 향후 5개년 흐름을 표로 제공합니다.
+              </p>
+            </article>
             <article className="rounded-2xl border border-amber-500/20 bg-gradient-to-b from-slate-900/90 to-black/40 p-5 shadow-lg shadow-amber-950/20">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/15 text-amber-400">
                 <Gem className="h-5 w-5" aria-hidden />
               </div>
-              <h3 className="mt-4 font-serif text-base font-semibold text-amber-100">맞춤 디지털 부적</h3>
+              <h3 className="mt-4 font-serif text-base font-semibold text-amber-100">참고용 맞춤 상징 부적</h3>
               <p className="mt-2 text-xs leading-relaxed text-slate-400">
-                용신 기운을 보완하는 상징·색·자연물까지, 나만의 1:1 부적 처방 파트를 마지막 장에 담았습니다.
+                입력 정보로 일관되게 선택한 개인 상징 이미지를 PDF와 별도 이미지로 제공합니다. 용신 계산이나 효능을 의미하지 않습니다.
               </p>
             </article>
             <article className="rounded-2xl border border-amber-500/20 bg-gradient-to-b from-slate-900/90 to-black/40 p-5 shadow-lg shadow-amber-950/20">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/15 text-amber-400">
                 <BrainCircuit className="h-5 w-5" aria-hidden />
               </div>
-              <h3 className="mt-4 font-serif text-base font-semibold text-amber-100">명리학 × MBTI</h3>
+              <h3 className="mt-4 font-serif text-base font-semibold text-amber-100">삶의 핵심 분야 분석</h3>
               <p className="mt-2 text-xs leading-relaxed text-slate-400">
-                동양 명식과 서양 성격유형을 접목해 연애·대인관계 시나리오를 입체적으로 풀어 드립니다.
+                재물·직장과 사업·연애·가족 관계·선택 심리·실행 계획을 계산 근거와 현실 점검 질문으로 풀어 드립니다.
               </p>
             </article>
           </div>
@@ -1164,7 +1206,7 @@ export default function VipLandingPage() {
                 className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-amber-700 via-amber-500 to-yellow-500 px-6 py-5 text-center font-serif text-base font-bold tracking-wide text-stone-950 shadow-[0_0_40px_-8px_rgba(245,158,11,0.55)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 sm:text-lg"
               >
                 <span className="relative z-10 drop-shadow-sm">
-                  {isAdminMode ? "⚡ [운영자] 결제 없이 VIP 리포트 생성" : "29,900원 결제하고 VIP 리포트 즉시 발급받기"}
+                  {isAdminMode ? "⚡ [운영자] 사주 인사이트 리포트 점검" : "4,400원 결제하고 사주 인사이트 리포트 받기"}
                 </span>
                 <span className="absolute inset-0 bg-gradient-to-t from-black/10 to-white/20 opacity-40" />
               </button>
@@ -1175,9 +1217,9 @@ export default function VipLandingPage() {
           </div>
         </section>
 
-        {/* 실제 후기 - 슬라이드형 캐러셀 */}
+        {/* 리포트 활용 예시 - 슬라이드형 캐러셀 */}
         <div className="mt-8">
-          <h2 className="text-center font-serif text-base text-amber-200/80 mb-4">💬 실제 이용자 후기</h2>
+          <h2 className="text-center font-serif text-base text-amber-200/80 mb-4">📘 리포트 활용 예시</h2>
 
           {/* 슬라이드 카드 */}
           <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-white/5 p-5 min-h-[140px]">

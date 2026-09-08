@@ -5,6 +5,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
+import { logEvent } from "@/lib/analytics";
 
 export type SiteHeaderVariant = "marketing" | "vip" | "app";
 
@@ -90,8 +91,12 @@ export function SiteHeader({ variant = "marketing", right }: SiteHeaderProps) {
           <Link href="/tools" className="text-slate-400 transition hover:text-amber-300">
             에센셜 분석
           </Link>
-          <Link href="/vip" className={vipNavClass}>
-            🌟 VIP 대운 분석
+          <Link
+            href="/vip"
+            className={vipNavClass}
+            onClick={() => void logEvent("vip_link_click", { from: "header_desktop" })}
+          >
+            🌟 사주 인사이트
           </Link>
           <Link href="/about" className="text-slate-400 transition hover:text-amber-300">
             서비스 소개
@@ -130,9 +135,12 @@ export function SiteHeader({ variant = "marketing", right }: SiteHeaderProps) {
               <Link
                 href="/vip"
                 className={`block rounded-xl px-3 py-3 text-sm ${vipNavClass} hover:bg-amber-500/10`}
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() => {
+                  void logEvent("vip_link_click", { from: "header_mobile" });
+                  setMobileMenuOpen(false);
+                }}
               >
-                🌟 VIP 대운 분석
+                🌟 사주 인사이트
               </Link>
             </li>
             <li>

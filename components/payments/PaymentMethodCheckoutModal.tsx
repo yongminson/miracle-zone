@@ -65,7 +65,7 @@ export function PaymentMethodCheckoutModal({
   title,
   description,
   confirmLabel = "결제하고 진행하기",
-  buyerName = "명운 VIP 고객",
+  buyerName = "명운 리포트 고객",
   buyerTel = "010-0000-0000",
   buyerEmail = "vip@ymstudio.co.kr",
   pendingPaymentType,
@@ -112,7 +112,7 @@ export function PaymentMethodCheckoutModal({
     setIsRequesting(true);
     try {
       const { pg, pay_method } = legacyPgAndPayMethod(selectedPayMethod);
-      const customerFullName = (buyerName?.trim() || "명운 VIP 고객").slice(0, 64);
+      const customerFullName = (buyerName?.trim() || "명운 리포트 고객").slice(0, 64);
       const customerEmail = (buyerEmail?.trim() || "vip@ymstudio.co.kr").slice(0, 128);
       const customerPhone = (buyerTel?.trim() || "010-0000-0000").slice(0, 32);
 

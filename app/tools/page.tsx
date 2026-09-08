@@ -1774,7 +1774,7 @@ const ALTAR_FOOTER_REFUND =
     if (!premiumWishText.trim()) return;
 
     if (typeof window !== "undefined") {
-      const amount = premiumPeriod === "24h" ? 1900 : 6900;
+      const amount = premiumPeriod === "24h" ? 900 : 2200;
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       // 🚀 1. 운영자 절대 프리패스 (가짜 결제 ID 안 쓰고, 바로 DB에 직행!)
@@ -2225,11 +2225,11 @@ const ALTAR_FOOTER_REFUND =
                 <div className="flex flex-col gap-2">
                   <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
                     <input type="radio" checked={premiumPeriod === "24h"} onChange={() => setPremiumPeriod("24h")} className="accent-yellow-500" />
-                    <span className="text-sm text-white/90">24시간 고정 (1,900원)</span>
+                    <span className="text-sm text-white/90">24시간 고정 (900원)</span>
                   </label>
                   <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
                     <input type="radio" checked={premiumPeriod === "10d"} onChange={() => setPremiumPeriod("10d")} className="accent-yellow-500" />
-                    <span className="text-sm text-white/90">10일 고정 (6,900원)</span>
+                    <span className="text-sm text-white/90">10일 고정 (2,200원)</span>
                   </label>
                 </div>
               </div>
@@ -2688,7 +2688,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
     return () => window.removeEventListener("message", handler);
   }, []);
 
-  // 🚀 관상 심층 리포트 프리미엄 결제 연동 (4,900원)
+  // 🚀 관상 심층 리포트 프리미엄 결제 연동 (1,900원)
   const handlePhysiognomyPaymentConfirm = async () => {
     let PortOne = (window as any).PortOne;
     if (!PortOne) {
@@ -2700,7 +2700,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
     }
     if (!PortOne) { alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!"); return; }
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const amount = 4900;
+    const amount = 1900;
 
     localStorage.setItem("pendingPaymentType", "physiognomy");
     localStorage.setItem("pendingPaymentAmount", String(amount));
@@ -2995,7 +2995,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
     return () => window.removeEventListener("message", handler);
   }, []);
 
-  // 🚀 이름 풀이 프리미엄 결제 연동 (4,900원)
+  // 🚀 이름 풀이 프리미엄 결제 연동 (1,900원)
   const handleNamePaymentConfirm = async () => {
     if (typeof window !== "undefined") {
       let PortOne = (window as any).PortOne;
@@ -3008,7 +3008,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
       }
       if (!PortOne) return alert("🚨 결제 시스템 로딩 실패.");
 
-      const amount = 4900;
+      const amount = 1900;
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       localStorage.setItem("pendingPaymentType", "name");
@@ -3475,7 +3475,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="mb-4 text-center text-lg font-semibold text-yellow-400">
-                ✨ 당신의 타고난 운명을 밝히는 심층 관상 리포트 잠금 해제 (4,900원)
+                ✨ 당신의 타고난 운명을 밝히는 심층 관상 리포트 잠금 해제 (1,900원)
               </h3>
               <p className="mb-6 text-center text-sm text-white/70">
                 이마·눈·코·입·전체 균형에 대한 전문가 관상학자의 심층 분석을 확인하세요.
@@ -3876,7 +3876,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
                       }}
                       className="w-full rounded-xl bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 px-6 py-4 text-base font-semibold text-slate-900 shadow-lg shadow-yellow-500/30 transition-all hover:scale-[1.02] active:scale-95"
                     >
-                      {isApp ? "📺 광고 보고 무료로 열기" : "✨ 전문가 심층 분석 리포트 잠금 해제 (4,900원)"}
+                      {isApp ? "📺 광고 보고 무료로 열기" : "✨ 전문가 심층 분석 리포트 잠금 해제 (1,900원)"}
                     </button>
                   )}
                   <button
@@ -3902,7 +3902,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="mb-4 text-center text-lg font-semibold text-yellow-400">
-                ✨ 전문가 심층 이름 풀이 리포트 잠금 해제 (4,900원)
+                ✨ 전문가 심층 이름 풀이 리포트 잠금 해제 (1,900원)
               </h3>
               <p className="mb-6 text-center text-sm text-white/70">
                 핵심 기운 및 파동 분석, 음양오행 심층 분석, 사주(지장간/합충)와 이름 궁합, 인생 총운(초년/중년/말년)을 전문가가 심층 분석합니다.
@@ -5442,7 +5442,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
     }
     if (!PortOne) { alert("🚨 결제 시스템 로딩 실패. 새로고침[F5] 해주세요!"); return; }
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const amount = 4900;
+    const amount = 1900;
 
     // 모바일 리다이렉트 대비 데이터 저장
     // 이미지는 sessionStorage에 별도 저장 (localStorage 용량 초과 방지)
@@ -5774,7 +5774,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
                       <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
                       AI 분석 중... (10~20초 소요)
                     </span>
-                  ) : isApp ? "📺 광고 보고 무료로 분석하기" : "✨ 상세 손금 분석 보기 (4,900원)"}
+                  ) : isApp ? "📺 광고 보고 무료로 분석하기" : "✨ 상세 손금 분석 보기 (1,900원)"}
                   </button>
                   <p className="text-[10px] text-white/30 mt-2">{isApp ? "광고 시청 후 즉시 분석 결과 제공" : "결제 즉시 분석 결과 제공 · 이용권"}</p>
               </div>
@@ -5827,7 +5827,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
 
             {/* 단건 가격 */}
             <div className="rounded-xl border border-yellow-400/30 bg-yellow-400/5 p-4 text-center mb-4">
-              <p className="text-3xl font-bold text-yellow-400">4,900원</p>
+              <p className="text-3xl font-bold text-yellow-400">1,900원</p>
               <p className="text-xs text-white/55 mt-1">손금 심층 분석 · 결제 즉시 결과 제공</p>
             </div>
 
@@ -5844,7 +5844,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
                   AI 분석 중... (10~20초 소요)
                 </span>
-              ) : "결제하고 손금 분석받기 (4,900원)"}
+              ) : "결제하고 손금 분석받기 (1,900원)"}
             </button>
             <button type="button" onClick={() => setShowPremiumModal(false)} className="mt-3 w-full rounded-xl border border-white/20 bg-white/5 py-3 text-sm text-white/70">
               취소

@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import type { CsDashboardTabId } from "@/lib/admin/cs-dashboard-types";
 import { fetchCsDashboardPage } from "@/lib/admin/fetch-cs-dashboard-page";
 
-/** 클라이언트 번들에 넣지 않고 서버에서만 검증. 운영 시 `YONGMINCUCU_PASSWORD`로 교체 가능 */
-function expectedPassword(): string {
-  return process.env.YONGMINCUCU_PASSWORD?.trim() || "s1223534";
+/** 클라이언트 번들에 넣지 않고 서버 환경변수로만 검증한다. */
+function expectedPassword(): string | null {
+  return process.env.YONGMINCUCU_PASSWORD?.trim() || null;
 }
 
 function isTabId(v: unknown): v is CsDashboardTabId {
@@ -19,8 +19,13 @@ export async function POST(req: Request) {
       page?: unknown;
       perPage?: unknown;
     };
+    const expected = expectedPassword();
+    if (!expected) {
+      console.error("[admin] YONGMINCUCU_PASSWORD is not configured");
+      return NextResponse.json({ ok: false }, { status: 503 });
+    }
     const input = typeof body.password === "string" ? body.password : "";
-    if (input !== expectedPassword()) {
+    if (input !== expected) {
       return NextResponse.json({ ok: false }, { status: 401 });
     }
 

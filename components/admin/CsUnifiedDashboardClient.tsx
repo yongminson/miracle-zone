@@ -8,7 +8,7 @@ import { CsDashboardCard } from "@/components/admin/CsDashboardCard";
 import { CsDashboardPagination } from "@/components/admin/CsDashboardPagination";
 
 const TABS: { id: CsDashboardTabId; label: string }[] = [
-  { id: "vip", label: "VIP 결제" },
+  { id: "vip", label: "사주 인사이트 결제" },
   { id: "saju", label: "사주/관상/이름" },
   { id: "altar", label: "기적의 제단" },
 ];

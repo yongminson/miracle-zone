@@ -11,7 +11,7 @@ function logDbError(context: string, err: PostgrestError | null | undefined): vo
 }
 
 /** VIP 단품 결제 금액(원) — 검증·DB 기록 공통 */
-export const VIP_ORDER_AMOUNT_WON = 29_900;
+export const VIP_ORDER_AMOUNT_WON = 4_400;
 
 /** `vip_orders` insert/update 공통 스키마(기존 persistVipOrderRow와 동일 키) */
 export type VipOrderRowInsert = {

@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 import { createClient } from "@supabase/supabase-js";
+import {
+  resolveVipReportPublicUrlFromRequest,
+  upsertVipOrderRow,
+} from "@/lib/payments/vip-order-supabase";
+import {
+  createVipReportEntitlement,
+  googleVipPaymentRef,
+} from "@/lib/payments/vip-report-entitlement";
 
 const PACKAGE_NAME = "kr.co.ymstudio.myeongun";
 
 // 서버에서 고정하는 상품 정보 (클라이언트 값 신뢰 안 함)
 const PRODUCTS: Record<string, { amount: number; label: string }> = {
-  vip_report: { amount: 29900, label: "VIP 리포트" },
-  altar_10days: { amount: 6900, label: "기적의제단 10일" },
+  vip_report: { amount: 4400, label: "명운 사주 인사이트 리포트" },
+  altar_10days: { amount: 2200, label: "기적의제단 10일" },
 };
 
 function getSupabaseAdmin() {
@@ -90,13 +98,49 @@ export async function POST(req: Request) {
     const supabaseAdmin = getSupabaseAdmin();
     if (!supabaseAdmin) {
       console.error("[verify-google] Supabase Admin 클라이언트 생성 실패");
+      return NextResponse.json(
+        { success: false, message: "결제는 확인했지만 리포트 지급권을 저장하지 못했습니다." },
+        { status: 503 },
+      );
+    }
+
+    if (productId === "vip_report") {
+      const paymentRef = googleVipPaymentRef(purchaseToken);
+      const entitlement = await createVipReportEntitlement(supabaseAdmin, {
+        payment_ref: paymentRef,
+        platform: "google_play",
+        provider_reference: verified.orderId || paymentRef,
+        subject_key: userId,
+        amount: product.amount,
+      });
+      if (!entitlement.ok) {
+        return NextResponse.json(
+          { success: false, message: entitlement.message },
+          { status: 503 },
+        );
+      }
+
+      const orderResult = await upsertVipOrderRow(supabaseAdmin, {
+        user_name: `[앱] ${customerName} - ${product.label}`,
+        phone_number: phone,
+        imp_uid: paymentRef,
+        amount: product.amount,
+        report_url: resolveVipReportPublicUrlFromRequest(req),
+        status: "paid",
+      });
+      if (!orderResult.ok) {
+        console.error("[verify-google] vip_orders save failed", { code: orderResult.code });
+      }
+
       return NextResponse.json({
         success: true,
-        message: "결제 검증 완료 (DB 기록 생략: Service Role 미설정)",
+        duplicated: entitlement.duplicated === true,
+        paymentRef,
+        message: "결제 검증 및 리포트 지급권 기록 완료",
       });
     }
 
-    // 2. 중복 처리 방지 (같은 purchaseToken 재사용 차단)
+    // VIP 이외 기존 인앱상품 기록
     const { data: existing } = await supabaseAdmin
       .from("vip_orders")
       .select("id")

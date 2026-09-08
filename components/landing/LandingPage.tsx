@@ -115,12 +115,12 @@ export function LandingPage() {
             id="hero-heading"
             className="mx-auto mt-6 max-w-3xl font-serif text-3xl font-semibold leading-tight tracking-tight text-amber-50 sm:text-4xl md:text-[2.65rem] md:leading-[1.15]"
           >
-            당신의 운명을 바꿀
+            오늘의 나를 돌아보는
             <br />
-            단 하나의 마스터피스
+            사주와 AI 인사이트
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">
-            10년 대운의 흐름부터 재물·인연·맞춤 부적까지 담은 VIP 리포트와, 오리지널 메뉴에서 오늘의 운도 열어 보세요.
+            입력 정보 기반 성향·생활 인사이트와 실천 가이드를 담은 PDF 리포트, 그리고 오리지널 메뉴에서 오늘의 운도 살펴보세요.
           </p>
 
           <div className="mx-auto mt-10 flex flex-col items-center gap-4 sm:mt-12">
@@ -129,7 +129,7 @@ export function LandingPage() {
               className="group relative inline-flex w-full max-w-md items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-amber-700 via-amber-500 to-yellow-400 px-8 py-5 font-serif text-base font-bold tracking-wide text-stone-950 shadow-[0_0_48px_-10px_rgba(245,158,11,0.55)] transition hover:brightness-105 sm:text-lg"
             >
               <span className="relative z-10 flex items-center gap-2">
-                🔥 내 운명의 그릇 확인하기 (VIP 리포트)
+                🔥 사주 인사이트 리포트 확인하기
                 <ChevronRight className="h-5 w-5 transition group-hover:translate-x-0.5" aria-hidden />
               </span>
               <span className="absolute inset-0 bg-gradient-to-t from-black/15 to-white/25 opacity-40" />
@@ -152,7 +152,7 @@ export function LandingPage() {
             명운 오리지널 메뉴
           </h2>
           <p className="mx-auto mt-3 max-w-lg text-center text-xs leading-relaxed text-slate-500 sm:text-sm">
-            프로젝트 기본 6종 분석 도구입니다. VIP 리포트는 만세력·대운·부적 처방까지 한 번에 담습니다.
+            프로젝트 기본 6종 분석 도구입니다. 사주 인사이트 리포트는 입력 정보를 바탕으로 자기이해와 실천 방향을 정리합니다.
           </p>
 
           <ul className="mt-10 grid list-none grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

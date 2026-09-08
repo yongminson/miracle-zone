@@ -6,12 +6,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import type { VipCalendarType, VipGender } from "@/lib/saju/vip-types";
 import { extractVipSajuData } from "@/lib/saju/vip-saju-data";
+import { appendVipSymbolicAmulet } from "@/lib/saju/vip-symbolic-amulet";
 import {
   resolveVipReportPublicUrlFromRequest,
   upsertVipOrderRow,
   VIP_ORDER_AMOUNT_WON,
 } from "@/lib/payments/vip-order-supabase";
+import {
+  claimVipReportEntitlement,
+  completeVipReportEntitlement,
+  releaseVipReportEntitlement,
+  tossVipPaymentRef,
+  webVipPaymentRef,
+} from "@/lib/payments/vip-report-entitlement";
+import { TOSS_IAP_PRODUCTS } from "@/lib/payments/toss-iap";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
+import { hasValidAdminSession } from "@/lib/auth/admin-session";
 
 // 구글 제미나이 초기화
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -25,8 +35,42 @@ type VipRequestBody = {
   calendarType?: VipCalendarType;
   /** 결제 검증 완료 후 전달 — 있을 때만 `vip_orders`에 기록 */
   imp_uid?: string | null;
+  /** Google Play 검증 API가 반환한 해시 기반 지급권 식별자 */
+  paymentRef?: string | null;
+  /** 앱인토스 서버 검증을 마친 주문 ID */
+  tossOrderId?: string | null;
   phone_number?: string | null;
 };
+
+const GOOGLE_PAYMENT_REF_PATTERN = /^google:[a-f0-9]{64}$/;
+const TOSS_ORDER_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function resolveVipPayment(
+  body: VipRequestBody,
+): { paymentRef: string; expectedAmount: number } | null {
+  const googleRef = typeof body.paymentRef === "string" ? body.paymentRef.trim() : "";
+  if (GOOGLE_PAYMENT_REF_PATTERN.test(googleRef)) {
+    return { paymentRef: googleRef, expectedAmount: VIP_ORDER_AMOUNT_WON };
+  }
+
+  const tossOrderId = typeof body.tossOrderId === "string" ? body.tossOrderId.trim() : "";
+  if (TOSS_ORDER_ID_PATTERN.test(tossOrderId)) {
+    return {
+      paymentRef: tossVipPaymentRef(tossOrderId),
+      expectedAmount: TOSS_IAP_PRODUCTS.vip_report.amountWon,
+    };
+  }
+
+  const webPaymentId = typeof body.imp_uid === "string" ? body.imp_uid.trim() : "";
+  if (webPaymentId) {
+    return {
+      paymentRef: webVipPaymentRef(webPaymentId),
+      expectedAmount: VIP_ORDER_AMOUNT_WON,
+    };
+  }
+  return null;
+}
 
 async function persistVipOrderRow(
   request: NextRequest,
@@ -106,81 +150,238 @@ async function generateVipMarkdownReport(
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-flash",
     safetySettings,
+    generationConfig: {
+      temperature: 0.65,
+      maxOutputTokens: 10000,
+    },
   });
 
-  const mbtiInstruction = opts.mbti 
-    ? `내담자의 MBTI는 ${opts.mbti}입니다. 서양 심리학과 동양 명리학을 결합하여 분석하세요.` 
-    : `주의: 내담자의 MBTI 정보가 없습니다. 출력 결과물에 'MBTI'나 '서양 심리학'이라는 단어를 1%도 언급하지 말고 순수 명리학적 관점으로만 서술하세요.`;
+  const mbtiInstruction = opts.mbti
+    ? `사용자가 참고 정보로 입력한 MBTI는 ${opts.mbti}입니다. 진단처럼 단정하지 말고 자기이해 질문을 만드는 보조 정보로만 사용하세요.`
+    : `사용자가 MBTI를 입력하지 않았으므로 MBTI나 서양 심리학을 언급하지 마세요.`;
 
-  const prompt = `
-당신은 사주·대운 분석 전문가입니다.
-아래 제공된 내담자의 사주 명식 데이터만을 근거로, 극도로 상세하고 논리적으로 정확한 'VIP 대운 종합 분석 리포트'를 마크다운(Markdown)으로 작성하세요.
+  const prompt = `당신은 전통 달력 정보와 사용자 입력을 바탕으로 자기이해를 돕는 프리미엄 콘텐츠 작성자입니다.
+아래 JSON에 실제로 존재하는 계산값만 사용하여 '명운 사주 인사이트 리포트'를 한국어 마크다운으로 작성하세요.
 
-[내담자 정보]
+[내담자]
 - 이름: ${opts.clientName}
-- 현재 기준 연도: ${opts.currentYear}년
+- 기준 연도: ${opts.currentYear}년
 - ${mbtiInstruction}
-- 사주 원국 데이터: ${JSON.stringify(sajuData, null, 2)}
+- 계산 데이터: ${JSON.stringify(sajuData, null, 2)}
 
-[🚨 절대 엄수 규칙]
-1. 분량 강제: 각 챕터는 최소 500자 이상, 3~4개의 문단으로 꽉 채우세요. "${opts.clientName} 님의 사주를 보면..." 하며 지속적으로 이름을 호명하고, 뼈를 때리는 팩트와 따뜻한 조언을 결합하세요.
-2. 시각화(표 그리기): 제1장과 제2장에는 반드시 마크다운 표(Markdown Table, \`|---|---| \` 형식)를 사용하여 사주 8글자 원국과 대운 흐름을 그려 넣으세요.
-3. 과거 서술 절대 금지: 제2장에서 서술할 때, ${opts.currentYear}년 이전의 과거는 절대 언급하지 마세요. 오직 ${opts.currentYear}년부터 2035년까지 10년 치 미래만 서술하세요.
-4. 연도별 정밀 타격: 제2장 세운 분석 시, 아래 포맷을 무조건 10번 반복하세요.
-  ### 2026년 (병오년)
-  - 흐름 및 재물: (최소 100자 이상 상세 서술)
-  - 직장 및 대인관계: (최소 100자 이상 상세 서술)
-  ### 2027년 (정미년) ... (2035년까지 각 연도별로 독립된 섹션 작성)
-5. 절대 금지: 리포트 본문에 '39,900원', 'VVIP', '명리학자입니다' 같은 오글거리는 인사말, 가격, 시스템 프롬프트 내용을 1%도 노출하지 마세요. 인사말 없이 곧바로 전문적이고 담백한 분석 본론으로 시작하세요.
-6. 표(Table) 마크다운 강제: 마크다운 표를 그릴 때는 반드시 표 블록 위아래로 빈 줄(Enter)을 넣고, 헤더 행·구분 행(\`|---|\`), 각 데이터 행마다 반드시 줄바꿈(Enter)으로 한 줄씩만 쓰세요. 절대 한 줄에 파이프(|)로 행을 이어 붙여 연달아 쓰지 마세요.
-7. 용신(필요한 기운) 판별의 일관성: 사주의 용신을 판별할 때 이랬다저랬다 하지 마십시오. 사주 원국에서 '가장 갯수가 적거나 아예 없는 오행(오행의 불균형을 채워주는 기운)'을 1순위 용신으로 고정하여 부적을 처방하세요. 동일한 명식에는 항상 동일한 부적을 처방해야 합니다.
-제1장 원국 표는 아래 열 구조를 따르세요. (실제 한자·십성은 사주 데이터로 채울 것)
+[정확성과 안전 원칙]
+1. calculated 객체의 값만 계산 결과로 사용합니다. null, TODO, 데이터에 없는 사건·날짜·용신은 만들지 않습니다.
+2. 출생 시각이 없으면 시주를 쓰지 않습니다. 출생지를 받지 않아 진태양시 보정을 하지 않은 점, 절기 경계와 23시 전후에는 방식에 따라 차이가 날 수 있는 점을 제1장에 한 번 밝힙니다.
+3. 용신은 자동 확정하지 않습니다. 오행 개수는 보이는 글자 분포 설명에만 쓰며 용신·행운색·처방으로 연결하지 않습니다.
+4. 대운·연운은 사건 예언이 아니라 관심 주제, 활용 가능성, 과해질 때의 위험, 준비 행동으로 해석합니다.
+5. 재물은 횡재·수익률을, 연애는 결혼·이별·재회 시기를, 직장은 합격·승진·퇴사 시기를 예언하지 않습니다.
+6. 건강 장에서는 체질, 장기, 질환, 수명, 치료, 회복력을 사주로 판단하지 않습니다. 오직 수면·운동·검진·휴식·스트레스 점검 같은 일반적인 자기관리만 다룹니다.
+7. 핵심 해석마다 실제 데이터 근거를 짧게 붙입니다. 단일 요소 하나로 성격이나 능력을 확정하지 말고 '점검해볼 수 있습니다'처럼 씁니다.
+8. 같은 조언을 반복하지 말고 장마다 구체적인 상황, 판단 기준, 질문, 행동을 제시합니다. 막연한 격려와 공포·불안 자극은 금지합니다.
+9. 부적은 서버가 참고용 부록으로 별도 추가하므로 본문에서 이미지·효능을 만들지 않습니다.
+10. 숫자 범위에는 물결표를 쓰지 말고 '2023–2032년'처럼 en dash를 사용합니다. 표 안에 HTML이나 <br> 태그를 넣지 말고 한 셀은 짧은 문장과 세미콜론으로 구분합니다.
+11. calculated, dayMaster, visibleElementCount, annualFlow 같은 JSON 필드명이나 구현 경로를 본문에 노출하지 않습니다. 근거는 '일간 경금', '현재 무인 대운의 편인'처럼 사람이 이해할 수 있는 한국어로만 씁니다.
 
-| 구분 | 년주 | 월주 | 일주 | 시주 |
-| --- | --- | --- | --- | --- |
-| 천간 | O(O) | O(O) | O(O) | O(O) |
-| 지지 | O(O) | O(O) | O(O) | O(O) |
+[분량과 형식]
+- 공백 제외 10,000–15,000자 안에서 14장 전체를 반드시 완결합니다. 18,000자를 넘기지 않습니다.
+- 형식적인 환영 인사 대신 '## 먼저 읽는 핵심 답변'으로 시작하고, 성향·현재 대운·돈·일·관계의 핵심을 5개 bullet로 답합니다.
+- 이어서 '## 목차'와 14개 장 목록을 출력합니다.
+- 제2–12장은 2–3개 소제목, 구체 bullet, '이 장의 한 문장 결론'을 포함합니다.
+- 재물·직장·연애·건강 장에는 유리한 패턴, 과해질 때의 위험, 현실 점검 질문, 바로 할 행동을 포함합니다.
 
-위와 동일한 정보를 쉼표로만 적은 한 줄 형태(예: 구분,년주,월주,...)는 사용하지 말고, 반드시 파이프 표 마크다운으로만 출력하세요.
+[필수 표]
+- 제1장: 년·월·일·시주의 간지, 천간 십성, 지지 십성, 오행.
+- 제3장: 목·화·토·금·수의 visibleElementCount와 '용신 판정 아님' 안내.
+- 제4장: daeun.periods 전체의 시작 나이·기간·간지·천간 십성과 현재 대운 강조.
+- 제5장: daeun.annualFlow 5개년의 연도·간지·십성·관심 주제·활용·주의·준비 행동.
+- 제13장: 7일·30일·90일·1년 실행 계획.
+- 제14장: 강점 3개, 주의점 3개, 현재 대운 핵심 3개, 올해 행동 3개. 표 셀에는 세미콜론을 사용합니다.
 
-[목차 생성 필수] 제 1장 본론을 시작하기 전에, 반드시 \`## 목차\`라는 제목 하에 전체 챕터 리스트를 작성하세요.
-🚨 절대 주의: 목차 내부의 항목을 나열할 때는 절대로 '#' 기호(Heading)를 사용하지 마세요. 페이지 렌더링 오류가 발생합니다. 목차 항목은 반드시 '1. 제 1장...', '2. 제 2장...'과 같이 순수한 숫자 리스트(Numbered list) 형식으로만 담백하게 작성해야 합니다.
+[반드시 직접 답할 질문]
+- 현재 대운은 언제 시작·종료되고 다음 대운은 언제 시작하는가.
+- 재물: 벌기·지키기·쓰기 패턴, 계약·현금흐름·충동 위험과 점검표.
+- 직장·사업: 강점이 쓰이는 역할, 환경, 리더십, 이직·사업 판단표.
+- 연애: 끌림, 갈등, 경계선, 대화법, 관계 점검 기준.
+- 건강: 생활 리듬, 스트레스 자각, 수면·운동·검진 체크리스트. 의학적 해석은 하지 않습니다.
 
-[10대 목차] (각 챕터 제목은 반드시 '#' 1개만 사용)
-# 제 1장 타고난 운명의 그릇과 사주 원국 
-# 제 2장 10년 대운과 ${opts.currentYear}~2035년 세운 정밀 해부
-# 제 3장 천직과 직업운
-# 제 4장 재물운 흐름
-# 제 5장 인연법과 애정운
-# 제 6장 건강운
-# 제 7장 귀인과 악연
-# 제 8장 길운을 부르는 행동지침
-# 제 9장 인생의 주 고민거리와 강력한 방어 기제
-# 제 10장 종합 결론 및 1:1 맞춤 부적 처방
-(이 챕터는 반드시 '부적 효과 및 활용법'을 명확히 제시해야 합니다.
-1. 먼저 부적 이미지를 삽입하세요.
-2. 이미지 바로 아래에 [부적의 효과 설명]이라는 소제목을 달고, 왜 이 부적이 필요한지 서술하세요.
-3. 그 아래에 반드시 1. 사회적 신분 상승, 2. 재물의 결실, 3. 인간관계 개선 이라는 3가지 넘버링 리스트를 사용하여 이전처럼 깔끔하고 임팩트 있게 부적의 효과를 작성하세요.)
-용신 판별 규칙(규칙 7)에 따라 아래 5개 중 정확히 1개의 마크다운 이미지 코드만 선택하여 삽입하세요.
-- 나무(木) 용신: ![맞춤 부적](/images/amulet-wood.jpg)
-- 불(火) 용신: ![맞춤 부적](/images/amulet-fire.jpg)
-- 흙(土) 용신: ![맞춤 부적](/images/amulet-earth.jpg)
-- 쇠(金) 용신: ![맞춤 부적](/images/amulet-metal.jpg)
-- 물(水) 용신: ![맞춤 부적](/images/amulet-water.jpg)
+[장 제목]
+
+# 제 1장 내 명식과 계산 기준
+# 제 2장 타고난 핵심 성향과 내면의 작동 방식
+# 제 3장 오행 분포와 에너지 사용 설명서
+# 제 4장 10년 대운 지도와 현재 위치
+# 제 5장 앞으로 5년의 흐름과 준비 전략
+# 제 6장 재물운: 돈을 벌고 지키는 방식
+# 제 7장 직장운과 사업운: 나에게 맞는 역할과 환경
+# 제 8장 연애운과 배우자 관계: 끌림·갈등·소통
+# 제 9장 인간관계와 가족: 경계선과 신뢰의 기술
+# 제 10장 건강운: 생활 리듬과 스트레스 관리
+# 제 11장 반복되는 고민의 심리적 핵심
+# 제 12장 중요한 선택을 위한 의사결정 가이드
+# 제 13장 7일·30일·90일·1년 실행 계획
+# 제 14장 핵심 요약과 이용 안내
+
+마지막 두 문장은 생성형 AI 참고용 콘텐츠이며 미래를 보장하지 않는다는 안내와, 의료·재무·법률 등 중요한 결정은 관련 전문가와 확인해야 한다는 안내로 끝냅니다.
+그 뒤 마지막 줄에 정확히 '<!-- REPORT_COMPLETE -->'를 출력합니다.
 `;
 
-const result = await model.generateContent(prompt);
-const text = result.response.text();
+const requiredChapterNumbers = [1, 4, 5, 6, 7, 8, 10, 13, 14];
+const requiredTopicWords = ["대운", "재물", "직장", "사업", "연애", "건강", "실행 계획"];
+const meetsPremiumContract = (value: string) => {
+  const normalized = value.replace(/\s/g, "");
+  const hasChapters = requiredChapterNumbers.every((chapter) =>
+    new RegExp(`^\\s*(?:#{1,6}\\s*)?(?:\\*{1,2})?(?:제\\s*)?${chapter}(?:\\s*장|[.、:])`, "m").test(value),
+  );
+  return (
+    normalized.length >= 7500 &&
+    normalized.length <= 22000 &&
+    hasChapters &&
+    requiredTopicWords.every((topic) => normalized.includes(topic.replace(/\s/g, ""))) &&
+    normalized.includes("강점")
+  );
+};
 
-console.log("Gemini response candidates:", JSON.stringify(result.response.candidates?.length));
-console.log("Gemini text length:", text?.length);
+const normalizeGeneratedMarkdown = (value: string) => {
+  const cleaned = value
+    .split("\n")
+    .filter(
+      (line) =>
+        !/(?:calculated\.|visibleElementCount|annualFlow|dayMaster|stemTenGod|pillars\.)/i.test(line),
+    )
+    .join("\n")
+    .replace(/<br\s*\/?\s*>/gi, " / ")
+    .replace(/(\d)\s*~\s*(\d)/g, "$1–$2")
+    .replace(/<!-- REPORT_COMPLETE -->\s*$/i, "")
+    .trim();
+  return `${cleaned}\n\n---\n\n## 이용 안내\n\n이 리포트는 입력 정보와 계산값을 바탕으로 생성형 AI를 활용해 작성한 자기이해용 참고 콘텐츠이며, 미래의 사건이나 결과를 보장하지 않습니다.\n\n의료·재무·법률·고용·관계 등 중요한 결정은 이 리포트만으로 판단하지 말고 상황에 맞는 관련 전문가와 확인해 주세요.`;
+};
 
-if (!text) {
-  const raw = JSON.stringify(result.response);
-  console.error("Gemini 빈 응답 raw:", raw.slice(0, 500));
-  throw new Error("GEMINI_EMPTY_RESPONSE");
+type SectionSpec = {
+  id: "A" | "B" | "C";
+  chapters: number[];
+  minLength: number;
+  maxLength: number;
+  instruction: string;
+};
+
+const sectionSpecs: SectionSpec[] = [
+  {
+    id: "A",
+    chapters: [1, 2, 3, 4, 5],
+    minLength: 3500,
+    maxLength: 12000,
+    instruction:
+      "먼저 읽는 핵심 답변과 숫자 목록 형태의 전체 목차를 먼저 쓰고, 제1장부터 제5장까지만 작성하세요. 목차 항목에는 # 기호를 쓰지 마세요.",
+  },
+  {
+    id: "B",
+    chapters: [6, 7, 8, 9],
+    minLength: 3200,
+    maxLength: 12000,
+    instruction:
+      "인사말과 목차 없이 제6장부터 제9장까지만 작성하세요. 재물·직장/사업·연애·관계의 현실적인 질문과 행동을 충분히 다루세요. 건강 장은 출력하지 마세요.",
+  },
+  {
+    id: "C",
+    chapters: [11, 12, 13, 14],
+    minLength: 2500,
+    maxLength: 9000,
+    instruction:
+      "인사말과 목차 없이 제11장부터 제14장까지만 작성하세요. 제13장 실행 계획과 제14장 네 가지 요약 항목을 끝까지 완결하세요.",
+  },
+];
+
+const sectionHasAllChapters = (value: string, chapters: number[]) =>
+  chapters.every((chapter) =>
+    new RegExp(
+      `^\\s*#{1,6}\\s*(?:\\*{1,2})?제\\s*${chapter}\\s*장`,
+      "m",
+    ).test(value),
+  );
+
+async function generateSection(spec: SectionSpec): Promise<string> {
+  const marker = `SECTION_${spec.id}_COMPLETE`;
+  const sectionPrompt = `${prompt}\n\n[분할 생성 최우선 지침]\n${spec.instruction}\n이 응답의 공백 제외 분량은 ${spec.minLength}–${spec.maxLength}자로 맞추고, 지정하지 않은 장은 출력하지 마세요. 각 장 제목은 반드시 '# 제 N장' 형식으로 쓰세요. 마지막 줄에는 정확히 '${marker}'를 출력하세요.`;
+
+  const isValid = (value: string) => {
+    const length = value.replace(/\s/g, "").length;
+    return (
+      length >= spec.minLength &&
+      length <= spec.maxLength &&
+      sectionHasAllChapters(value, spec.chapters)
+    );
+  };
+
+  const first = (await model.generateContent(sectionPrompt)).response.text();
+  if (isValid(first)) return first.replace(marker, "").trim();
+
+  const retry = (
+    await model.generateContent(
+      `${sectionPrompt}\n\n[재작성]\n직전 응답은 분량·장 제목·완결 표식 중 하나가 누락됐습니다. 지정된 장 전체를 처음부터 다시 완결하세요.`,
+    )
+  ).response.text();
+  if (isValid(retry)) return retry.replace(marker, "").trim();
+
+  console.error("Gemini 프리미엄 섹션 품질 게이트 실패:", {
+    section: spec.id,
+    firstLength: first.replace(/\s/g, "").length,
+    retryLength: retry.replace(/\s/g, "").length,
+  });
+  throw new Error(`VIP_REPORT_SECTION_${spec.id}_QUALITY_GATE_FAILED`);
 }
-return text;
+
+const generatedSections = await Promise.all(sectionSpecs.map(generateSection));
+const currentDaeun = sajuData.calculated.daeun.current;
+const currentDaeunLabel = currentDaeun
+  ? `${currentDaeun.ganjiKorean} 대운(${currentDaeun.startYear}–${currentDaeun.endYear}년)`
+  : "현재 대운 정보 없음";
+const safeHealthChapter = `# 제 10장 건강운: 생활 리듬과 스트레스 관리
+
+이 장은 사주로 체질·장기·질환·수명·치료 효과를 판단하지 않습니다. ${currentDaeunLabel}은 리포트의 시기 구분을 위한 참고 정보일 뿐, 건강 상태나 질병을 예측하는 근거로 사용하지 않습니다.
+
+### 10.1 생활 리듬 현실 점검
+
+- 최근 2주 동안 취침과 기상 시간이 크게 흔들린 날은 며칠이었는지 기록해 보세요.
+- 피로가 누적될 때 일을 더 밀어붙이는지, 휴식을 먼저 확보하는지 자신의 실제 패턴을 확인하세요.
+- 일과 중 오래 앉아 있거나 같은 자세를 유지하는 시간을 줄일 방법을 정하세요.
+
+### 10.2 스트레스 신호와 회복 행동
+
+사주 해석과 무관하게 수면 변화, 집중력 저하, 과민함, 식사 리듬 변화가 오래 이어진다면 이를 의지 문제로 넘기지 말고 생활 부담을 점검할 필요가 있습니다.
+
+- 7일: 매일 같은 시간대에 10분 걷기와 취침 전 화면 사용 줄이기를 시도합니다.
+- 30일: 수면 시간, 활동량, 스트레스 정도를 간단히 기록해 반복되는 조건을 찾습니다.
+- 지속되는 불편이나 걱정이 있다면 자가 판단보다 의료 전문가와 상담합니다.
+
+### 10.3 수면·운동·검진 체크리스트
+
+| 점검 영역 | 현실 점검 질문 | 바로 할 행동 |
+| --- | --- | --- |
+| 수면 | 최근 2주 평균 수면 시간과 기상 후 피로감은 어떠했는가? | 일정한 기상 시간을 먼저 정하고 2주 기록하기 |
+| 활동 | 일주일에 몸을 움직인 날과 오래 앉아 있던 시간은 어느 정도인가? | 무리하지 않는 걷기·스트레칭 일정을 달력에 넣기 |
+| 스트레스 | 피로·과민·집중 저하가 특정 일정이나 관계 뒤에 반복되는가? | 반복 조건 하나를 줄이고 회복 시간을 먼저 예약하기 |
+| 검진 | 연령·가족력·생활 습관에 맞는 검진을 의료진과 확인했는가? | 국가검진과 필요한 상담 일정을 확인하기 |
+
+**이 장의 한 문장 결론:** 건강은 사주로 단정할 영역이 아니며, 관찰 가능한 생활 기록과 필요한 검진·전문가 상담을 기준으로 관리해야 합니다.`;
+const sections = [generatedSections[0], generatedSections[1], safeHealthChapter, generatedSections[2]];
+const text = sections.join("\n\n---\n\n");
+console.log("Gemini premium section lengths:", generatedSections.map((section) => section.length));
+
+if (!meetsPremiumContract(text)) {
+  const normalized = text.replace(/\s/g, "");
+  console.error("Gemini 프리미엄 품질 게이트 실패:", {
+    length: normalized.length,
+    chapters: requiredChapterNumbers.filter((chapter) =>
+      new RegExp(`^\\s*(?:#{1,6}\\s*)?(?:\\*{1,2})?(?:제\\s*)?${chapter}(?:\\s*장|[.、:])`, "m").test(text),
+    ),
+    topics: requiredTopicWords.filter((topic) => normalized.includes(topic.replace(/\s/g, ""))),
+    summaries: ["강점", "주의점", "현재대운", "올해행동"].filter((topic) => normalized.includes(topic)),
+    hasExpertNotice: text.includes("관련 전문가"),
+    hasFutureNotice: text.includes("미래를 보장하지"),
+  });
+  throw new Error("VIP_REPORT_QUALITY_GATE_FAILED");
+}
+return normalizeGeneratedMarkdown(text);
 }
 
 export async function POST(request: NextRequest) {
@@ -213,22 +414,67 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: e instanceof Error ? e.message : "명식 계산 실패" }, { status: 400 });
     }
 
+    const payment = resolveVipPayment(body);
+    const adminAuthorized = hasValidAdminSession(request);
+    if (!payment && !adminAuthorized) {
+      return NextResponse.json(
+        { success: false, error: "검증된 결제 정보가 필요합니다." },
+        { status: 402 },
+      );
+    }
+    const supabaseAdmin = createSupabaseAdminClient();
+    if (payment && !supabaseAdmin) {
+      return NextResponse.json(
+        { success: false, error: "리포트 지급권 저장소를 확인할 수 없습니다." },
+        { status: 503 },
+      );
+    }
+    if (payment && supabaseAdmin) {
+      const claimed = await claimVipReportEntitlement(
+        supabaseAdmin,
+        payment.paymentRef,
+        payment.expectedAmount,
+      );
+      if (!claimed.ok) {
+        return NextResponse.json(
+          { success: false, error: claimed.message },
+          { status: 409 },
+        );
+      }
+    }
+
     let markdown: string;
     try {
-      markdown = await generateVipMarkdownReport(sajuData, { clientName, currentYear, mbti });
-    } catch (err: any) {
+      const generated = await generateVipMarkdownReport(sajuData, { clientName, currentYear, mbti });
+      markdown = appendVipSymbolicAmulet(generated, `${clientName}|${birthDate}`).markdown;
+    } catch (err: unknown) {
+      if (payment && supabaseAdmin) {
+        await releaseVipReportEntitlement(supabaseAdmin, payment.paymentRef);
+      }
       console.error("Gemini API 처리 에러 원문:", err);
+      const errorMessage = err instanceof Error ? err.message : "알 수 없는 오류";
       return NextResponse.json(
-        { success: false, error: `제미나이 서버 에러: ${err.message || "알 수 없는 오류"}` },
+        { success: false, error: `제미나이 서버 에러: ${errorMessage}` },
         { status: 500 },
       );
     }
 
-    await persistVipOrderRow(request, {
-      imp_uid: body.imp_uid,
-      user_name: clientName,
-      phone_number: body.phone_number,
-    });
+    if (payment && supabaseAdmin) {
+      await persistVipOrderRow(request, {
+        imp_uid: payment.paymentRef.startsWith("toss:") ? null : body.imp_uid ?? payment.paymentRef,
+        user_name: clientName,
+        phone_number: body.phone_number,
+      });
+
+      const completed = await completeVipReportEntitlement(supabaseAdmin, payment.paymentRef);
+      if (!completed.ok) {
+        await releaseVipReportEntitlement(supabaseAdmin, payment.paymentRef);
+        return NextResponse.json(
+          { success: false, error: completed.message },
+          { status: 503 },
+        );
+      }
+    }
 
     // 스트리밍 응답으로 전송
     const encoder = new TextEncoder();
@@ -248,10 +494,11 @@ export async function POST(request: NextRequest) {
     return new Response(stream, {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("서버 전체 에러:", error);
+    const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
     return NextResponse.json(
-      { success: false, error: `서버 통신 에러: ${error.message || "알 수 없는 오류"}` },
+      { success: false, error: `서버 통신 에러: ${errorMessage}` },
       { status: 500 },
     );
   }

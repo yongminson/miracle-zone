@@ -67,7 +67,7 @@ export function CsVipDashboardClient({ initialRows, sourceNote }: Props) {
       <header className="mb-6 flex items-center justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-500/80">Admin</p>
-          <h1 className="font-serif text-xl font-semibold text-amber-50">VIP 고객 CS</h1>
+          <h1 className="font-serif text-xl font-semibold text-amber-50">사주 인사이트 고객 CS</h1>
         </div>
         <Link
           href="/"

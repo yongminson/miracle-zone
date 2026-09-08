@@ -8,7 +8,7 @@ import { jsPDF } from "jspdf";
 const PDF_PAGE_W_MM = 210;
 const PDF_PAGE_H_MM = 297;
 
-export const VIP_PDF_FILENAME = "명운_VIP_대운리포트.pdf";
+export const VIP_PDF_FILENAME = "명운_사주_인사이트_리포트.pdf";
 
 export type UsePdfDownloadOptions = {
   /** html2canvas scale — 선명도 (메모리↑) */
@@ -33,7 +33,7 @@ export function usePdfDownload(options: UsePdfDownloadOptions = {}) {
         return { ok: false, error: "PDF 루트 요소가 없습니다." };
       }
 
-      // VIP 리포트 이어보기 직후에는 일시적으로
+      // 사주 인사이트 리포트 이어보기 직후에는 일시적으로
       // 표지 + 명식요약 + markdown 전체 fallback = 3장 상태가 될 수 있음.
       // 이 상태에서 PDF를 만들면 3장 PDF가 생성된다.
       // 따라서 data-pdf-page 개수가 "더 이상 늘지 않고 안정될 때까지" 기다린다.
@@ -66,6 +66,23 @@ export function usePdfDownload(options: UsePdfDownloadOptions = {}) {
       if (pages.length === 0) {
         return { ok: false, error: "PDF 페이지 노드([data-pdf-page])를 찾지 못했습니다." };
       }
+
+      const images = Array.from(root.querySelectorAll<HTMLImageElement>("img"));
+      await Promise.all(
+        images.map(
+          (img) =>
+            new Promise<void>((resolve) => {
+              if (img.complete) {
+                resolve();
+                return;
+              }
+              const done = () => resolve();
+              img.addEventListener("load", done, { once: true });
+              img.addEventListener("error", done, { once: true });
+              window.setTimeout(done, 5000);
+            }),
+        ),
+      );
 
       const scale = options.scale ?? 2;
       const pdf = new jsPDF({
