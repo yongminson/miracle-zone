@@ -40,6 +40,7 @@ import { getPortOnePaymentFailureReason } from "@/lib/payments/portone-response-
 import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 import { PaymentMethodSelector, type PayMethodPg } from "@/components/payments/PaymentMethodSelector";
 import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
+import { DailyMoodTracker } from "@/components/records/DailyMoodTracker";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -983,6 +984,9 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                     )}
                   </div>
                 )}
+
+                {/* 오늘 실제로 어땠는지 1탭 기록 — 다시 올 이유를 만드는 지점 */}
+                <DailyMoodTracker />
 
                 <div className="flex gap-3">
                 <div className="grid grid-cols-3 gap-3">
