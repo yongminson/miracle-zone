@@ -1552,12 +1552,35 @@ const ALTAR_FOOTER_REFUND =
   
   const fetchWishes = useCallback(async () => {
     try {
-      const { data, error } = await supabase.from("wishes").select("*").order("created_at", { ascending: false }).limit(100);
+      // 무료 소원(1시간)이 48분마다 쌓이면 100건 창이 약 35시간밖에 못 덮는다.
+      // 한 번에 가져오면 10일 프리미엄 소원이 유효기간 안인데도 창 밖으로 밀려 사라지므로,
+      // 프리미엄은 duration 조건으로 따로 가져와 합친다.
+      const [recentRes, premiumRes] = await Promise.all([
+        supabase.from("wishes").select("*").order("created_at", { ascending: false }).limit(100),
+        supabase
+          .from("wishes")
+          .select("*")
+          .in("duration", ["24h", "10d"])
+          .order("created_at", { ascending: false })
+          .limit(60),
+      ]);
+
+      const error = recentRes.error ?? premiumRes.error;
       if (error) {
         console.error("데이터 불러오기 실패:", error);
         return;
       }
-      const rows = (data || []) as WishDbRow[];
+
+      // 두 결과에 같은 행이 겹칠 수 있으므로 id로 중복을 제거한다
+      const merged = new Map<string | number, WishDbRow>();
+      for (const row of [...(recentRes.data || []), ...(premiumRes.data || [])] as WishDbRow[]) {
+        if (row?.id) merged.set(row.id, row);
+      }
+      const rows = [...merged.values()].sort((a, b) => {
+        const at = new Date(a.created_at || 0).getTime();
+        const bt = new Date(b.created_at || 0).getTime();
+        return bt - at;
+      });
       const now = Date.now();
       const filtered = rows.filter((wish) => {
         const wishTime = new Date(wish.created_at || 0).getTime();
