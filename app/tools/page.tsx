@@ -24,6 +24,7 @@ import {
   Bell, // 🚀 종 아이콘 추가
   Star,  // 🚀 띠별 운세 아이콘
   Hand,  // 🚀 손금 분석 아이콘
+  Crown, // 사주 인사이트(별도 페이지) 메뉴 아이콘
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -159,7 +160,7 @@ function AdminDashboard() {
 }
 
 // 🚀 mbti와 match(궁합) 탭 추가
-type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match" | "zodiac" | "palmistry";
+type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match" | "zodiac" | "palmistry" | "vip";
 
 async function captureAndShareElement(
   target: HTMLElement | null,
@@ -278,13 +279,15 @@ const pushSecret = (char: string, callback?: () => void) => {
 };
 
 // 🚀 사람들을 홀리는 마법의 네이밍 & 완벽한 탭 순서 배치
-const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean }[] = [
+// href가 있는 메뉴는 이 페이지의 탭이 아니라 별도 페이지로 이동한다
+const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean; href?: string }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, isReady: true },
+  { id: "vip",     label: "사주 인사이트", icon: Crown,  isReady: true, href: "/vip" },
   { id: "zodiac",     label: "띠별 운세",    icon: Star,     isReady: true },
   { id: "saju",       label: "관상/이름 풀이", icon: FileText, isReady: true },
   { id: "palmistry",  label: "손금 분석",    icon: Hand,     isReady: true },
   { id: "match",      label: "소름돋는 궁합", icon: Heart,    isReady: true },
-  { id: "mbti",    label: "MBTI - 심층 성격 검사", icon: Activity, isReady: true },
+  { id: "mbti",    label: "MBTI 검사",   icon: Activity, isReady: true },
   { id: "dream",   label: "꿈 해몽",      icon: BookOpen, isReady: true },
   { id: "lotto",   label: "행운의 로또",  icon: Trophy,   isReady: true },
   { id: "altar",   label: "기적의 제단",  icon: Flame,    isReady: true },
@@ -6815,7 +6818,7 @@ export default function Home() {
         
         <div 
           ref={navRef}
-          className="mx-auto flex max-w-screen-md items-center justify-start gap-6 px-4 py-2 overflow-x-auto no-scrollbar sm:px-6 sm:justify-between sm:gap-0 relative z-0"
+          className="mx-auto flex max-w-screen-lg items-center justify-start gap-6 px-4 py-2 overflow-x-auto no-scrollbar sm:px-6 sm:justify-between sm:gap-0 relative z-0"
         >
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -6826,6 +6829,11 @@ export default function Home() {
                 type="button"
                 onClick={(e) => {
                   if (!tab.isReady) return;
+                  if (tab.href) {
+                    logEvent("vip_link_click", { from: "tools_tab" });
+                    router.push(tab.href);
+                    return;
+                  }
                   setActiveTab(tab.id);
                   window.scrollTo({ top: 0, behavior: "smooth" });
 supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
@@ -6845,9 +6853,9 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
                   }
                 }}
                 className={`
-                  relative flex flex-col items-center gap-1.5 p-2 min-w-[64px] sm:min-w-[80px]
+                  relative flex shrink-0 flex-col items-center gap-1.5 p-2 min-w-[64px] sm:min-w-[80px]
                   transition-all duration-300 ease-out focus:outline-none
-                  ${isActive ? "text-yellow-400" : tab.isReady ? "text-slate-400 hover:text-yellow-300" : "text-white/20 cursor-not-allowed"}
+                  ${isActive ? "text-yellow-400" : tab.href ? "text-amber-300/90 hover:text-yellow-300" : tab.isReady ? "text-slate-400 hover:text-yellow-300" : "text-white/20 cursor-not-allowed"}
                 `}
               >
                 {isActive && (
@@ -6871,6 +6879,7 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
         {TABS.map((tab) => {
           const isVisible = activeTab === tab.id;
           const IconComponent = tab.icon;
+          if (tab.href) return null;
 
           if (tab.id === "fortune") return <FortuneTab key={tab.id} isVisible={isVisible} />;
           if (tab.id === "dream") return <DreamTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
