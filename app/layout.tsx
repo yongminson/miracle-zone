@@ -67,9 +67,12 @@ export const metadata: Metadata = {
     apple: "/logo.png",
   },
 
+  // 검색 노출 허용. robots.ts·sitemap.ts·구글/네이버 소유확인까지 다 해 두고
+  // 여기서만 index:false 가 남아 있어 사이트 전체가 검색에서 빠져 있었다.
+  // 관리자 화면(/yongmincucu)은 자기 layout 에서 따로 noindex 를 건다.
   robots: {
-    index: false,
-    follow: false,
+    index: true,
+    follow: true,
   },
 };
 
