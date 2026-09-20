@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 
 export default function Home() {
   return (
     <div className="relative flex-1 bg-[#030712] text-slate-100 pb-20">
+      {/* 랜딩 방문·유입 경로 기록 (화면에는 아무것도 그리지 않는다) */}
+      <PageViewTracker page="landing" />
       <div className="absolute inset-0 z-0 bg-[url('/images/bg-main.jpg')] bg-cover bg-center bg-fixed opacity-30" />
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#030712]/80 via-transparent to-[#030712]" />
 
