@@ -95,13 +95,14 @@ export function LockComposer({
       return;
     }
     setWaitingApp(true);
-    bridge.postMessage(JSON.stringify({ type: "REQUEST_IAP", productId: LOCK_PRODUCT_IDS[tier], tier }));
+    // 앱이 이미 쓰고 있는 결제 메시지 형식을 그대로 따른다
+    bridge.postMessage(JSON.stringify({ type: "PURCHASE_ITEM", productId: LOCK_PRODUCT_IDS[tier] }));
   };
 
   // 앱이 결제 결과를 알려주면 자물쇠를 건다
   useEffect(() => {
     const handler = (event: MessageEvent) => {
-      let msg: { type?: string; purchaseToken?: string; message?: string } | null = null;
+      let msg: { type?: string; productId?: string; purchaseToken?: string; message?: string } | null = null;
       try {
         msg = typeof event.data === "string" ? JSON.parse(event.data) : null;
       } catch {
@@ -109,7 +110,11 @@ export function LockComposer({
       }
       if (!msg?.type) return;
 
-      if (msg.type === "IAP_SUCCESS" && msg.purchaseToken) {
+      // 앱은 VIP·제단 결제에도 같은 메시지를 쓰므로 자물쇠 상품만 받는다
+      const lockProductIds = Object.values(LOCK_PRODUCT_IDS) as string[];
+      if (msg.productId && !lockProductIds.includes(msg.productId)) return;
+
+      if (msg.type === "PURCHASE_SUCCESS" && msg.purchaseToken) {
         setWaitingApp(false);
         void onPaid({
           paymentId: msg.purchaseToken,
@@ -120,9 +125,9 @@ export function LockComposer({
         });
         return;
       }
-      if (msg.type === "IAP_FAILED" || msg.type === "IAP_CANCELED") {
+      if (msg.type === "PURCHASE_FAILED") {
         setWaitingApp(false);
-        if (msg.type === "IAP_FAILED") setError(msg.message || "결제를 완료하지 못했습니다.");
+        setError(msg.message || "결제를 완료하지 못했습니다.");
       }
     };
     window.addEventListener("message", handler);
