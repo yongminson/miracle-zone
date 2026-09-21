@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PaymentMethodCheckoutModal } from "@/components/payments/PaymentMethodCheckoutModal";
 import {
   LOCK_COLORS,
+  LOCK_PRODUCT_IDS,
   LOCK_TIERS,
   SILVER,
   type LockTier,
@@ -53,7 +54,13 @@ export function LockComposer({
 }: {
   isApp: boolean;
   busy: boolean;
-  onPaid: (payload: { paymentId: string; merchantUid: string; draft: LockDraft }) => Promise<void>;
+  onPaid: (payload: {
+    paymentId: string;
+    merchantUid: string | null;
+    purchaseToken?: string;
+    platform?: "web" | "app";
+    draft: LockDraft;
+  }) => Promise<void>;
 }) {
   const [tier, setTier] = useState<LockTier>("basic");
   const [color, setColor] = useState<string>(LOCK_COLORS[0].value);
@@ -61,6 +68,7 @@ export function LockComposer({
   const [wish, setWish] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [showPayment, setShowPayment] = useState(false);
+  const [waitingApp, setWaitingApp] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canPickColor = LOCK_TIERS[tier].canPickColor;
@@ -74,6 +82,53 @@ export function LockComposer({
     wish: trimmedWish,
   };
 
+  // 앱이 결제 결과를 알려줄 때 쓰려고 최신 입력값을 담아 둔다
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
+  /** 앱(WebView)에서는 구글 인앱결제를 앱에 요청하고, 결과 메시지를 기다린다 */
+  const requestAppPurchase = () => {
+    const bridge = (window as unknown as { ReactNativeWebView?: { postMessage: (m: string) => void } })
+      .ReactNativeWebView;
+    if (!bridge) {
+      setError("앱에서 결제를 시작하지 못했습니다. 앱을 최신 버전으로 업데이트해 주세요.");
+      return;
+    }
+    setWaitingApp(true);
+    bridge.postMessage(JSON.stringify({ type: "REQUEST_IAP", productId: LOCK_PRODUCT_IDS[tier], tier }));
+  };
+
+  // 앱이 결제 결과를 알려주면 자물쇠를 건다
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      let msg: { type?: string; purchaseToken?: string; message?: string } | null = null;
+      try {
+        msg = typeof event.data === "string" ? JSON.parse(event.data) : null;
+      } catch {
+        return;
+      }
+      if (!msg?.type) return;
+
+      if (msg.type === "IAP_SUCCESS" && msg.purchaseToken) {
+        setWaitingApp(false);
+        void onPaid({
+          paymentId: msg.purchaseToken,
+          merchantUid: null,
+          purchaseToken: msg.purchaseToken,
+          platform: "app",
+          draft: draftRef.current,
+        });
+        return;
+      }
+      if (msg.type === "IAP_FAILED" || msg.type === "IAP_CANCELED") {
+        setWaitingApp(false);
+        if (msg.type === "IAP_FAILED") setError(msg.message || "결제를 완료하지 못했습니다.");
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [onPaid]);
+
   const openPayment = () => {
     if (!trimmedWish) {
       setError("소원을 입력해 주세요.");
@@ -86,27 +141,13 @@ export function LockComposer({
     setError(null);
     // 모바일은 결제창으로 이동했다 돌아오므로 입력한 내용을 먼저 저장해 둔다
     saveLockDraft(draft);
+    if (isApp) {
+      requestAppPurchase();
+      return;
+    }
     setShowPayment(true);
   };
 
-  if (isApp) {
-    return (
-      <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#0e1424]/90 to-[#070a12]/95 p-5 shadow-[0_16px_36px_rgba(0,0,0,0.65)] backdrop-blur-xl">
-        <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-300">
-            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
-          </span>
-          <p className="text-sm font-bold text-amber-200">소원 자물쇠 걸기</p>
-        </div>
-        <p className="mt-2.5 text-xs leading-relaxed text-slate-400">
-          앱에서는 아직 자물쇠를 걸 수 없습니다. 브라우저에서 <span className="font-medium text-amber-300">saju.ymstudio.co.kr/lock</span> 으로 접속해 주세요.
-        </p>
-      </div>
-    );
-  }
 
   const selectedColorObj = LOCK_COLORS.find((c) => c.value === color) ?? LOCK_COLORS[0];
 
@@ -317,11 +358,11 @@ export function LockComposer({
       {/* 결제 버튼 */}
       <button
         type="button"
-        disabled={busy}
+        disabled={busy || waitingApp}
         onClick={openPayment}
         className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 px-6 py-3.5 text-sm font-bold text-stone-950 shadow-[0_4px_20px_rgba(245,158,11,0.3)] transition hover:brightness-105 active:scale-[0.99] disabled:opacity-50"
       >
-        {busy ? (
+        {waitingApp ? "앱에서 결제 진행 중…" : busy ? (
           <>
             <svg className="h-4 w-4 animate-spin text-stone-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

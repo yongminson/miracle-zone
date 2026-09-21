@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyPaidAmount } from "@/lib/payments/verify-paid-amount";
+import { verifyGoogleLockPurchase } from "@/lib/payments/verify-google-purchase";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 import { LOCK_COLORS, LOCK_TIERS, SILVER, type LockTier } from "@/lib/locks/wall-locks";
 
@@ -26,8 +27,10 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Record<string, unknown>;
 
-    const lookupId = String(body.paymentId ?? body.imp_uid ?? "").trim().replace(/\s+/g, "");
-    if (!lookupId) return bad("결제 식별자(paymentId)가 없습니다.");
+    // 앱은 구글 인앱결제 영수증(purchaseToken), 웹은 포트원 결제 식별자를 보낸다
+    const purchaseToken = typeof body.purchaseToken === "string" ? body.purchaseToken.trim() : "";
+    const lookupId = purchaseToken || String(body.paymentId ?? body.imp_uid ?? "").trim().replace(/\s+/g, "");
+    if (!lookupId) return bad("결제 식별자가 없습니다.");
 
     const tier = body.tier;
     if (!isLockTier(tier)) return bad("자물쇠 종류가 올바르지 않습니다.");
@@ -74,14 +77,19 @@ export async function POST(req: Request) {
     }
 
     const expectedAmountWon = LOCK_TIERS[tier].priceWon;
-    const merchantUid = typeof body.merchant_uid === "string" ? body.merchant_uid : null;
 
-    const verified = await verifyPaidAmount({
-      lookupId,
-      expectedAmountWon,
-      merchantUidToMatch: merchantUid,
-    });
-    if (!verified.ok) return bad(verified.message);
+    if (purchaseToken) {
+      const googleVerified = await verifyGoogleLockPurchase({ tier, purchaseToken });
+      if (!googleVerified.ok) return bad(googleVerified.message);
+    } else {
+      const merchantUid = typeof body.merchant_uid === "string" ? body.merchant_uid : null;
+      const verified = await verifyPaidAmount({
+        lookupId,
+        expectedAmountWon,
+        merchantUidToMatch: merchantUid,
+      });
+      if (!verified.ok) return bad(verified.message);
+    }
 
     const inserted = await supabaseAdmin
       .from("locks")

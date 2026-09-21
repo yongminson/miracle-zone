@@ -406,7 +406,13 @@ export default function LockWallPage() {
 
   /** 결제가 확인된 뒤 서버에 자물쇠를 등록한다 */
   const registerLock = useCallback(
-    async (params: { paymentId: string; merchantUid: string | null; draft: LockDraft }) => {
+    async (params: {
+      paymentId: string;
+      merchantUid: string | null;
+      purchaseToken?: string;
+      platform?: "web" | "app";
+      draft: LockDraft;
+    }) => {
       setBusy(true);
       setNotice(null);
       try {
@@ -430,13 +436,14 @@ export default function LockWallPage() {
           body: JSON.stringify({
             paymentId: params.paymentId,
             merchant_uid: params.merchantUid,
+            purchaseToken: params.purchaseToken,
             tier: params.draft.tier,
             color: params.draft.color,
             displayName: params.draft.displayName,
             wish: params.draft.wish,
             ownerKey,
             userId: user?.id ?? null,
-            platform: "web",
+            platform: params.platform ?? "web",
           }),
         });
         const json = (await res.json()) as { success?: boolean; message?: string; lock?: { id: string } };

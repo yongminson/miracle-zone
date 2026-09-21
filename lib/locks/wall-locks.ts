@@ -43,6 +43,13 @@ export const LOCK_COLORS = [
   { value: "#e2e8f0", label: "은색" },
 ];
 
+/** 앱(구글 플레이) 인앱결제 상품 id. 등급과 1:1로 맞춘다 */
+export const LOCK_PRODUCT_IDS: Record<LockTier, string> = {
+  basic: "lock_basic",
+  color: "lock_color",
+  shine: "lock_shine",
+};
+
 export const SILVER = "#cbd5e1";
 
 /** 난간 한 줄에 걸리는 자물쇠 수와 간격 */
