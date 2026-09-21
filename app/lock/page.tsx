@@ -4,18 +4,26 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import {
-  LOCK_COLORS,
   LOCK_TIERS,
   SILVER,
   WALL,
   createDemoLocks,
   layoutLocks,
   railYs,
-  type LockTier,
   type WallLock,
 } from "@/lib/locks/wall-locks";
+import { supabase } from "@/app/lib/supabase";
+import { extractPaymentReturnId } from "@/lib/payments/return-params";
+import {
+  LockComposer,
+  clearLockDraft,
+  readLockDraft,
+  toWallLock,
+  type LockDraft,
+} from "@/components/locks/LockComposer";
 
 const MY_LOCKS_KEY = "myeongun_my_locks_v1";
+const OWNER_KEY = "myeongun_lock_owner_v1";
 const MIN_SCALE = 0.35;
 const MAX_SCALE = 3.2;
 const READ_SCALE = 2.2;
@@ -53,20 +61,42 @@ export default function LockWallPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [myIds, setMyIds] = useState<string[]>([]);
   const [locks, setLocks] = useState<WallLock[]>([]);
+  const [usingDemo, setUsingDemo] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [isApp, setIsApp] = useState(false);
 
   const dragRef = useRef<{ x: number; y: number; tx: number; ty: number; moved: boolean } | null>(null);
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
   const pinchRef = useRef<{ dist: number; scale: number } | null>(null);
 
+  /** 실제로 걸린 자물쇠를 읽어온다. 아직 하나도 없으면 예시로 벽을 채운다 */
+  const loadLocks = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("locks_public")
+      .select("id,tier,color,display_name,wish,created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    if (error || !data || data.length === 0) {
+      setLocks(createDemoLocks());
+      setUsingDemo(true);
+      return;
+    }
+    setLocks(data.map(toWallLock));
+    setUsingDemo(false);
+  }, []);
+
   useEffect(() => {
-    setLocks(createDemoLocks());
+    setIsApp(typeof navigator !== "undefined" && navigator.userAgent.includes("MyeongunApp"));
     try {
       const raw = localStorage.getItem(MY_LOCKS_KEY);
       if (raw) setMyIds(JSON.parse(raw) as string[]);
     } catch {
       // 저장소가 막혀 있으면 내 자물쇠 표시만 없다
     }
-  }, []);
+    void loadLocks();
+  }, [loadLocks]);
 
   const placed = useMemo(() => {
     const mine = new Set(myIds);
@@ -167,30 +197,81 @@ export default function LockWallPage() {
     setSelected(mine.id);
   };
 
-  /** 결제를 붙이기 전까지 느낌을 보기 위한 임시 동작 */
-  const hangDemoLock = (tier: LockTier) => {
-    const id = `mine-${Date.now().toString(36)}`;
-    const color = tier === "basic" ? SILVER : LOCK_COLORS[Math.floor(Math.random() * LOCK_COLORS.length)].value;
-    const next: WallLock = {
-      id,
-      tier,
-      color,
-      name: "나",
-      wish: "미리보기로 걸어본 자물쇠입니다.",
-      createdAt: new Date().toISOString(),
-    };
-    setLocks((prev) => [...prev, next]);
-    const ids = [...myIds, id];
-    setMyIds(ids);
-    try {
-      localStorage.setItem(MY_LOCKS_KEY, JSON.stringify(ids));
-    } catch {
-      // 저장에 실패해도 이번 화면에서는 보인다
-    }
-    const [placedNew] = layoutLocks([{ ...next, mine: true }]);
-    focusOn(placedNew.x, placedNew.y, READ_SCALE);
-    setSelected(id);
-  };
+  const rememberMyLock = useCallback((id: string) => {
+    setMyIds((prev) => {
+      const next = [...prev, id];
+      try {
+        localStorage.setItem(MY_LOCKS_KEY, JSON.stringify(next));
+      } catch {
+        // 저장에 실패해도 이번 화면에서는 보인다
+      }
+      return next;
+    });
+  }, []);
+
+  /** 결제가 확인된 뒤 서버에 자물쇠를 등록한다 */
+  const registerLock = useCallback(
+    async (params: { paymentId: string; merchantUid: string | null; draft: LockDraft }) => {
+      setBusy(true);
+      setNotice(null);
+      try {
+        let ownerKey = "";
+        try {
+          ownerKey = localStorage.getItem(OWNER_KEY) ?? "";
+          if (!ownerKey) {
+            ownerKey = crypto.randomUUID();
+            localStorage.setItem(OWNER_KEY, ownerKey);
+          }
+        } catch {
+          ownerKey = `tmp-${Date.now().toString(36)}`;
+        }
+
+        const res = await fetch("/api/locks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paymentId: params.paymentId,
+            merchant_uid: params.merchantUid,
+            tier: params.draft.tier,
+            color: params.draft.color,
+            displayName: params.draft.displayName,
+            wish: params.draft.wish,
+            ownerKey,
+            platform: "web",
+          }),
+        });
+        const json = (await res.json()) as { success?: boolean; message?: string; lock?: { id: string } };
+
+        if (!res.ok || !json.success || !json.lock) {
+          setNotice(json.message || "자물쇠를 걸지 못했습니다. 고객센터에 문의해 주세요.");
+          return;
+        }
+
+        clearLockDraft();
+        rememberMyLock(json.lock.id);
+        await loadLocks();
+        setSelected(json.lock.id);
+        setNotice("자물쇠를 걸었습니다. 이제 사라지지 않습니다.");
+      } catch {
+        setNotice("자물쇠를 거는 중 오류가 발생했습니다. 결제가 되었다면 고객센터에 문의해 주세요.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [loadLocks, rememberMyLock],
+  );
+
+  /** 모바일은 결제창으로 이동했다 돌아오므로, 주소에 남은 결제 식별자로 마무리한다 */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const returnId = extractPaymentReturnId(params);
+    if (!returnId) return;
+    const draft = readLockDraft();
+    window.history.replaceState({}, "", window.location.pathname);
+    if (!draft) return;
+    void registerLock({ paymentId: returnId, merchantUid: null, draft });
+  }, [registerLock]);
 
   /** +, − 버튼은 화면 한가운데를 기준으로 확대·축소한다 */
   const rectCenter = () => {
@@ -356,32 +437,25 @@ export default function LockWallPage() {
           </div>
         ) : null}
 
-        <div className="mt-3 rounded-2xl border border-white/10 bg-black/30 p-4">
-          <p className="text-xs font-bold text-amber-300/90">자물쇠 걸기 (미리보기 — 결제 없음)</p>
-          <div className="mt-2 grid gap-2 sm:grid-cols-3">
-            {(Object.keys(LOCK_TIERS) as LockTier[]).map((tier) => {
-              const t = LOCK_TIERS[tier];
-              return (
-                <button
-                  key={tier}
-                  type="button"
-                  onClick={() => hangDemoLock(tier)}
-                  className="rounded-xl border border-white/15 bg-white/5 px-3 py-3 text-left transition hover:border-amber-400/50 hover:bg-amber-500/10"
-                >
-                  <p className="text-sm font-bold text-slate-100">{t.label}</p>
-                  <p className="text-[11px] text-amber-300/90">{t.priceWon.toLocaleString()}원</p>
-                  <p className="mt-1 text-[10px] leading-relaxed text-white/45">{t.desc}</p>
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-[10px] leading-relaxed text-white/35">
-            지금은 화면 확인용입니다. 누르면 예시 자물쇠가 걸리고 이 기기에만 저장됩니다. 실제 결제와 보관은 다음 단계에서 붙입니다.
+        {notice ? (
+          <p className="mt-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-100">
+            {notice}
           </p>
-          <Link href="/tools?tab=altar" className="mt-3 inline-block text-[11px] text-amber-300/70 underline underline-offset-2">
-            기적의 제단으로 가기
-          </Link>
+        ) : null}
+
+        <div className="mt-3">
+          <LockComposer isApp={isApp} busy={busy} onPaid={(p) => registerLock(p)} />
         </div>
+
+        <p className="mt-3 text-[10px] leading-relaxed text-white/30">
+          {usingDemo
+            ? "아직 걸린 자물쇠가 없어 예시 자물쇠를 보여주고 있습니다. 첫 자물쇠가 걸리면 실제 자물쇠만 표시됩니다."
+            : "걸린 자물쇠는 지워지지 않습니다."}
+        </p>
+
+        <Link href="/tools?tab=altar" className="mt-2 inline-block text-[11px] text-amber-300/70 underline underline-offset-2">
+          기적의 제단으로 가기
+        </Link>
       </div>
     </div>
   );
