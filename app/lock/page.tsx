@@ -515,7 +515,8 @@ export default function LockWallPage() {
                     left: postX,
                     top: WALL.railTopY - 10,
                     width: 12,
-                    height: size.height - WALL.railTopY + 10,
+                    // 난간 줄 수만큼만 내려온다. 벽 바닥까지 뻗으면 자물쇠가 적을 때 기둥만 보인다
+                    height: (size.rows - 1) * WALL.railGapY + 90,
                   }}
                 >
                   {/* 기둥 상하 하이라이트 림 */}
