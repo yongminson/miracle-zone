@@ -33,17 +33,17 @@ export const LOCK_TIERS: Record<
 };
 
 export const LOCK_COLORS = [
-  { value: "#f4b942", label: "금색" },
-  { value: "#e2574c", label: "붉은색" },
-  { value: "#e2749a", label: "분홍색" },
-  { value: "#7aa5e8", label: "하늘색" },
-  { value: "#5ec4a8", label: "청록색" },
-  { value: "#9b7ae0", label: "보라색" },
-  { value: "#8fbf5a", label: "연두색" },
-  { value: "#d9d9de", label: "은색" },
+  { value: "#f5a623", label: "금색" },
+  { value: "#e03e3e", label: "붉은색" },
+  { value: "#e8568e", label: "분홍색" },
+  { value: "#3b82f6", label: "하늘색" },
+  { value: "#10b981", label: "청록색" },
+  { value: "#8b5cf6", label: "보라색" },
+  { value: "#84cc16", label: "연두색" },
+  { value: "#e2e8f0", label: "은색" },
 ];
 
-export const SILVER = "#c3c7cf";
+export const SILVER = "#cbd5e1";
 
 /** 난간 한 줄에 걸리는 자물쇠 수와 간격 */
 export const WALL = {

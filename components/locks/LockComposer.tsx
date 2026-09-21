@@ -91,129 +91,247 @@ export function LockComposer({
 
   if (isApp) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-        <p className="text-xs font-bold text-amber-300/90">자물쇠 걸기</p>
-        <p className="mt-2 text-[11px] leading-relaxed text-white/50">
-          앱에서는 아직 자물쇠를 걸 수 없습니다. 브라우저에서 saju.ymstudio.co.kr/lock 으로 접속해 주세요.
+      <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#0e1424]/90 to-[#070a12]/95 p-5 shadow-[0_16px_36px_rgba(0,0,0,0.65)] backdrop-blur-xl">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-300">
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </span>
+          <p className="text-sm font-bold text-amber-200">소원 자물쇠 걸기</p>
+        </div>
+        <p className="mt-2.5 text-xs leading-relaxed text-slate-400">
+          앱에서는 아직 자물쇠를 걸 수 없습니다. 브라우저에서 <span className="font-medium text-amber-300">saju.ymstudio.co.kr/lock</span> 으로 접속해 주세요.
         </p>
       </div>
     );
   }
 
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-      <p className="text-xs font-bold text-amber-300/90">자물쇠 걸기</p>
-      <p className="mt-1 text-[11px] text-white/40">한 번 걸면 지워지지 않습니다.</p>
+  const selectedColorObj = LOCK_COLORS.find((c) => c.value === color) ?? LOCK_COLORS[0];
 
-      <label className="mt-3 block">
-        <span className="mb-1.5 block text-[11px] text-white/60">소원</span>
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-b from-[#0d1322]/90 to-[#060810]/95 p-4 shadow-[0_16px_36px_rgba(0,0,0,0.65)] backdrop-blur-xl sm:p-5">
+      {/* 배경 은은한 앰버 빛무리 */}
+      <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-amber-500/10 blur-2xl" />
+
+      {/* 헤더 */}
+      <div className="flex items-center justify-between border-b border-white/[0.08] pb-3.5">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-amber-400/30 bg-amber-500/15 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </span>
+          <div>
+            <h2 className="text-sm font-bold tracking-tight text-amber-200">소원 자물쇠 봉인</h2>
+            <p className="text-[11px] text-slate-400">한 번 걸린 소원은 영원히 이곳에 남습니다</p>
+          </div>
+        </div>
+        <span className="rounded-full border border-amber-400/25 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-medium text-amber-300/90">
+          영구 보존
+        </span>
+      </div>
+
+      {/* 소원 입력 */}
+      <div className="mt-4">
+        <div className="mb-1.5 flex items-center justify-between">
+          <label htmlFor="wish-input" className="text-xs font-medium text-slate-300">
+            소원 <span className="text-amber-400/80">*</span>
+          </label>
+          <span className="text-[10px] tabular-nums text-slate-500">
+            {wish.length} / {WISH_MAX}
+          </span>
+        </div>
         <textarea
+          id="wish-input"
           value={wish}
           onChange={(e) => setWish(e.target.value.slice(0, WISH_MAX))}
           rows={3}
-          placeholder="이 자물쇠에 남길 소원을 적어 주세요."
-          className="w-full resize-none rounded-xl border border-white/15 bg-black/40 px-3 py-2.5 text-sm text-slate-100 outline-none placeholder:text-white/25 focus:border-amber-400/50"
+          placeholder="이 자물쇠에 남길 간절한 소원을 적어 주세요."
+          className="w-full resize-none rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-sm leading-relaxed text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-amber-400/60 focus:bg-black/60 focus:ring-1 focus:ring-amber-400/30"
         />
-        <span className="mt-1 block text-right text-[10px] text-white/30">
-          {wish.length} / {WISH_MAX}
-        </span>
-      </label>
+      </div>
 
-      <div className="mt-1">
-        <span className="mb-1.5 block text-[11px] text-white/60">자물쇠에 새길 이름</span>
+      {/* 이름 남기기 / 익명 선택 */}
+      <div className="mt-3.5">
+        <span className="mb-1.5 block text-xs font-medium text-slate-300">자물쇠에 새길 이름</span>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsAnonymous(true)}
-            className={`rounded-full border px-3 py-1.5 text-xs transition ${
-              isAnonymous
-                ? "border-amber-400/60 bg-amber-500/15 text-amber-200"
-                : "border-white/15 bg-white/5 text-white/60"
-            }`}
-          >
-            익명
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsAnonymous(false)}
-            className={`rounded-full border px-3 py-1.5 text-xs transition ${
-              !isAnonymous
-                ? "border-amber-400/60 bg-amber-500/15 text-amber-200"
-                : "border-white/15 bg-white/5 text-white/60"
-            }`}
-          >
-            이름 남기기
-          </button>
+          <div className="inline-flex rounded-xl border border-white/10 bg-black/40 p-1">
+            <button
+              type="button"
+              onClick={() => setIsAnonymous(true)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                isAnonymous
+                  ? "border border-amber-400/40 bg-amber-500/20 text-amber-200 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              익명으로 걸기
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAnonymous(false)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                !isAnonymous
+                  ? "border border-amber-400/40 bg-amber-500/20 text-amber-200 shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              이름 새기기
+            </button>
+          </div>
           {!isAnonymous ? (
             <input
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value.slice(0, 12))}
-              placeholder="이름 (최대 12자)"
-              className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/40 px-3 py-1.5 text-xs text-slate-100 outline-none placeholder:text-white/25 focus:border-amber-400/50"
+              placeholder="새길 이름 (최대 12자)"
+              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-1.5 text-xs text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-amber-400/60 focus:bg-black/60 focus:ring-1 focus:ring-amber-400/30"
             />
           ) : null}
         </div>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        {(Object.keys(LOCK_TIERS) as LockTier[]).map((key) => {
-          const t = LOCK_TIERS[key];
-          const active = tier === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setTier(key)}
-              className={`rounded-xl border px-3 py-3 text-left transition ${
-                active
-                  ? "border-amber-400/60 bg-amber-500/10"
-                  : "border-white/15 bg-white/5 hover:border-amber-400/40"
-              }`}
-            >
-              <p className="text-sm font-bold text-slate-100">{t.label}</p>
-              <p className="text-[11px] text-amber-300/90">{t.priceWon.toLocaleString()}원</p>
-              <p className="mt-1 text-[10px] leading-relaxed text-white/45">{t.desc}</p>
-            </button>
-          );
-        })}
+      {/* 등급 선택 */}
+      <div className="mt-4">
+        <span className="mb-2 block text-xs font-medium text-slate-300">자물쇠 등급</span>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {(Object.keys(LOCK_TIERS) as LockTier[]).map((key) => {
+            const t = LOCK_TIERS[key];
+            const active = tier === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTier(key)}
+                className={`relative rounded-xl border p-3 text-left transition ${
+                  active
+                    ? "border-amber-400/70 bg-gradient-to-b from-amber-500/15 to-amber-900/10 shadow-[0_0_16px_rgba(245,158,11,0.12)] ring-1 ring-amber-400/40"
+                    : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]"
+                }`}
+              >
+                {/* 상단 뱃지 및 아이콘 */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    {key === "basic" && (
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-400/20 text-slate-300">
+                        <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <rect x="4" y="11" width="16" height="10" rx="2" />
+                          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                        </svg>
+                      </span>
+                    )}
+                    {key === "color" && (
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-400/20 text-emerald-300">
+                        <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="12" cy="12" r="6" />
+                        </svg>
+                      </span>
+                    )}
+                    {key === "shine" && (
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
+                        <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2l2.4 6.6L21 11l-5.6 4.4L17 22l-5-4-5 4 1.6-6.6L3 11l6.6-2.4L12 2z" />
+                        </svg>
+                      </span>
+                    )}
+                    <span className="text-xs font-bold text-slate-100">{t.label}</span>
+                  </div>
+                  {active && (
+                    <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-stone-950">
+                      <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
+
+                <p className="mt-1.5 text-xs font-bold text-amber-300">
+                  {t.priceWon.toLocaleString()}원
+                </p>
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{t.desc}</p>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
+      {/* 색상 선택 */}
       {canPickColor ? (
-        <div className="mt-3">
-          <span className="mb-1.5 block text-[11px] text-white/60">색상</span>
-          <div className="flex flex-wrap gap-2">
-            {LOCK_COLORS.map((c) => (
-              <button
-                key={c.value}
-                type="button"
-                onClick={() => setColor(c.value)}
-                aria-label={c.label}
-                className={`h-8 w-8 rounded-full border-2 transition ${
-                  color === c.value ? "border-amber-300 scale-110" : "border-white/20"
-                }`}
-                style={{ background: c.value }}
-              />
-            ))}
+        <div className="mt-4 rounded-xl border border-white/[0.08] bg-black/30 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-300">자물쇠 색상</span>
+            <span className="text-xs font-medium text-amber-300/90">{selectedColorObj.label}</span>
+          </div>
+          <div className="flex flex-wrap gap-2.5">
+            {LOCK_COLORS.map((c) => {
+              const isSelected = color === c.value;
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setColor(c.value)}
+                  aria-label={c.label}
+                  className={`relative h-9 w-9 rounded-full transition-all duration-150 ${
+                    isSelected
+                      ? "scale-110 shadow-[0_0_12px_rgba(245,158,11,0.5)] ring-2 ring-amber-300 ring-offset-2 ring-offset-[#0d1322]"
+                      : "border border-white/25 opacity-80 hover:scale-105 hover:opacity-100"
+                  }`}
+                  style={{
+                    background: `radial-gradient(circle at 35% 35%, #ffffff 0%, ${c.value} 55%, #111111 100%)`,
+                  }}
+                >
+                  {isSelected && (
+                    <span className="absolute inset-0 flex items-center justify-center text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       ) : (
-        <p className="mt-3 text-[10px] text-white/35">기본 자물쇠는 은색으로 걸립니다.</p>
+        <div className="mt-3.5 flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-[11px] text-slate-400">
+          <span className="h-2 w-2 rounded-full bg-slate-400/80" />
+          <span>기본 자물쇠는 단단한 백은빛(은색)으로 영구히 걸립니다.</span>
+        </div>
       )}
 
+      {/* 오류 메시지 */}
       {error ? (
-        <p className="mt-3 rounded-xl border border-red-500/30 bg-red-950/40 px-3 py-2 text-xs text-red-200">
-          {error}
-        </p>
+        <div className="mt-3.5 flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-950/40 px-3.5 py-2.5 text-xs text-red-200">
+          <svg className="h-4 w-4 shrink-0 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{error}</span>
+        </div>
       ) : null}
 
+      {/* 결제 버튼 */}
       <button
         type="button"
         disabled={busy}
         onClick={openPayment}
-        className="mt-4 w-full rounded-2xl bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-400 px-6 py-3.5 text-sm font-bold text-stone-950 transition hover:brightness-105 disabled:opacity-50"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 px-6 py-3.5 text-sm font-bold text-stone-950 shadow-[0_4px_20px_rgba(245,158,11,0.3)] transition hover:brightness-105 active:scale-[0.99] disabled:opacity-50"
       >
-        {busy ? "자물쇠를 거는 중…" : `${price.toLocaleString()}원 결제하고 자물쇠 걸기`}
+        {busy ? (
+          <>
+            <svg className="h-4 w-4 animate-spin text-stone-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            <span>자물쇠를 거는 중…</span>
+          </>
+        ) : (
+          <span>{price.toLocaleString()}원 결제하고 자물쇠 걸기</span>
+        )}
       </button>
 
       <PaymentMethodCheckoutModal

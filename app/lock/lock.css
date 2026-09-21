@@ -1,0 +1,55 @@
+/* 소원 자물쇠 전용 애니메이션 & 시각 효과 */
+
+@keyframes lock-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.9); }
+  50% { opacity: 0.85; transform: scale(1.15); }
+}
+
+@keyframes lock-shine-aura {
+  0%, 100% {
+    opacity: 0.55;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes lock-glint {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2) rotate(45deg);
+  }
+}
+
+@keyframes lock-mine-ring {
+  0%, 100% {
+    opacity: 0.7;
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.6));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.9));
+  }
+}
+
+.animate-lock-twinkle {
+  animation: lock-twinkle 4s ease-in-out infinite;
+}
+
+.animate-lock-shine-aura {
+  animation: lock-shine-aura 3s ease-in-out infinite;
+}
+
+.animate-lock-glint {
+  animation: lock-glint 2.6s ease-in-out infinite;
+}
+
+.animate-lock-mine-ring {
+  animation: lock-mine-ring 2.4s ease-in-out infinite;
+}
