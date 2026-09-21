@@ -26,6 +26,8 @@ import "./lock.css";
 
 const MY_LOCKS_KEY = "myeongun_my_locks_v1";
 const OWNER_KEY = "myeongun_lock_owner_v1";
+/** 결제는 됐는데 등록에 실패한 건을 다음 방문에서 다시 시도하기 위해 남긴다 */
+const PENDING_KEY = "myeongun_lock_pending_v1";
 const MIN_SCALE = 0.35;
 const MAX_SCALE = 3.2;
 const READ_SCALE = 2.2;
@@ -430,6 +432,22 @@ export default function LockWallPage() {
           }
         }
 
+        // 돈은 빠져나갔는데 등록만 실패하는 경우를 대비해 먼저 남겨 둔다
+        try {
+          localStorage.setItem(
+            PENDING_KEY,
+            JSON.stringify({
+              paymentId: params.paymentId,
+              purchaseToken: params.purchaseToken ?? null,
+              platform: params.platform ?? "web",
+              draft: params.draft,
+              savedAt: new Date().toISOString(),
+            }),
+          );
+        } catch {
+          // 저장에 실패해도 이번 시도는 그대로 진행한다
+        }
+
         const res = await fetch("/api/locks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -454,6 +472,11 @@ export default function LockWallPage() {
         }
 
         clearLockDraft();
+        try {
+          localStorage.removeItem(PENDING_KEY);
+        } catch {
+          // 다음 시도에서 같은 결제로 등록되면 서버가 기존 자물쇠를 돌려준다
+        }
         rememberMyLock(json.lock.id);
         await loadLocks();
         setSelected(json.lock.id);
@@ -466,6 +489,43 @@ export default function LockWallPage() {
     },
     [loadLocks, rememberMyLock, user],
   );
+
+  /** 지난번에 결제까지 됐는데 등록이 안 끝난 건이 있으면 다시 시도한다 */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let pending: {
+      paymentId?: string;
+      purchaseToken?: string | null;
+      platform?: "web" | "app";
+      draft?: LockDraft;
+      savedAt?: string;
+    } | null = null;
+    try {
+      const raw = localStorage.getItem(PENDING_KEY);
+      pending = raw ? JSON.parse(raw) : null;
+    } catch {
+      return;
+    }
+    if (!pending?.paymentId || !pending.draft) return;
+
+    // 오래된 건은 포기한다. 계속 실패하는 건으로 매번 오류를 띄우지 않기 위해서다
+    const savedAt = pending.savedAt ? new Date(pending.savedAt).getTime() : 0;
+    if (savedAt && Date.now() - savedAt > 3 * 24 * 60 * 60 * 1000) {
+      try {
+        localStorage.removeItem(PENDING_KEY);
+      } catch {
+        // 지우지 못해도 다음 결제 때 덮어써진다
+      }
+      return;
+    }
+    void registerLock({
+      paymentId: pending.paymentId,
+      merchantUid: null,
+      purchaseToken: pending.purchaseToken ?? undefined,
+      platform: pending.platform ?? "web",
+      draft: pending.draft,
+    });
+  }, [registerLock]);
 
   /** 모바일은 결제창으로 이동했다 돌아오므로, 주소에 남은 결제 식별자로 마무리한다 */
   useEffect(() => {
