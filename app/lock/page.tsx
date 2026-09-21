@@ -169,6 +169,7 @@ export default function LockWallPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [isApp, setIsApp] = useState(false);
+  const [user, setUser] = useState<{ id: string; name: string } | null>(null);
 
   const dragRef = useRef<{ x: number; y: number; tx: number; ty: number; moved: boolean } | null>(null);
   const hasFittedRef = useRef(false);
@@ -327,6 +328,70 @@ export default function LockWallPage() {
     setSelected(mine.id);
   };
 
+  /** 로그인했으면 계정에 묶인 자물쇠 id를 서버에서 받아 온다(기기가 바뀌어도 찾게) */
+  const syncMyLocksFromAccount = useCallback(async () => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+    try {
+      const res = await fetch("/api/locks/mine", { headers: { Authorization: `Bearer ${token}` } });
+      const json = (await res.json()) as { success?: boolean; ids?: string[] };
+      if (!json.success || !json.ids?.length) return;
+      setMyIds((prev) => {
+        const merged = [...new Set([...prev, ...json.ids!])];
+        try {
+          localStorage.setItem(MY_LOCKS_KEY, JSON.stringify(merged));
+        } catch {
+          // 저장 실패해도 이번 화면에서는 보인다
+        }
+        return merged;
+      });
+    } catch {
+      // 목록을 못 받아도 이 기기에 저장된 자물쇠는 그대로 보인다
+    }
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const apply = (session: { user?: { id: string; user_metadata?: Record<string, unknown> } } | null) => {
+      if (!alive) return;
+      const u = session?.user;
+      setUser(
+        u
+          ? {
+              id: u.id,
+              name:
+                (typeof u.user_metadata?.name === "string" && u.user_metadata.name) ||
+                (typeof u.user_metadata?.full_name === "string" && u.user_metadata.full_name) ||
+                "회원",
+            }
+          : null,
+      );
+      if (u) void syncMyLocksFromAccount();
+    };
+
+    void supabase.auth.getSession().then(({ data }) => apply(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => apply(session));
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [syncMyLocksFromAccount]);
+
+  const handleKakaoLogin = useCallback(async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: "kakao",
+      options: {
+        scopes: "profile_nickname profile_image",
+        redirectTo: `${window.location.origin}/lock`,
+      },
+    });
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
+
   const rememberMyLock = useCallback((id: string) => {
     setMyIds((prev) => {
       const next = [...prev, id];
@@ -345,15 +410,18 @@ export default function LockWallPage() {
       setBusy(true);
       setNotice(null);
       try {
-        let ownerKey = "";
-        try {
-          ownerKey = localStorage.getItem(OWNER_KEY) ?? "";
-          if (!ownerKey) {
-            ownerKey = crypto.randomUUID();
-            localStorage.setItem(OWNER_KEY, ownerKey);
+        // 로그인했으면 계정을 소유자로 쓴다. 그래야 기기를 바꿔도 내 자물쇠를 찾는다
+        let ownerKey = user?.id ?? "";
+        if (!ownerKey) {
+          try {
+            ownerKey = localStorage.getItem(OWNER_KEY) ?? "";
+            if (!ownerKey) {
+              ownerKey = crypto.randomUUID();
+              localStorage.setItem(OWNER_KEY, ownerKey);
+            }
+          } catch {
+            ownerKey = `tmp-${Date.now().toString(36)}`;
           }
-        } catch {
-          ownerKey = `tmp-${Date.now().toString(36)}`;
         }
 
         const res = await fetch("/api/locks", {
@@ -367,6 +435,7 @@ export default function LockWallPage() {
             displayName: params.draft.displayName,
             wish: params.draft.wish,
             ownerKey,
+            userId: user?.id ?? null,
             platform: "web",
           }),
         });
@@ -388,7 +457,7 @@ export default function LockWallPage() {
         setBusy(false);
       }
     },
-    [loadLocks, rememberMyLock],
+    [loadLocks, rememberMyLock, user],
   );
 
   /** 모바일은 결제창으로 이동했다 돌아오므로, 주소에 남은 결제 식별자로 마무리한다 */
@@ -468,6 +537,37 @@ export default function LockWallPage() {
         <p className="mt-1.5 text-xs leading-relaxed text-slate-400 sm:text-[13px]">
           한 번 걸면 영원히 사라지지 않습니다. 난간을 끌어 움직이고, 자물쇠를 누르면 소원을 읽을 수 있습니다.
         </p>
+
+        {/* 로그인하면 기기를 바꿔도 내 자물쇠를 찾을 수 있다 */}
+        <div className="mt-2.5 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+          {user ? (
+            <>
+              <span className="text-[11px] text-slate-300">
+                <strong className="text-amber-200">{user.name}</strong> 님으로 로그인됨 · 어느 기기에서든 내 자물쇠를 찾을 수 있습니다
+              </span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="ml-auto text-[11px] text-white/35 transition hover:text-white/70"
+              >
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-slate-400">
+                로그인하지 않으면 이 기기에서만 내 자물쇠를 찾을 수 있습니다.
+              </span>
+              <button
+                type="button"
+                onClick={handleKakaoLogin}
+                className="shrink-0 rounded-lg bg-[#FEE500] px-3 py-1.5 text-[11px] font-bold text-black transition hover:brightness-95 active:scale-95"
+              >
+                카카오로 로그인
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* 자물쇠 벽 뷰포트 영역 */}
