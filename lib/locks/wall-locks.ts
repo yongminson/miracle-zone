@@ -3,7 +3,9 @@
  *
  * 기적의 제단(흘러가는 소원)과 달리 자물쇠는 영구히 남는 것이 핵심이다.
  * 그래서 유효기간 개념이 없고, 결제 등급 차이는 색과 반짝임뿐이다.
- * 아직 DB가 없는 단계라 화면 확인용 예시 자물쇠를 이 파일에서 만든다.
+ *
+ * 자리는 걸린 순서대로 왼쪽부터 채운다. 순서는 나중에 바뀌지 않으므로
+ * 한 번 걸린 자물쇠는 언제 다시 와도 같은 자리에 있고, 벽은 빈 곳 없이 찬다.
  */
 
 export type LockTier = "basic" | "color" | "shine";
@@ -43,20 +45,28 @@ export const LOCK_COLORS = [
 
 export const SILVER = "#c3c7cf";
 
-/** 자물쇠가 걸리는 난간의 간격과 벽 크기 */
+/** 난간 한 줄에 걸리는 자물쇠 수와 간격 */
 export const WALL = {
-  width: 2400,
-  height: 1500,
-  railGapY: 250,
-  railTopY: 190,
+  cols: 12,
   slotGapX: 96,
+  railGapY: 230,
+  railTopY: 170,
   marginX: 80,
+  marginBottom: 90,
 };
 
-export const RAIL_COUNT = Math.floor((WALL.height - WALL.railTopY) / WALL.railGapY) + 1;
-export const SLOTS_PER_RAIL = Math.floor((WALL.width - WALL.marginX * 2) / WALL.slotGapX) + 1;
+/** 걸린 자물쇠 수에 맞춰 벽 크기를 정한다. 적게 걸렸을 때 휑해 보이지 않게 한다 */
+export function wallSize(count: number): { width: number; height: number; rows: number } {
+  const rows = Math.max(1, Math.ceil(Math.max(count, 1) / WALL.cols));
+  return {
+    // 걸린 수보다 벽을 넓게 만들지 않는다. 한 개만 걸렸을 때 허허벌판이 되지 않게.
+    width: WALL.marginX * 2 + Math.min(Math.max(count, 1), WALL.cols) * WALL.slotGapX,
+    height: WALL.railTopY + rows * WALL.railGapY + WALL.marginBottom,
+    rows,
+  };
+}
 
-/** 문자열을 32비트 정수로 — 같은 id면 항상 같은 자리에 걸리게 한다 */
+/** 문자열을 32비트 정수로 — 같은 자물쇠는 늘 같은 기울기·흔들림을 갖는다 */
 export function hashId(id: string): number {
   let h = 2166136261;
   for (let i = 0; i < id.length; i += 1) {
@@ -68,32 +78,28 @@ export function hashId(id: string): number {
 
 export type LockPlacement = { x: number; y: number; rail: number; tilt: number };
 
-/**
- * 자물쇠를 난간 위 자리에 배치한다. 한 자리에 여러 개가 겹치면 조금씩 밀어
- * 실제 자물쇠 벽처럼 덧걸린 모양이 되게 한다.
- */
+/** 걸린 순서대로 왼쪽부터 채운다. 격자처럼 보이지 않게 조금씩 흔들어 놓는다 */
 export function layoutLocks(locks: WallLock[]): (WallLock & LockPlacement)[] {
-  const used = new Map<string, number>();
-  return locks.map((lock) => {
+  const ordered = [...locks].sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
+
+  return ordered.map((lock, index) => {
     const h = hashId(lock.id);
-    const rail = h % RAIL_COUNT;
-    const slot = Math.floor(h / RAIL_COUNT) % SLOTS_PER_RAIL;
-    const key = `${rail}:${slot}`;
-    const stack = used.get(key) ?? 0;
-    used.set(key, stack + 1);
+    const rail = Math.floor(index / WALL.cols);
+    const slot = index % WALL.cols;
 
     return {
       ...lock,
       rail,
-      x: WALL.marginX + slot * WALL.slotGapX + ((h >> 7) % 17) - 8 + stack * 11,
-      y: WALL.railTopY + rail * WALL.railGapY + ((h >> 11) % 9) + stack * 6,
+      x: WALL.marginX + slot * WALL.slotGapX + (h % 15) - 7,
+      y: WALL.railTopY + rail * WALL.railGapY + ((h >> 5) % 11),
       tilt: (((h >> 13) % 17) - 8) / 2,
     };
   });
 }
 
-export function railYs(): number[] {
-  return Array.from({ length: RAIL_COUNT }, (_, i) => WALL.railTopY + i * WALL.railGapY);
+export function railYs(count: number): number[] {
+  const { rows } = wallSize(count);
+  return Array.from({ length: rows }, (_, i) => WALL.railTopY + i * WALL.railGapY);
 }
 
 const DEMO_WISHES = [
@@ -117,8 +123,12 @@ const DEMO_WISHES = [
 
 const DEMO_NAMES = ["", "", "민수", "지영", "혜원", "", "준호", "소라", "", "우리가족", "은영", ""];
 
-/** 화면 확인용 예시 자물쇠 — DB 연결 전까지만 쓴다 */
-export function createDemoLocks(count = 260): WallLock[] {
+/**
+ * 화면 확인용 예시 자물쇠.
+ * 실제 자물쇠가 하나라도 걸리면 쓰지 않는다 — 돈을 내고 거는 벽에
+ * 가짜를 섞으면 확대해서 읽는 순간 신뢰가 무너지기 때문이다.
+ */
+export function createDemoLocks(count = 48): WallLock[] {
   const locks: WallLock[] = [];
   for (let i = 0; i < count; i += 1) {
     const h = hashId(`demo-${i}`);
@@ -129,7 +139,7 @@ export function createDemoLocks(count = 260): WallLock[] {
       color: LOCK_COLORS[h % LOCK_COLORS.length].value,
       name: DEMO_NAMES[h % DEMO_NAMES.length],
       wish: DEMO_WISHES[h % DEMO_WISHES.length],
-      createdAt: new Date(Date.now() - (h % 120) * 86400000).toISOString(),
+      createdAt: new Date(Date.now() - (count - i) * 3600000).toISOString(),
     });
   }
   return locks;

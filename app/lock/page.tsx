@@ -6,10 +6,10 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import {
   LOCK_TIERS,
   SILVER,
-  WALL,
   createDemoLocks,
   layoutLocks,
   railYs,
+  wallSize,
   type WallLock,
 } from "@/lib/locks/wall-locks";
 import { supabase } from "@/app/lib/supabase";
@@ -67,6 +67,8 @@ export default function LockWallPage() {
   const [isApp, setIsApp] = useState(false);
 
   const dragRef = useRef<{ x: number; y: number; tx: number; ty: number; moved: boolean } | null>(null);
+  const hasFittedRef = useRef(false);
+  const userMovedRef = useRef(false);
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
   const pinchRef = useRef<{ dist: number; scale: number } | null>(null);
 
@@ -104,6 +106,7 @@ export default function LockWallPage() {
   }, [locks, myIds]);
 
   const selectedLock = useMemo(() => placed.find((l) => l.id === selected) ?? null, [placed, selected]);
+  const size = useMemo(() => wallSize(locks.length), [locks.length]);
 
   /** 벽 위의 한 점을 화면 가운데로 가져온다 */
   const focusOn = useCallback((wx: number, wy: number, nextScale: number) => {
@@ -111,21 +114,43 @@ export default function LockWallPage() {
     if (!el) return;
     const s = clamp(nextScale, MIN_SCALE, MAX_SCALE);
     setScale(s);
-    setTx(clampTranslate(el.clientWidth / 2 - wx * s, el.clientWidth, WALL.width * s));
-    setTy(clampTranslate(el.clientHeight / 2 - wy * s, el.clientHeight, WALL.height * s));
-  }, []);
+    setTx(clampTranslate(el.clientWidth / 2 - wx * s, el.clientWidth, size.width * s));
+    setTy(clampTranslate(el.clientHeight / 2 - wy * s, el.clientHeight, size.height * s));
+  }, [size]);
 
   const fitAll = useCallback(() => {
     const el = viewportRef.current;
-    if (!el) return;
-    const s = clamp(Math.min(el.clientWidth / WALL.width, el.clientHeight / WALL.height), MIN_SCALE, MAX_SCALE);
+    // 첫 그리기 직후에는 폭이 아직 0이라, 그때 맞추면 벽이 화면 밖으로 나간다
+    if (!el || el.clientWidth === 0 || el.clientHeight === 0) return;
+    const s = clamp(
+      Math.min(el.clientWidth / size.width, el.clientHeight / size.height),
+      MIN_SCALE,
+      MAX_SCALE,
+    );
     setScale(s);
-    setTx((el.clientWidth - WALL.width * s) / 2);
-    setTy((el.clientHeight - WALL.height * s) / 2);
-  }, []);
+    setTx((el.clientWidth - size.width * s) / 2);
+    setTy((el.clientHeight - size.height * s) / 2);
+  }, [size]);
 
+  /** 화면 크기가 실제로 잡힌 뒤에 한 번 맞춘다 */
   useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+
     fitAll();
+    const observer = new ResizeObserver(() => {
+      if (hasFittedRef.current) return;
+      if (el.clientWidth === 0 || el.clientHeight === 0) return;
+      hasFittedRef.current = true;
+      fitAll();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fitAll]);
+
+  /** 걸린 자물쇠가 늘어 벽이 커지면, 아직 직접 움직이기 전일 때만 다시 맞춘다 */
+  useEffect(() => {
+    if (!userMovedRef.current) fitAll();
   }, [fitAll]);
 
   const zoomAt = useCallback(
@@ -137,11 +162,11 @@ export default function LockWallPage() {
       const py = clientY - rect.top;
       const s = clamp(nextScale, MIN_SCALE, MAX_SCALE);
       // 가리키던 벽 위의 점이 그대로 그 자리에 남도록 이동값을 다시 계산한다
-      setTx(clampTranslate(px - ((px - tx) / scale) * s, el.clientWidth, WALL.width * s));
-      setTy(clampTranslate(py - ((py - ty) / scale) * s, el.clientHeight, WALL.height * s));
+      setTx(clampTranslate(px - ((px - tx) / scale) * s, el.clientWidth, size.width * s));
+      setTy(clampTranslate(py - ((py - ty) / scale) * s, el.clientHeight, size.height * s));
       setScale(s);
     },
-    [scale, tx, ty],
+    [scale, size, tx, ty],
   );
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -153,6 +178,7 @@ export default function LockWallPage() {
       return;
     }
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    userMovedRef.current = true;
     dragRef.current = { x: e.clientX, y: e.clientY, tx, ty, moved: false };
   };
 
@@ -174,8 +200,8 @@ export default function LockWallPage() {
     const dx = e.clientX - d.x;
     const dy = e.clientY - d.y;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) d.moved = true;
-    setTx(clampTranslate(d.tx + dx, el.clientWidth, WALL.width * scale));
-    setTy(clampTranslate(d.ty + dy, el.clientHeight, WALL.height * scale));
+    setTx(clampTranslate(d.tx + dx, el.clientWidth, size.width * scale));
+    setTy(clampTranslate(d.ty + dy, el.clientHeight, size.height * scale));
   };
 
   const endPointer = (e: React.PointerEvent) => {
@@ -289,7 +315,7 @@ export default function LockWallPage() {
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h1 className="font-serif text-lg font-bold text-amber-300">소원 자물쇠</h1>
           <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[10px] text-amber-200/80">
-            준비 중 · 미리보기
+            {usingDemo ? "준비 중 · 예시" : `걸린 자물쇠 ${locks.length}개`}
           </span>
         </div>
         <p className="mt-1 text-xs leading-relaxed text-slate-400">
@@ -311,16 +337,16 @@ export default function LockWallPage() {
           <div
             className="absolute left-0 top-0 origin-top-left"
             style={{
-              width: WALL.width,
-              height: WALL.height,
+              width: size.width,
+              height: size.height,
               transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
             }}
           >
-            {railYs().map((y) => (
+            {railYs(locks.length).map((y) => (
               <div
                 key={y}
                 className="absolute rounded-full bg-gradient-to-b from-slate-500/70 via-slate-400/50 to-slate-600/60"
-                style={{ left: 40, top: y, width: WALL.width - 80, height: 7 }}
+                style={{ left: 40, top: y, width: size.width - 80, height: 7 }}
               />
             ))}
 
