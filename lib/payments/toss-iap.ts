@@ -15,6 +15,20 @@ export const TOSS_IAP_PRODUCTS = {
     amountWon: 2_200,
     skuEnvironmentVariable: "TOSS_IAP_ALTAR_10D_SKU",
   },
+  // 소원 자물쇠는 /api/toss/locks/grant 에서 처리한다.
+  // 기존 /api/toss/iap/grant 는 이 상품들을 받지 않는다.
+  lock_basic: {
+    amountWon: 1_000,
+    skuEnvironmentVariable: "TOSS_IAP_LOCK_BASIC_SKU",
+  },
+  lock_color: {
+    amountWon: 2_000,
+    skuEnvironmentVariable: "TOSS_IAP_LOCK_COLOR_SKU",
+  },
+  lock_shine: {
+    amountWon: 3_000,
+    skuEnvironmentVariable: "TOSS_IAP_LOCK_SHINE_SKU",
+  },
 } as const;
 
 export type TossIapProductKey = keyof typeof TOSS_IAP_PRODUCTS;

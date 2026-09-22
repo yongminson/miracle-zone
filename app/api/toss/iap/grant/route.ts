@@ -40,6 +40,10 @@ export async function POST(req: Request) {
     if (!isTossIapProductKey(productKey)) {
       return failure("지원하지 않는 상품입니다.", 400);
     }
+    // 소원 자물쇠는 이 라우트가 지급할 수 없다. 전용 경로로만 처리한다.
+    if (productKey.startsWith("lock_")) {
+      return failure("이 상품은 이 경로에서 지급할 수 없습니다.", 400);
+    }
     if (!TOSS_USER_KEY_PATTERN.test(tossUserKey)) {
       return failure("토스 사용자 인증 정보가 올바르지 않습니다.", 400);
     }
