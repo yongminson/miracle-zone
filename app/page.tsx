@@ -77,6 +77,7 @@ export default function Home() {
                 { href: "/tools?tab=altar", emoji: "🕯️", title: "기적의 제단", desc: "소원을 우주에 띄우는 에너지 집중", badge: "무료~", badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30" },
                 { href: "/tools?tab=lotto", emoji: "🎰", title: "행운의 로또", desc: "AI 통계 기반 행운 번호 추출", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/vip", emoji: "👑", title: "사주 인사이트", desc: "입력 정보 기반 해설 + PDF 리포트 + 실천 가이드", badge: "4,400원", badgeColor: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
+                { href: "/lock", emoji: "🔐", title: "소원 자물쇠", desc: "소원을 적은 자물쇠를 난간에 겁니다 · 영구 보관", badge: "1,000원~", badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
               ].map((menu) => (
                 <Link
                   key={menu.href}

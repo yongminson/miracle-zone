@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-// 준비 중인 화면이라 검색에 잡히지 않게 한다. 공개할 때 이 설정을 지운다.
 export const metadata: Metadata = {
-  title: "소원 자물쇠 (준비 중)",
-  robots: { index: false, follow: false },
+  title: "소원 자물쇠 | 명운",
+  description:
+    "소원을 적은 자물쇠를 난간에 겁니다. 한 번 걸면 사라지지 않고 영구히 보관됩니다.",
 };
 
 export default function LockLayout({ children }: { children: React.ReactNode }) {

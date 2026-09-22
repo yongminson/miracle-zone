@@ -25,6 +25,7 @@ import {
   Star,  // 🚀 띠별 운세 아이콘
   Hand,  // 🚀 손금 분석 아이콘
   Crown, // 사주 인사이트(별도 페이지) 메뉴 아이콘
+  KeyRound, // 소원 자물쇠(별도 페이지) 메뉴 아이콘
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -160,7 +161,7 @@ function AdminDashboard() {
 }
 
 // 🚀 mbti와 match(궁합) 탭 추가
-type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match" | "zodiac" | "palmistry" | "vip";
+type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match" | "zodiac" | "palmistry" | "vip" | "lock";
 
 async function captureAndShareElement(
   target: HTMLElement | null,
@@ -291,6 +292,7 @@ const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean; href
   { id: "dream",   label: "꿈 해몽",      icon: BookOpen, isReady: true },
   { id: "lotto",   label: "행운의 로또",  icon: Trophy,   isReady: true },
   { id: "altar",   label: "기적의 제단",  icon: Flame,    isReady: true },
+  { id: "lock",    label: "소원 자물쇠", icon: KeyRound, isReady: true, href: "/lock" },
 ];
 
 const BIRTH_TIME_OPTIONS = [
@@ -6830,7 +6832,9 @@ export default function Home() {
                 onClick={(e) => {
                   if (!tab.isReady) return;
                   if (tab.href) {
-                    logEvent("vip_link_click", { from: "tools_tab" });
+                    logEvent(tab.id === "lock" ? "lock_link_click" : "vip_link_click", {
+                      from: "tools_tab",
+                    });
                     router.push(tab.href);
                     return;
                   }
