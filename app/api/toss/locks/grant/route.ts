@@ -18,6 +18,16 @@ const ALLOWED_COLORS = new Set(LOCK_COLORS.map((c) => c.value));
 const WISH_MAX = 300;
 const NAME_MAX = 12;
 
+/**
+ * 토스 판매가. 토스는 공급가에 부가세 10%를 더한 금액이 실제 판매가라
+ * 웹·앱의 1,000 / 2,000 / 3,000원과 다르다. 유저가 낸 금액을 그대로 기록한다.
+ */
+const TOSS_PRICE_WON: Record<LockTier, number> = {
+  basic: 990,
+  color: 1_980,
+  shine: 2_970,
+};
+
 /** 등급 ↔ 토스 상품 키 */
 const TIER_TO_TOSS_PRODUCT: Record<LockTier, TossIapProductKey> = {
   basic: "lock_basic",
@@ -108,7 +118,7 @@ export async function POST(req: Request) {
         owner_key: tossUserKey,
         user_id: null,
         payment_ref: paymentRef,
-        amount: LOCK_TIERS[tier].priceWon,
+        amount: TOSS_PRICE_WON[tier],
         platform: "toss",
       })
       .select("id,tier,color,display_name,wish,created_at")
