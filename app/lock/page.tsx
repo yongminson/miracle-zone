@@ -394,6 +394,75 @@ export default function LockWallPage() {
     await supabase.auth.signOut();
   }, []);
 
+  /** 링크를 공유한다. 공유 창이 없으면 주소를 복사한다 */
+  const shareLock = useCallback(async (lockId: string, wish: string) => {
+    const url = `${window.location.origin}/lock?id=${lockId}`;
+    const text = `소원 자물쇠에 이 소원을 걸었습니다.\n"${wish.slice(0, 40)}${wish.length > 40 ? "…" : ""}"`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "명운 소원 자물쇠", text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setNotice("링크를 복사했습니다. 붙여넣어 공유해 보세요.");
+    } catch {
+      // 사용자가 공유를 취소한 경우도 여기로 온다 — 알리지 않는다
+    }
+  }, []);
+
+  /** 본인이 건 자물쇠를 내린다 */
+  const removeLock = useCallback(
+    async (lockId: string) => {
+      if (!window.confirm("이 자물쇠를 내릴까요?\n한 번 내리면 되돌릴 수 없고, 결제도 환불되지 않습니다.")) {
+        return;
+      }
+      setBusy(true);
+      setNotice(null);
+      try {
+        let ownerKey = "";
+        try {
+          ownerKey = localStorage.getItem(OWNER_KEY) ?? "";
+        } catch {
+          ownerKey = "";
+        }
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+
+        const res = await fetch("/api/locks/remove", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ lockId, ownerKey: ownerKey || user?.id || "" }),
+        });
+        const json = (await res.json()) as { success?: boolean; message?: string };
+        if (!res.ok || !json.success) {
+          setNotice(json.message || "자물쇠를 내리지 못했습니다.");
+          return;
+        }
+
+        setMyIds((prev) => {
+          const next = prev.filter((id) => id !== lockId);
+          try {
+            localStorage.setItem(MY_LOCKS_KEY, JSON.stringify(next));
+          } catch {
+            // 저장 실패해도 화면은 갱신된다
+          }
+          return next;
+        });
+        setSelected(null);
+        await loadLocks();
+        setNotice("자물쇠를 내렸습니다.");
+      } catch {
+        setNotice("자물쇠를 내리는 중 오류가 발생했습니다.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [loadLocks, user],
+  );
+
   const rememberMyLock = useCallback((id: string) => {
     setMyIds((prev) => {
       const next = [...prev, id];
@@ -489,6 +558,20 @@ export default function LockWallPage() {
     },
     [loadLocks, rememberMyLock, user],
   );
+
+  /** 공유 링크(/lock?id=...)로 들어오면 그 자물쇠를 찾아 보여준다 */
+  const sharedHandledRef = useRef(false);
+  useEffect(() => {
+    if (sharedHandledRef.current || placed.length === 0) return;
+    const sharedId = new URLSearchParams(window.location.search).get("id");
+    if (!sharedId) return;
+    const target = placed.find((l) => l.id === sharedId);
+    if (!target) return;
+    sharedHandledRef.current = true;
+    userMovedRef.current = true;
+    setSelected(target.id);
+    focusOn(target.x, target.y, READ_SCALE);
+  }, [placed, focusOn]);
 
   /** 지난번에 결제까지 됐는데 등록이 안 끝난 건이 있으면 다시 시도한다 */
   useEffect(() => {
@@ -871,6 +954,26 @@ export default function LockWallPage() {
                 </span>
                 <span className="text-slate-400">소원 자물쇠 난간</span>
               </div>
+            </div>
+
+            <div className="relative mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void shareLock(selectedLock.id, selectedLock.wish)}
+                className="flex-1 rounded-xl border border-amber-400/40 bg-amber-500/10 px-3 py-2.5 text-xs font-medium text-amber-200 transition hover:bg-amber-500/20"
+              >
+                이 자물쇠 공유하기
+              </button>
+              {selectedLock.mine ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void removeLock(selectedLock.id)}
+                  className="rounded-xl border border-white/15 px-3 py-2.5 text-xs text-white/45 transition hover:border-red-400/40 hover:text-red-300 disabled:opacity-50"
+                >
+                  내리기
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}
