@@ -74,14 +74,14 @@ export function DailyMoodTracker({ className }: { className?: string }) {
   const yesterdayRecord = records ? getRecord(shiftDateKey(today, -1), records) : null;
 
   /** 오늘 기록을 남기면 출석으로 친다. 날짜는 서버가 한국 기준으로 정한다 */
-  const sendCheckin = useCallback(async () => {
+  const sendCheckin = useCallback(async (peek = false) => {
     const ownerKey = getOwnerKey();
     if (!ownerKey) return;
     try {
       const res = await fetch(`${API_BASE}/api/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ownerKey }),
+        body: JSON.stringify({ ownerKey, peek }),
       });
       const json = (await res.json()) as {
         success?: boolean;
@@ -110,12 +110,11 @@ export function DailyMoodTracker({ className }: { className?: string }) {
     [today, sendCheckin],
   );
 
-  /** 이미 오늘 기록이 있으면 화면을 열 때 출석 상태를 가져온다 */
+  /** 화면을 열면 출석 상태를 먼저 보여준다(이때는 기록하지 않는다) */
   useEffect(() => {
     if (!records) return;
-    if (!getRecord(today, records)) return;
-    void sendCheckin();
-  }, [records, today, sendCheckin]);
+    void sendCheckin(true);
+  }, [records, sendCheckin]);
 
   const claimReward = useCallback(async () => {
     const wish = claimWish.trim();
@@ -262,7 +261,7 @@ export function DailyMoodTracker({ className }: { className?: string }) {
             <span className="text-[11px] text-white/60">
               출석 <strong className="text-amber-300">{checkin.total}일</strong>
               {checkin.pendingReward ? null : (
-                <span className="text-white/40"> · 다음 보상까지 {checkin.nextRewardIn}일</span>
+                <span className="text-white/40"> · 10일 모으면 제단 1일권</span>
               )}
             </span>
             {checkin.pendingReward && !claimOpen ? (
@@ -339,6 +338,12 @@ export function DailyMoodTracker({ className }: { className?: string }) {
                 </button>
               </div>
             </div>
+          ) : null}
+
+          {!todayRecord ? (
+            <p className="mt-1.5 text-[10px] leading-relaxed text-white/35">
+              위에서 오늘 하루를 한 번 누르면 출석으로 기록됩니다.
+            </p>
           ) : null}
 
           {claimNotice ? (

@@ -45,17 +45,32 @@ export async function POST(req: Request) {
 
     const today = kstToday();
 
-    // 같은 날 두 번 눌러도 한 번만 남는다(테이블의 고유 제약)
-    const inserted = await supabase
-      .from("checkins")
-      .insert({ owner_key: ownerKey, user_id: userId, checkin_date: today })
-      .select("id")
-      .maybeSingle();
+    // peek 이면 기록하지 않고 상태만 돌려준다.
+    // 화면을 열었다는 이유로 출석이 찍히면 안 되기 때문이다.
+    const peek = body.peek === true;
+    let alreadyCheckedIn = false;
 
-    const alreadyCheckedIn = !!inserted.error && inserted.error.code === "23505";
-    if (inserted.error && !alreadyCheckedIn) {
-      console.error("[checkin] insert failed", inserted.error);
-      return bad("출석을 기록하지 못했습니다.", 503);
+    if (peek) {
+      const { data: todayRow } = await supabase
+        .from("checkins")
+        .select("id")
+        .eq("owner_key", ownerKey)
+        .eq("checkin_date", today)
+        .maybeSingle();
+      alreadyCheckedIn = !!todayRow;
+    } else {
+      // 같은 날 두 번 눌러도 한 번만 남는다(테이블의 고유 제약)
+      const inserted = await supabase
+        .from("checkins")
+        .insert({ owner_key: ownerKey, user_id: userId, checkin_date: today })
+        .select("id")
+        .maybeSingle();
+
+      alreadyCheckedIn = !!inserted.error && inserted.error.code === "23505";
+      if (inserted.error && !alreadyCheckedIn) {
+        console.error("[checkin] insert failed", inserted.error);
+        return bad("출석을 기록하지 못했습니다.", 503);
+      }
     }
 
     const { count, error: countError } = await supabase
@@ -72,7 +87,7 @@ export async function POST(req: Request) {
     const milestone = Math.floor(total / REWARD_EVERY) * REWARD_EVERY;
 
     // 10회를 넘겼으면 받을 수 있는 보상을 만들어 둔다(이미 있으면 그대로)
-    if (milestone > 0) {
+    if (milestone > 0 && !peek) {
       await supabase
         .from("checkin_rewards")
         .upsert(
