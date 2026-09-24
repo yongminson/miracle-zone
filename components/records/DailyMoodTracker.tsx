@@ -95,6 +95,7 @@ export function DailyMoodTracker({ className }: { className?: string }) {
         nextRewardIn: json.nextRewardIn ?? 10,
         pendingReward: json.pendingReward ?? null,
       });
+      if (!peek) window.dispatchEvent(new Event("myeongun:checkin-updated"));
     } catch {
       // 출석 기록에 실패해도 오늘 기록 자체는 남는다
     }
@@ -264,14 +265,10 @@ export function DailyMoodTracker({ className }: { className?: string }) {
                 <span className="text-white/40"> · 10일 모으면 제단 1일권</span>
               )}
             </span>
-            {checkin.pendingReward && !claimOpen ? (
-              <button
-                type="button"
-                onClick={() => setClaimOpen(true)}
-                className="rounded-lg border border-amber-400/50 bg-amber-500/15 px-3 py-1.5 text-[11px] font-bold text-amber-200 transition hover:bg-amber-500/25"
-              >
-                🕯️ 제단 1일권 받기
-              </button>
+            {checkin.pendingReward ? (
+              <span className="text-[11px] font-bold text-amber-300">
+                제단 1일권 받을 수 있어요 ↑
+              </span>
             ) : null}
           </div>
 

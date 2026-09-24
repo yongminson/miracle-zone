@@ -43,6 +43,7 @@ import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 import { PaymentMethodSelector, type PayMethodPg } from "@/components/payments/PaymentMethodSelector";
 import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 import { DailyMoodTracker } from "@/components/records/DailyMoodTracker";
+import { CheckinBanner } from "@/components/records/CheckinBanner";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -6877,6 +6878,9 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
           })}
         </div>
       </nav>
+
+      {/* 출석 상태 — 평소엔 조용하고, 받을 보상이 생기면 눈에 띈다 */}
+      <CheckinBanner />
 
       {/* 메인 콘텐츠 영역 */}
       <main className="relative flex w-full flex-1 flex-col">
