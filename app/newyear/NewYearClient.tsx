@@ -7,6 +7,7 @@ import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 import { logEvent, withShareUtm } from "@/lib/analytics";
 import type { SavedProfile } from "@/lib/profiles/saved-profiles";
 import type { NewYearCalendarType, NewYearResult } from "@/lib/newyear/newyear-types";
+import { DetailPaywall, DetailView, useNewYearDetail } from "./NewYearDetail";
 
 /** 앱인토스에서는 명운 웹 주소로 보낸다 */
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
@@ -36,6 +37,15 @@ export function NewYearClient() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<NewYearResult | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // 상세 풀이(유료). 결제에서 돌아오거나 다시 볼 때는 그 사람의 입력값으로 화면을 되살린다
+  const paid = useNewYearDetail((input, restored) => {
+    setName(input.name);
+    setGender(input.gender);
+    setBirthDate(input.birthDate);
+    setCalendar(input.calendarType);
+    setResult(restored);
+  });
 
   const applyProfile = useCallback((profile: SavedProfile) => {
     setName(profile.name);
@@ -118,10 +128,55 @@ export function NewYearClient() {
             onReset={() => {
               setResult(null);
               setNotice(null);
+              paid.clearDetail();
             }}
+            detailSlot={
+              paid.detail ? (
+                <DetailView detail={paid.detail} result={result} />
+              ) : (
+                <DetailPaywall
+                  onBuy={() =>
+                    paid.startPurchase({ name: name.trim(), birthDate, calendarType: calendar, gender })
+                  }
+                  busy={paid.busy}
+                  error={paid.error}
+                  appNeedsUpdate={paid.app.isApp && !paid.app.canBuy}
+                  isToss={paid.isToss}
+                />
+              )
+            }
           />
         ) : (
           <section className="mt-8 rounded-3xl border border-rose-500/20 bg-gradient-to-b from-rose-950/30 to-black/40 p-5 shadow-2xl shadow-black/40 sm:p-6">
+            {paid.busy ? (
+              <p className="mb-4 rounded-xl bg-amber-500/10 px-3 py-2.5 text-center text-xs text-amber-200">
+                결제를 확인하고 상세 풀이를 쓰는 중이에요… (최대 30초)
+              </p>
+            ) : null}
+            {paid.error ? (
+              <p className="mb-4 rounded-xl bg-rose-500/10 px-3 py-2.5 text-center text-xs leading-relaxed text-rose-200">
+                {paid.error}
+              </p>
+            ) : null}
+            {paid.purchases.length > 0 ? (
+              <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-950/20 p-3">
+                <p className="text-[11px] text-amber-200/80">구매한 상세 풀이 다시 보기</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {paid.purchases.map((purchase) => (
+                    <button
+                      key={`${purchase.savedAt}-${purchase.input.birthDate}`}
+                      type="button"
+                      disabled={paid.busy}
+                      onClick={() => paid.reopen(purchase)}
+                      className="rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-100 transition hover:bg-amber-500/20 disabled:opacity-50"
+                    >
+                      {purchase.input.name || "이름 없음"} · {purchase.input.birthDate}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             <ProfileQuickPicker
               draft={{ name, gender, birthDate, calendar }}
               onApply={applyProfile}
@@ -207,6 +262,7 @@ export function NewYearClient() {
           </section>
         )}
       </main>
+      {paid.paymentModal}
     </div>
   );
 }
@@ -217,12 +273,14 @@ function ResultView({
   onShare,
   onReset,
   notice,
+  detailSlot,
 }: {
   name: string;
   result: NewYearResult;
   onShare: () => void;
   onReset: () => void;
   notice: string | null;
+  detailSlot: React.ReactNode;
 }) {
   return (
     <div className="mt-8 space-y-4">
@@ -312,11 +370,8 @@ function ResultView({
         </p>
       </section>
 
-      {/* 다음 단계에서 유료 상세 풀이가 들어올 자리 */}
-      <section className="rounded-2xl border border-dashed border-rose-400/30 bg-rose-950/20 p-4 text-center">
-        <p className="text-sm font-bold text-rose-100">재물 · 연애 · 직장 · 건강 상세 풀이</p>
-        <p className="mt-1 text-xs text-white/50">달마다 무엇을 하고 무엇을 피할지 자세히 풀어 드리는 상세 풀이를 준비하고 있습니다.</p>
-      </section>
+      {/* 상세 풀이(유료) — 결제 전에는 안내, 결제 후에는 풀이 */}
+      {detailSlot}
 
       <div className="grid grid-cols-2 gap-3">
         <button

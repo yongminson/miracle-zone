@@ -40,3 +40,38 @@ export type NewYearResult = {
   bestMonths: number[];
   cautionMonths: number[];
 };
+
+/** 상세 풀이(유료) — 웹·앱 가격. 토스는 공급가 3,000원(판매가 3,300원)으로 등록한다 */
+export const NEWYEAR_DETAIL_PRICE_WON = 3_300;
+/** 구글 플레이·앱인토스 상품 키 */
+export const NEWYEAR_DETAIL_PRODUCT_ID = "newyear_detail";
+
+export type NewYearDetailArea = {
+  key: "money" | "love" | "work" | "health";
+  label: string;
+  summary: string;
+  doThis: string;
+  avoid: string;
+};
+
+export type NewYearDetailMonth = {
+  month: number;
+  focus: string;
+  doThis: string;
+  avoid: string;
+};
+
+export type NewYearDetail = {
+  overview: string;
+  areas: NewYearDetailArea[];
+  months: NewYearDetailMonth[];
+  motto: string;
+};
+
+/** 결제한 사람의 입력값. 결제 1건에 한 사람만 묶인다 */
+export type NewYearDetailInput = {
+  name: string;
+  birthDate: string;
+  calendarType: NewYearCalendarType;
+  gender: NewYearGender;
+};
