@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
-import { captureAttribution, logEvent } from "@/lib/analytics";
+import { captureAttribution, logEvent, withShareUtm } from "@/lib/analytics";
 import { clearPendingPaymentData, readPendingPaymentData, savePendingPaymentData } from "@/lib/payments/pending-payment-data";
 import {
   clearPendingPaymentState,
@@ -178,7 +178,7 @@ async function captureAndShareElement(
   }
 
   try {
-    const shareUrl = window.location.origin;
+    const shareUrl = withShareUtm(window.location.origin, "image");
 
     // 원본을 복제
     const clonedTarget = target.cloneNode(true) as HTMLElement;
@@ -599,7 +599,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   };
 
   const handleFortuneLinkShare = async () => {
-    const shareUrl = window.location.href;
+    const shareUrl = withShareUtm(window.location.href, "fortune");
     const text = `오늘의 운세 결과 보러가기\n${shareUrl}`;
   
     if (navigator.share) {
@@ -1338,7 +1338,7 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                 <button 
                   type="button"
                   onClick={() => {
-                    const url = `${window.location.origin}/dream/${resultData.db_id}`;
+                    const url = withShareUtm(`${window.location.origin}/dream/${resultData.db_id}`, "dream");
                     const shareData = { 
                       title: "소름돋는 꿈 해몽 결과", 
                       text: "나의 무의식이 보내는 메시지를 확인해보세요!", 
@@ -2843,7 +2843,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
   };
 
   const handleFaceLinkShare = async () => {
-    const shareUrl = window.location.href;
+    const shareUrl = withShareUtm(window.location.href, "physiognomy");
     const text = `관상 분석 결과 보러가기\n${shareUrl}`;
   
     if (navigator.share) {
@@ -2866,7 +2866,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
   };
   
   const handleNameLinkShare = async () => {
-    const shareUrl = window.location.href;
+    const shareUrl = withShareUtm(window.location.href, "name");
     const hanjaText = nameHanja ? ` (${nameHanja})` : "";
     const text = `이름 풀이 결과 보러가기\n${nameInput}${hanjaText}\n${shareUrl}`;
   
@@ -4881,10 +4881,10 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
                     const shareData = { 
                       title: "MBTI 심층 분석", 
                       text: `나의 MBTI 결과는 ${resultType}! 확인해보세요.`, 
-                      url: `${window.location.origin}/mbti/${resultType.toLowerCase()}` 
+                      url: withShareUtm(`${window.location.origin}/mbti/${resultType.toLowerCase()}`, "mbti") 
                     };
                     if (navigator.share) { navigator.share(shareData).catch(() => {}); } 
-                    else { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다."); }
+                    else { navigator.clipboard.writeText(shareData.url); alert("링크가 복사되었습니다."); }
                   }} className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 flex flex-col items-center justify-center gap-1">
                     <span className="text-xl leading-none">🔗</span> 링크 공유
                   </button>
@@ -5282,9 +5282,9 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                 <button onClick={() => {
-                    const shareData = { title: "소름돋는 궁합 분석", text: "우리의 궁합 점수는 몇 점일까? 확인해보세요!", url: window.location.href };
+                    const shareData = { title: "소름돋는 궁합 분석", text: "우리의 궁합 점수는 몇 점일까? 확인해보세요!", url: withShareUtm(window.location.href, "match") };
                     if (navigator.share) { navigator.share(shareData).catch(() => {}); } 
-                    else { navigator.clipboard.writeText(window.location.href); alert("링크가 복사되었습니다."); }
+                    else { navigator.clipboard.writeText(shareData.url); alert("링크가 복사되었습니다."); }
                   }} className="w-full rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-4 text-sm font-bold text-sky-300 transition-all hover:bg-sky-500/20 flex flex-col items-center justify-center gap-1">
                     <span className="text-xl leading-none">🔗</span> 링크 공유
                   </button>
@@ -5864,7 +5864,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
                 onClick={async () => {
                   const grade = freeResult?.overallGrade ?? "";
                   const personality = freeResult?.personality ?? "";
-                  const shareText = `✋ 손금 분석 결과\n\n등급: ${grade}\n${personality}\n\n명운(命運)에서 내 손금 분석하기\n${window.location.origin}/tools?tab=palmistry`;
+                  const shareText = `✋ 손금 분석 결과\n\n등급: ${grade}\n${personality}\n\n명운(命運)에서 내 손금 분석하기\n${withShareUtm(`${window.location.origin}/tools?tab=palmistry`, "palmistry")}`;
                   if (navigator.share) {
                     try {
                       await navigator.share({ title: "손금 분석 결과 — 명운(命運)", text: shareText });
@@ -6314,7 +6314,7 @@ function ZodiacTab({ isVisible }: { isVisible: boolean }) {
               <button
                 type="button"
                 onClick={async () => {
-                  const shareText = `🐉 ${selectedZodiac.label} 운세\n\n${selectedZodiac[activeSection]}\n\n✨ 명운(命運)에서 나의 띠별 운세 확인하기\n${window.location.origin}/tools?tab=zodiac`;
+                  const shareText = `🐉 ${selectedZodiac.label} 운세\n\n${selectedZodiac[activeSection]}\n\n✨ 명운(命運)에서 나의 띠별 운세 확인하기\n${withShareUtm(`${window.location.origin}/tools?tab=zodiac`, "zodiac")}`;
                   if (navigator.share) {
                     try {
                       await navigator.share({

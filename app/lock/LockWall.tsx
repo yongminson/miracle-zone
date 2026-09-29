@@ -14,6 +14,7 @@ import {
   type WallLock,
 } from "@/lib/locks/wall-locks";
 import { supabase } from "@/app/lib/supabase";
+import { logEvent, withShareUtm } from "@/lib/analytics";
 import { extractPaymentReturnId } from "@/lib/payments/return-params";
 import {
   LockComposer,
@@ -396,7 +397,7 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
 
   /** 링크를 공유한다. 공유 창이 없으면 주소를 복사한다 */
   const shareLock = useCallback(async (lockId: string, wish: string) => {
-    const url = `${window.location.origin}/lock/${lockId}`;
+    const url = withShareUtm(`${window.location.origin}/lock/${lockId}`, "lock");
     const text = `소원 자물쇠에 이 소원을 걸었습니다.\n"${wish.slice(0, 40)}${wish.length > 40 ? "…" : ""}"`;
     try {
       if (navigator.share) {
@@ -539,6 +540,14 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
           setNotice(json.message || "자물쇠를 걸지 못했습니다. 고객센터에 문의해 주세요.");
           return;
         }
+
+        // 유입 경로 분석용. 매출은 locks 표로 세므로 recorded 로 표시해 둔다
+        void logEvent("payment_complete", {
+          product: "lock",
+          tier: params.draft.tier,
+          amount: LOCK_TIERS[params.draft.tier].priceWon,
+          recorded: "locks",
+        });
 
         clearLockDraft();
         try {

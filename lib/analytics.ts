@@ -64,6 +64,23 @@ function getPlatform(): string {
   }
 }
 
+/**
+ * 공유 링크에 출처 표시를 붙인다. 받은 사람이 들어오면 "공유로 온 사람"으로 잡힌다.
+ * feature 는 무엇을 공유했는지(fortune·lock 등).
+ */
+export function withShareUtm(url: string, feature: string): string {
+  try {
+    const u = new URL(url, window.location.origin);
+    // 공유한 사람이 달고 온 유튜브 캠페인 표시 등은 떼어 낸다
+    for (const k of ["utm_campaign", "utm_content", "utm_term"]) u.searchParams.delete(k);
+    u.searchParams.set("utm_source", "share");
+    u.searchParams.set("utm_medium", feature);
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 /** 이벤트 기록. 실패해도 서비스 동작에 영향 없음 */
 export async function logEvent(eventName: string, eventData?: Record<string, unknown>) {
   try {
