@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 
 export const metadata: Metadata = {
   title: "소원 자물쇠 | 명운",
@@ -7,5 +8,11 @@ export const metadata: Metadata = {
 };
 
 export default function LockLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      {/* 공유 링크(/lock/아이디)로 바로 들어온 방문의 유입 경로를 남긴다 */}
+      <PageViewTracker page="lock" />
+      {children}
+    </>
+  );
 }
