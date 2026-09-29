@@ -49,11 +49,26 @@ function getAttribution() {
   }
 }
 
+/**
+ * 어디서 들어왔는지 — web(웹) / app(구글 앱) / toss(앱인토스).
+ * 앱인토스는 빌드할 때 NEXT_PUBLIC_PLATFORM=toss 로 정해 두고,
+ * 구글 앱은 WebView 사용자 에이전트의 "MyeongunApp" 으로 알아본다.
+ */
+function getPlatform(): string {
+  const fixed = process.env.NEXT_PUBLIC_PLATFORM;
+  if (fixed) return fixed;
+  try {
+    return navigator.userAgent.includes("MyeongunApp") ? "app" : "web";
+  } catch {
+    return "web";
+  }
+}
+
 /** 이벤트 기록. 실패해도 서비스 동작에 영향 없음 */
 export async function logEvent(eventName: string, eventData?: Record<string, unknown>) {
   try {
     const attribution = getAttribution();
-    await supabase.from("user_events").insert({
+    const row = {
       session_id: getSessionId(),
       event_name: eventName,
       event_data: eventData ?? null,
@@ -62,6 +77,11 @@ export async function logEvent(eventName: string, eventData?: Record<string, unk
       utm_medium: attribution.utm_medium,
       utm_campaign: attribution.utm_campaign,
       page_path: window.location.pathname + window.location.search,
-    });
+    };
+    const { error } = await supabase
+      .from("user_events")
+      .insert({ ...row, platform: getPlatform() });
+    // platform 칸이 아직 없는 DB 라도 기록은 남긴다
+    if (error) await supabase.from("user_events").insert(row);
   } catch {}
 }
