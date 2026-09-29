@@ -67,6 +67,7 @@ export default function Home() {
 
             <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[
+                { href: "/newyear", emoji: "🐑", title: "2027 신년운세", desc: "정미년 총운 · 월별 흐름 · 좋은 달과 조심할 달", badge: "NEW 무료", badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30" },
                 { href: "/tools?tab=fortune", emoji: "✨", title: "오늘의 운세", desc: "음양오행 기반 금전·직장·애정운 분석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=zodiac", emoji: "🐉", title: "띠별 운세", desc: "12띠 오행 기운 · 재물·연애·직업운 분석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=saju", emoji: "👁️", title: "관상 / 이름 풀이", desc: "AI 관상 분석 · 성명학 이름풀이", badge: "1,900원", badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30" },

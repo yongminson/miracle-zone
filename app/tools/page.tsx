@@ -26,6 +26,7 @@ import {
   Hand,  // 🚀 손금 분석 아이콘
   Crown, // 사주 인사이트(별도 페이지) 메뉴 아이콘
   KeyRound, // 소원 자물쇠(별도 페이지) 메뉴 아이콘
+  CalendarHeart, // 2027 신년운세(별도 페이지 /newyear) 메뉴 아이콘
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -284,6 +285,7 @@ const pushSecret = (char: string, callback?: () => void) => {
 // href가 있는 메뉴는 이 페이지의 탭이 아니라 별도 페이지로 이동한다
 const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean; href?: string }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, isReady: true },
+  { id: "newyear", label: "2027 신년운세", icon: CalendarHeart, isReady: true, href: "/newyear" },
   { id: "vip",     label: "사주 인사이트", icon: Crown,  isReady: true, href: "/vip" },
   { id: "zodiac",     label: "띠별 운세",    icon: Star,     isReady: true },
   { id: "saju",       label: "관상/이름 풀이", icon: FileText, isReady: true },
