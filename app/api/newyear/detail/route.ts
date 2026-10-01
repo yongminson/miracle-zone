@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { hasValidAdminSession } from "@/lib/auth/admin-session";
 import { verifyPaidAmount } from "@/lib/payments/verify-paid-amount";
 import { verifyGoogleProductPurchase } from "@/lib/payments/verify-google-purchase";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
@@ -37,7 +38,7 @@ function readInput(body: Record<string, unknown>): NewYearDetailInput | null {
   };
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as Record<string, unknown>;
 
@@ -45,7 +46,9 @@ export async function POST(req: Request) {
     const lookupId = purchaseToken || String(body.paymentId ?? "").trim().replace(/\s+/g, "");
     if (!lookupId || lookupId.length > 500) return bad("결제 식별자가 없습니다.");
 
-    const platform = purchaseToken ? "app" : "web";
+    // 운영자 모드 — 결제 없이 풀이를 만든다(블로그 홍보용). 새로 만들 때만 운영자 로그인을 확인한다
+    const adminFree = body.admin === true;
+    const platform = adminFree ? "admin" : purchaseToken ? "app" : "web";
     const merchantUid = typeof body.merchant_uid === "string" ? body.merchant_uid : null;
 
     const supabase = createSupabaseAdminClient();
@@ -55,9 +58,18 @@ export async function POST(req: Request) {
       supabase,
       paymentRef: `${platform}:${lookupId}`,
       platform,
-      amountWon: NEWYEAR_DETAIL_PRICE_WON,
+      amountWon: adminFree ? 0 : NEWYEAR_DETAIL_PRICE_WON,
       input: readInput(body),
       verify: async () => {
+        if (adminFree) {
+          return hasValidAdminSession(req)
+            ? { ok: true as const }
+            : {
+                ok: false as const,
+                status: 403,
+                message: "운영자 로그인이 필요합니다. 하단 저작권 문구를 두 번 눌러 다시 로그인해 주세요.",
+              };
+        }
         if (purchaseToken) {
           return verifyGoogleProductPurchase({ productId: NEWYEAR_DETAIL_PRODUCT_ID, purchaseToken });
         }

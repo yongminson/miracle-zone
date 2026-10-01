@@ -28,7 +28,14 @@ const PURCHASES_KEY = "myeongun_newyear_purchases_v1";
 const PENDING_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=kr.co.ymstudio.myeongun";
 
-type PaymentIds = { paymentId?: string; merchantUid?: string | null; purchaseToken?: string; tossOrderId?: string };
+type PaymentIds = {
+  paymentId?: string;
+  merchantUid?: string | null;
+  purchaseToken?: string;
+  tossOrderId?: string;
+  /** 운영자 모드로 결제 없이 만든 풀이 */
+  admin?: boolean;
+};
 
 function hasIds(ids: PaymentIds | undefined): boolean {
   return !!(ids?.paymentId || ids?.purchaseToken || ids?.tossOrderId);
@@ -83,9 +90,17 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
   const onRestoreRef = useRef(onRestore);
   onRestoreRef.current = onRestore;
 
+  // 운영자 모드(하단 저작권 두 번 눌러 로그인) — 웹에서만. 토스는 운영자 로그인이 없다
+  const [isAdmin, setIsAdmin] = useState(false);
+
   useEffect(() => {
     setPurchases(readNewYearPurchases());
     setApp(readAppState());
+    try {
+      setIsAdmin(!IS_TOSS && !readAppState().isApp && localStorage.getItem("MASTER_ADMIN") === "true");
+    } catch {
+      setIsAdmin(false);
+    }
   }, []);
 
   const requestDetail = useCallback(async (ids: PaymentIds, input: NewYearDetailInput) => {
@@ -108,6 +123,7 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
               paymentId: ids.paymentId,
               merchant_uid: ids.merchantUid ?? null,
               purchaseToken: ids.purchaseToken,
+              admin: ids.admin === true,
               ...input,
             }),
           });
@@ -209,6 +225,13 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
         return;
       }
 
+      if (isAdmin) {
+        // 서버가 운영자 로그인을 다시 확인한다. 금액 0원으로 남아 매출에서 빠진다
+        const adminId = `adm${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+        void requestDetail({ paymentId: adminId, admin: true }, input);
+        return;
+      }
+
       if (IS_TOSS) {
         // 토스 인앱결제 — 결제의 지급 단계에서 서버가 주문을 확인·저장하고, 끝나면 풀이를 받는다
         setBusy(true);
@@ -237,7 +260,7 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
       writeJson(PENDING_KEY, { input, savedAt: new Date().toISOString() } satisfies Pending);
       setShowPayment(true);
     },
-    [app, requestDetail],
+    [app, isAdmin, requestDetail],
   );
 
   const reopen = useCallback((purchase: NewYearPurchase) => {
@@ -272,6 +295,7 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
     error,
     purchases,
     app,
+    isAdmin,
     isToss: IS_TOSS,
     startPurchase,
     reopen,
@@ -286,12 +310,14 @@ export function DetailPaywall({
   error,
   appNeedsUpdate,
   isToss,
+  adminFree = false,
 }: {
   onBuy: () => void;
   busy: boolean;
   error: string | null;
   appNeedsUpdate: boolean;
   isToss: boolean;
+  adminFree?: boolean;
 }) {
   return (
     <section className="rounded-3xl border border-amber-400/30 bg-gradient-to-b from-amber-950/40 to-rose-950/30 p-5 text-center">
@@ -318,7 +344,11 @@ export function DetailPaywall({
           onClick={onBuy}
           className="mt-4 w-full rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-rose-400 py-3.5 text-sm font-black text-stone-950 shadow-lg shadow-amber-900/40 transition hover:brightness-105 disabled:opacity-60"
         >
-          {busy ? "상세 풀이를 쓰는 중… (최대 30초)" : `상세 풀이 보기 · ${NEWYEAR_DETAIL_PRICE_WON.toLocaleString()}원`}
+          {busy
+            ? "상세 풀이를 쓰는 중… (최대 30초)"
+            : adminFree
+              ? "⚡ [운영자] 무료로 상세 풀이 보기"
+              : `상세 풀이 보기 · ${NEWYEAR_DETAIL_PRICE_WON.toLocaleString()}원`}
         </button>
       )}
       {error ? <p className="mt-3 text-xs leading-relaxed text-rose-300">{error}</p> : null}

@@ -60,6 +60,8 @@ export function LockComposer({
     purchaseToken?: string;
     platform?: "web" | "app";
     draft: LockDraft;
+    /** 운영자 모드 — 결제 없이 건다(서버가 운영자 로그인을 다시 확인한다) */
+    admin?: boolean;
   }) => Promise<void>;
 }) {
   const [tier, setTier] = useState<LockTier>("basic");
@@ -70,6 +72,16 @@ export function LockComposer({
   const [showPayment, setShowPayment] = useState(false);
   const [waitingApp, setWaitingApp] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 운영자 모드(하단 저작권 두 번 눌러 로그인)면 다른 유료 기능처럼 결제 없이 건다
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    try {
+      setIsAdmin(!isApp && localStorage.getItem("MASTER_ADMIN") === "true");
+    } catch {
+      setIsAdmin(false);
+    }
+  }, [isApp]);
 
   const canPickColor = LOCK_TIERS[tier].canPickColor;
   const price = LOCK_TIERS[tier].priceWon;
@@ -144,6 +156,10 @@ export function LockComposer({
       return;
     }
     setError(null);
+    if (isAdmin) {
+      void onPaid({ paymentId: "admin", merchantUid: null, draft, admin: true });
+      return;
+    }
     // 모바일은 결제창으로 이동했다 돌아오므로 입력한 내용을 먼저 저장해 둔다
     saveLockDraft(draft);
     if (isApp) {
@@ -376,7 +392,7 @@ export function LockComposer({
             <span>자물쇠를 거는 중…</span>
           </>
         ) : (
-          <span>{price.toLocaleString()}원 결제하고 자물쇠 걸기</span>
+          <span>{isAdmin ? "⚡ [운영자] 무료로 자물쇠 걸기" : `${price.toLocaleString()}원 결제하고 자물쇠 걸기`}</span>
         )}
       </button>
 

@@ -174,7 +174,8 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
   const [isApp, setIsApp] = useState(false);
   const [user, setUser] = useState<{ id: string; name: string } | null>(null);
 
-  const dragRef = useRef<{ x: number; y: number; tx: number; ty: number; moved: boolean } | null>(null);
+  // active: 지금 누르고 있는지. 손을 떼도 moved 는 남겨 두어야 뒤이은 클릭을 무시할 수 있다
+  const dragRef = useRef<{ x: number; y: number; tx: number; ty: number; moved: boolean; active: boolean } | null>(null);
   const hasFittedRef = useRef(false);
   const userMovedRef = useRef(false);
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
@@ -285,9 +286,10 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
       dragRef.current = null;
       return;
     }
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    userMovedRef.current = true;
-    dragRef.current = { x: e.clientX, y: e.clientY, tx, ty, moved: false };
+    // 누르는 순간에는 포인터를 붙잡지 않는다. 붙잡으면 그 위의 버튼(확대·축소·자물쇠)
+    // 클릭이 벽 클릭으로 바뀌어, + 를 눌러도 220% 로만 튀고 더 커지지 않았다.
+    // 실제로 끌기 시작했을 때(아래 onPointerMove) 붙잡는다.
+    dragRef.current = { x: e.clientX, y: e.clientY, tx, ty, moved: false, active: true };
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
@@ -304,10 +306,19 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
 
     const d = dragRef.current;
     const el = viewportRef.current;
-    if (!d || !el) return;
+    if (!d || !el || !d.active) return;
     const dx = e.clientX - d.x;
     const dy = e.clientY - d.y;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) d.moved = true;
+    if (!d.moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+      d.moved = true;
+      userMovedRef.current = true;
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {
+        // 이미 손을 뗀 포인터면 붙잡지 못한다 — 끌기는 그대로 진행된다
+      }
+    }
+    if (!d.moved) return;
     setTx(clampTranslate(d.tx + dx, el.clientWidth, size.width * scale));
     setTy(clampTranslate(d.ty + dy, el.clientHeight, size.height * scale));
   };
@@ -315,6 +326,8 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
   const endPointer = (e: React.PointerEvent) => {
     pointersRef.current.delete(e.pointerId);
     if (pointersRef.current.size < 2) pinchRef.current = null;
+    // 손을 떼면 끌기를 멈춘다. 안 멈추면 마우스만 움직여도 벽이 따라 움직인다
+    if (pointersRef.current.size === 0 && dragRef.current) dragRef.current.active = false;
   };
 
   /** 빈 곳을 누르면 그 지점을 확대한다 */
@@ -484,6 +497,7 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
       purchaseToken?: string;
       platform?: "web" | "app";
       draft: LockDraft;
+      admin?: boolean;
     }) => {
       setBusy(true);
       setNotice(null);
@@ -502,8 +516,8 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
           }
         }
 
-        // 돈은 빠져나갔는데 등록만 실패하는 경우를 대비해 먼저 남겨 둔다
-        try {
+        // 돈은 빠져나갔는데 등록만 실패하는 경우를 대비해 먼저 남겨 둔다(운영자는 결제가 없어 남기지 않는다)
+        if (!params.admin) try {
           localStorage.setItem(
             PENDING_KEY,
             JSON.stringify({
@@ -518,7 +532,7 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
           // 저장에 실패해도 이번 시도는 그대로 진행한다
         }
 
-        const res = await fetch("/api/locks", {
+        const res = await fetch(params.admin ? "/api/locks/admin" : "/api/locks", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -542,7 +556,7 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
         }
 
         // 유입 경로 분석용. 매출은 locks 표로 세므로 recorded 로 표시해 둔다
-        void logEvent("payment_complete", {
+        if (!params.admin) void logEvent("payment_complete", {
           product: "lock",
           tier: params.draft.tier,
           amount: LOCK_TIERS[params.draft.tier].priceWon,

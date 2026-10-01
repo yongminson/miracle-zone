@@ -142,6 +142,7 @@ export function NewYearClient() {
                   error={paid.error}
                   appNeedsUpdate={paid.app.isApp && !paid.app.canBuy}
                   isToss={paid.isToss}
+                  adminFree={paid.isAdmin}
                 />
               )
             }

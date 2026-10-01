@@ -77,7 +77,7 @@ async function writeDetail(
 export async function fulfillNewYearOrder(params: {
   supabase: SupabaseClient;
   paymentRef: string;
-  platform: "web" | "app" | "toss";
+  platform: "web" | "app" | "toss" | "admin";
   amountWon: number;
   input: NewYearDetailInput | null;
   /** false 면 주문만 저장하고 풀이는 쓰지 않는다(토스 지급 단계용) */
