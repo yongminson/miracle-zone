@@ -70,6 +70,7 @@ export async function POST(req: Request) {
     });
 
     if (!outcome.ok) return bad(outcome.message, outcome.status);
+    if (!outcome.detail) return bad("상세 풀이를 만들지 못했습니다. 잠시 후 다시 열어 주세요.", 503);
     return NextResponse.json({
       success: true,
       input: outcome.input,

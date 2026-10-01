@@ -11,6 +11,7 @@ import {
   type NewYearDetailInput,
   type NewYearResult,
 } from "@/lib/newyear/newyear-types";
+import { purchaseNewYearOnToss } from "./toss-purchase";
 
 /**
  * 신년운세 상세 풀이(유료) — 결제·다시 보기·화면.
@@ -27,7 +28,11 @@ const PURCHASES_KEY = "myeongun_newyear_purchases_v1";
 const PENDING_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=kr.co.ymstudio.myeongun";
 
-type PaymentIds = { paymentId?: string; merchantUid?: string | null; purchaseToken?: string };
+type PaymentIds = { paymentId?: string; merchantUid?: string | null; purchaseToken?: string; tossOrderId?: string };
+
+function hasIds(ids: PaymentIds | undefined): boolean {
+  return !!(ids?.paymentId || ids?.purchaseToken || ids?.tossOrderId);
+}
 type Pending = { input: NewYearDetailInput; ids?: PaymentIds; savedAt: string };
 export type NewYearPurchase = { input: NewYearDetailInput; ids: PaymentIds; savedAt: string };
 
@@ -50,12 +55,14 @@ function writeJson(key: string, value: unknown) {
 }
 
 function sameIds(a: PaymentIds, b: PaymentIds) {
-  return (a.purchaseToken ?? a.paymentId) === (b.purchaseToken ?? b.paymentId);
+  return (
+    (a.tossOrderId ?? a.purchaseToken ?? a.paymentId) === (b.tossOrderId ?? b.purchaseToken ?? b.paymentId)
+  );
 }
 
 export function readNewYearPurchases(): NewYearPurchase[] {
   const list = readJson<NewYearPurchase[]>(PURCHASES_KEY);
-  return Array.isArray(list) ? list.filter((p) => p?.input?.birthDate && (p.ids?.paymentId || p.ids?.purchaseToken)) : [];
+  return Array.isArray(list) ? list.filter((p) => p?.input?.birthDate && hasIds(p.ids)) : [];
 }
 
 /** 앱(WebView) 여부와, 이 상품을 살 수 있는 새 버전인지 */
@@ -87,16 +94,23 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/newyear/detail`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          paymentId: ids.paymentId,
-          merchant_uid: ids.merchantUid ?? null,
-          purchaseToken: ids.purchaseToken,
-          ...input,
-        }),
-      });
+      // 토스 결제는 토스 전용 경로로, 웹·앱 결제는 공용 경로로 받는다
+      const res = ids.tossOrderId
+        ? await fetch(`${API_BASE}/api/toss/newyear/grant`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId: ids.tossOrderId, ...input }),
+          })
+        : await fetch(`${API_BASE}/api/newyear/detail`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              paymentId: ids.paymentId,
+              merchant_uid: ids.merchantUid ?? null,
+              purchaseToken: ids.purchaseToken,
+              ...input,
+            }),
+          });
       const json = (await res.json()) as {
         success?: boolean;
         message?: string;
@@ -149,7 +163,7 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
       if (pending?.input) void requestDetail({ paymentId: returnId }, pending.input);
       return;
     }
-    if (!pending?.input || !(pending.ids?.paymentId || pending.ids?.purchaseToken)) return;
+    if (!pending?.input || !pending.ids || !hasIds(pending.ids)) return;
     const age = Date.now() - new Date(pending.savedAt).getTime();
     if (!Number.isFinite(age) || age > PENDING_MAX_AGE_MS) {
       writeJson(PENDING_KEY, null);
@@ -192,6 +206,18 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
       );
       if (owned) {
         void requestDetail(owned.ids, owned.input);
+        return;
+      }
+
+      if (IS_TOSS) {
+        // 토스 인앱결제 — 결제의 지급 단계에서 서버가 주문을 확인·저장하고, 끝나면 풀이를 받는다
+        setBusy(true);
+        void purchaseNewYearOnToss(input)
+          .then(({ orderId }) => requestDetail({ tossOrderId: orderId }, input))
+          .catch((e: unknown) => {
+            setBusy(false);
+            setError(e instanceof Error ? e.message : "결제를 완료하지 못했습니다.");
+          });
         return;
       }
 
@@ -278,9 +304,7 @@ export function DetailPaywall({
         <li>✦ 한 번 결제하면 언제든 다시 보기</li>
       </ul>
 
-      {isToss ? (
-        <p className="mt-4 rounded-xl bg-white/[0.05] px-3 py-3 text-xs text-white/60">토스에서는 곧 열려요.</p>
-      ) : appNeedsUpdate ? (
+      {appNeedsUpdate && !isToss ? (
         <a
           href={PLAY_STORE_URL}
           className="mt-4 block rounded-2xl border border-amber-400/40 py-3 text-sm font-bold text-amber-200"

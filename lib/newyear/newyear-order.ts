@@ -15,7 +15,7 @@ import type { NewYearDetail, NewYearDetailInput, NewYearResult } from "./newyear
  */
 
 export type NewYearOrderOutcome =
-  | { ok: true; input: NewYearDetailInput; result: NewYearResult; detail: NewYearDetail; reopened: boolean }
+  | { ok: true; input: NewYearDetailInput; result: NewYearResult; detail: NewYearDetail | null; reopened: boolean }
   | { ok: false; status: number; message: string };
 
 type OrderRow = {
@@ -39,11 +39,16 @@ function rowToInput(row: OrderRow): NewYearDetailInput {
 async function writeDetail(
   supabase: SupabaseClient,
   row: OrderRow,
+  generate = true,
 ): Promise<NewYearOrderOutcome> {
   const input = rowToInput(row);
   const result = calculateNewYear(input);
   if (row.detail) {
     return { ok: true, input, result, detail: row.detail, reopened: true };
+  }
+  // 토스 지급 단계 — 주문만 남기고 바로 끝낸다. 풀이는 화면이 이어서 요청한다
+  if (!generate) {
+    return { ok: true, input, result, detail: null, reopened: false };
   }
 
   let detail: NewYearDetail;
@@ -75,6 +80,8 @@ export async function fulfillNewYearOrder(params: {
   platform: "web" | "app" | "toss";
   amountWon: number;
   input: NewYearDetailInput | null;
+  /** false 면 주문만 저장하고 풀이는 쓰지 않는다(토스 지급 단계용) */
+  generate?: boolean;
   verify: () => Promise<{ ok: true } | { ok: false; message: string; status?: number }>;
 }): Promise<NewYearOrderOutcome> {
   const { supabase, paymentRef } = params;
@@ -94,7 +101,7 @@ export async function fulfillNewYearOrder(params: {
     if (row.birth_date !== params.input.birthDate) {
       return { ok: false, status: 409, message: "이 결제는 다른 생년월일의 풀이에 이미 사용되었습니다." };
     }
-    return writeDetail(supabase, row);
+    return writeDetail(supabase, row, params.generate ?? true);
   }
   // 저장 전에 날짜가 맞는지 먼저 본다. 잘못된 날짜로 결제만 묶이는 일을 막는다
   try {
@@ -126,7 +133,7 @@ export async function fulfillNewYearOrder(params: {
     // 동시에 두 번 눌린 경우 — 먼저 들어간 주문으로 이어 간다
     if (inserted.error?.code === "23505") {
       const raced = await supabase.from("newyear_orders").select(select).eq("payment_ref", paymentRef).maybeSingle();
-      if (raced.data) return writeDetail(supabase, raced.data as OrderRow);
+      if (raced.data) return writeDetail(supabase, raced.data as OrderRow, params.generate ?? true);
     }
     console.error("[newyear-order] insert failed", inserted.error);
     return {
@@ -136,5 +143,5 @@ export async function fulfillNewYearOrder(params: {
     };
   }
 
-  return writeDetail(supabase, inserted.data as OrderRow);
+  return writeDetail(supabase, inserted.data as OrderRow, params.generate ?? true);
 }

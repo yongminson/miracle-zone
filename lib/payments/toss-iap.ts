@@ -29,6 +29,11 @@ export const TOSS_IAP_PRODUCTS = {
     amountWon: 2_970,
     skuEnvironmentVariable: "TOSS_IAP_LOCK_SHINE_SKU",
   },
+  // 2027 신년운세 상세 풀이는 /api/toss/newyear/grant 에서 처리한다(공급가 3,000원).
+  newyear_detail: {
+    amountWon: 3_300,
+    skuEnvironmentVariable: "TOSS_IAP_NEWYEAR_DETAIL_SKU",
+  },
 } as const;
 
 export type TossIapProductKey = keyof typeof TOSS_IAP_PRODUCTS;
