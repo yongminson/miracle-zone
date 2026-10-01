@@ -77,6 +77,8 @@ export async function fetchVipCsOrdersPaginated(params: {
   const { data, error, count } = await supabaseAdmin
     .from("vip_orders")
     .select("*", { count: "exact" })
+    // 관상·제단 등 소액결제는 VIP 응대 대상이 아니라 목록에서 뺀다(매출 집계에는 그대로 남는다)
+    .or("user_name.is.null,user_name.not.like.소액결제*")
     .order("created_at", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false })
     .range(from, to);

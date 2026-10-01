@@ -134,6 +134,39 @@ async function verifyPaidAmountUniversal(params: {
   return { ok: true };
 }
 
+/**
+ * 소액 결제(관상·이름·손금·제단·로또)도 vip_orders 에 남긴다.
+ *
+ * 예전에는 이 결제들이 검증만 되고 어디에도 기록되지 않아, 실제 고객 결제(2026-09-11
+ * 관상 1,900원)가 포트원에만 있고 매출 집계에서 통째로 빠졌다.
+ * 이름 칸 앞의 "소액결제" 로 VIP 응대 목록(관리자 CS)에서 걸러낸다.
+ * 기록에 실패해도 결제는 유효하므로 고객 응답은 그대로 두고 로그만 남긴다.
+ */
+async function recordSmallPayment(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdminClient>,
+  params: { lookupId: string; label: string; amount: number },
+): Promise<void> {
+  if (!supabaseAdmin) {
+    console.error("[small-payment] 기록 불가: Supabase Admin 없음", { lookupId: params.lookupId });
+    return;
+  }
+  const result = await upsertVipOrderRow(supabaseAdmin, {
+    user_name: `소액결제 - ${params.label} ${params.amount.toLocaleString("ko-KR")}원`,
+    phone_number: null,
+    imp_uid: params.lookupId,
+    amount: params.amount,
+    report_url: "",
+    status: "paid",
+  });
+  if (!result.ok) {
+    console.error("[small-payment] vip_orders 기록 실패(결제는 유효함)", {
+      lookupId: params.lookupId,
+      code: result.code,
+      message: result.message,
+    });
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const supabaseAdmin = createSupabaseAdminClient();
@@ -268,6 +301,11 @@ export async function POST(req: Request) {
         });
         throw error;
       }
+      await recordSmallPayment(supabaseAdmin, {
+        lookupId,
+        label: period === "24h" ? "기적의 제단 24시간" : "기적의 제단 10일",
+        amount: expected,
+      });
     } else if (currentPaymentType === "lotto") {
       const expected = 4500;
       const v = await verifyPaidAmountUniversal({ lookupId, expectedAmountWon: expected });
@@ -292,11 +330,13 @@ export async function POST(req: Request) {
           throw error;
         }
       }
+      await recordSmallPayment(supabaseAdmin, { lookupId, label: "프리미엄 로또", amount: expected });
     } else if (currentPaymentType === "saju") {
       const expected = 1900;
       const v = await verifyPaidAmountUniversal({ lookupId, expectedAmountWon: expected });
       if (!v.ok) return NextResponse.json({ success: false, message: v.message }, { status: 400 });
       console.log("관상/사주 결제 검증 완료:", lookupId);
+      await recordSmallPayment(supabaseAdmin, { lookupId, label: "관상·이름·손금", amount: expected });
     } else {
       return NextResponse.json({ success: false, message: "지원하지 않는 결제 유형입니다." }, { status: 400 });
     }
