@@ -257,10 +257,7 @@ export default function VipLandingPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // 📊 계측 — 사주 인사이트 페이지 도달. 유입량·진입 경로 판단용
-  useEffect(() => {
-    void logEvent("page_view", { page: "vip" });
-  }, []);
+  // 📊 방문 기록은 app/vip/layout.tsx 의 PageViewTracker 가 남긴다(유입 경로 포함). 여기서 또 남기면 두 번 찍힌다
   const [isAdminMode, setIsAdminMode] = useState(false);
 
   useEffect(() => {

@@ -8,6 +8,8 @@ import { logEvent, withShareUtm } from "@/lib/analytics";
 import type { SavedProfile } from "@/lib/profiles/saved-profiles";
 import type { NewYearCalendarType, NewYearResult } from "@/lib/newyear/newyear-types";
 import { DetailPaywall, DetailView, useNewYearDetail } from "./NewYearDetail";
+import { WeekLuck } from "@/components/calendar/WeekLuck";
+import { ShareCardButton } from "./ShareCardButton";
 
 /** 앱인토스에서는 명운 웹 주소로 보낸다 */
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
@@ -123,6 +125,8 @@ export function NewYearClient() {
           <ResultView
             name={name.trim()}
             result={result}
+            birthDate={birthDate}
+            calendarType={calendar}
             onShare={share}
             notice={notice}
             onReset={() => {
@@ -275,9 +279,13 @@ function ResultView({
   onReset,
   notice,
   detailSlot,
+  birthDate,
+  calendarType,
 }: {
   name: string;
   result: NewYearResult;
+  birthDate: string;
+  calendarType: NewYearCalendarType;
   onShare: () => void;
   onReset: () => void;
   notice: string | null;
@@ -330,6 +338,9 @@ function ResultView({
           <p className="mt-1 text-xl font-black text-amber-200">{result.cautionMonths.map((m) => `${m}월`).join(" · ")}</p>
         </div>
       </section>
+
+      {/* 2027년을 기다리는 동안 — 이번 주 나의 흐름 */}
+      <WeekLuck birthDate={birthDate} calendarType={calendarType} source="newyear" />
 
       {/* 월별 흐름 */}
       <section className="rounded-3xl border border-white/10 bg-black/40 p-4 sm:p-5">
@@ -390,6 +401,7 @@ function ResultView({
           다른 사람 보기
         </button>
       </div>
+      <ShareCardButton result={result} />
       {notice ? <p className="text-center text-xs text-amber-200/90">{notice}</p> : null}
 
       <Link

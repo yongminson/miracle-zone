@@ -50,7 +50,7 @@ const ZODIAC: Record<string, string> = {
 };
 const ELEMENT_OF_STEM = ["목", "목", "화", "화", "토", "토", "금", "금", "수", "수"];
 
-const CLASH: Record<string, string> = {
+export const CLASH: Record<string, string> = {
   子: "午", 午: "子", 丑: "未", 未: "丑", 寅: "申", 申: "寅",
   卯: "酉", 酉: "卯", 辰: "戌", 戌: "辰", 巳: "亥", 亥: "巳",
 };
@@ -60,12 +60,12 @@ const SIX_HARMONY: Record<string, string> = {
 };
 const THREE_HARMONY = ["申子辰", "亥卯未", "寅午戌", "巳酉丑"];
 
-function ganjiKorean(ganji: string): string {
+export function ganjiKorean(ganji: string): string {
   return `${STEM_KO[ganji[0]] ?? ganji[0]}${BRANCH_KO[ganji[1]] ?? ganji[1]}`;
 }
 
 /** 일간 기준으로 다른 천간이 어떤 십성인지 (VIP 엔진과 같은 규칙) */
-function tenGodForStem(dayStem: string, targetStem: string): string {
+export function tenGodForStem(dayStem: string, targetStem: string): string {
   const dayIndex = STEMS.indexOf(dayStem);
   const targetIndex = STEMS.indexOf(targetStem);
   if (dayIndex < 0 || targetIndex < 0) return "비견";
@@ -80,7 +80,7 @@ function tenGodForStem(dayStem: string, targetStem: string): string {
 }
 
 /** 두 지지가 합(육합 또는 삼합의 반합)인지 */
-function isHarmony(a: string, b: string): boolean {
+export function isHarmony(a: string, b: string): boolean {
   if (a === b) return false;
   if (SIX_HARMONY[a] === b) return true;
   return THREE_HARMONY.some((group) => group.includes(a) && group.includes(b));
@@ -191,7 +191,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /** 생년월일(양력·음력)을 양력으로 바꾼다. 잘못된 날짜면 null */
-function toSolar(
+export function toSolar(
   year: number,
   month: number,
   day: number,

@@ -44,6 +44,7 @@ import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 import { PaymentMethodSelector, type PayMethodPg } from "@/components/payments/PaymentMethodSelector";
 import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 import { DailyMoodTracker } from "@/components/records/DailyMoodTracker";
+import { WeekLuck } from "@/components/calendar/WeekLuck";
 import { CheckinBanner } from "@/components/records/CheckinBanner";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -481,6 +482,8 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
       if (!res.ok) {
         throw new Error(data.error || "운세 분석 중 오류가 발생했습니다.");
       }
+      // 📊 단계별 이탈 분석 — 무료 결과까지 본 사람
+      void logEvent("tool_result", { tool: "fortune" });
 
       if (typeof window !== "undefined") {
         localStorage.setItem(cacheKey, JSON.stringify(data));
@@ -993,6 +996,9 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                   </div>
                 )}
 
+                {/* 이번 주 나의 흐름 — 날마다 다시 볼 이유 */}
+                <WeekLuck birthDate={birthDate} calendarType={calendarType} source="fortune" />
+
                 {/* 오늘 실제로 어땠는지 1탭 기록 — 다시 올 이유를 만드는 지점 */}
                 <DailyMoodTracker />
 
@@ -1226,6 +1232,7 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
       
       if (data.error) throw new Error(data.error);
       setResultData(data);
+      void logEvent("tool_result", { tool: "dream" });
     } catch (err) {
       alert(err instanceof Error ? err.message : "해몽 중 오류가 발생했습니다.");
     } finally {
@@ -4979,6 +4986,7 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
       
       if (typeof window !== "undefined") localStorage.setItem(cacheKey, JSON.stringify(data));
       setResultData(data);
+      void logEvent("tool_result", { tool: "match" });
     } catch (err) {
       alert(err instanceof Error ? err.message : "궁합 분석 중 오류가 발생했습니다.");
     } finally {
