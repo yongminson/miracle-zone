@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PaymentMethodCheckoutModal } from "@/components/payments/PaymentMethodCheckoutModal";
-import { logEvent } from "@/lib/analytics";
+import { logEvent, requestTossReview } from "@/lib/analytics";
 import { extractPaymentReturnId } from "@/lib/payments/return-params";
 import {
   NEWYEAR_DETAIL_PRICE_WON,
@@ -157,6 +157,7 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
           amount: NEWYEAR_DETAIL_PRICE_WON,
           recorded: "newyear_orders",
         });
+        void requestTossReview("newyear_purchase");
       }
     } catch {
       setError("상세 풀이를 불러오는 중 오류가 발생했습니다. 결제했다면 잠시 후 다시 열어 주세요. 추가 결제는 되지 않습니다.");

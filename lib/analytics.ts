@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@supabase/supabase-js";
+import { tossLog, tossRequestReview } from "@/lib/toss-bridge";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -83,6 +84,8 @@ export function withShareUtm(url: string, feature: string): string {
 
 /** 이벤트 기록. 실패해도 서비스 동작에 영향 없음 */
 export async function logEvent(eventName: string, eventData?: Record<string, unknown>) {
+  // 앱인토스 빌드면 토스 분석에도 보낸다(웹·구글 앱에서는 아무것도 안 함)
+  void sendToTossAnalytics(eventName, eventData);
   try {
     const attribution = getAttribution();
     const row = {
@@ -101,4 +104,64 @@ export async function logEvent(eventName: string, eventData?: Record<string, unk
     // platform 칸이 아직 없는 DB 라도 기록은 남긴다
     if (error) await supabase.from("user_events").insert(row);
   } catch {}
+}
+
+// ───────────── 앱인토스 전용: 토스 분석·리뷰 ─────────────
+// 토스는 "추천 미니앱"을 고를 때 재방문·전환 같은 실사용 지표와 리뷰를 본다.
+// 아래 두 함수는 앱인토스 빌드(NEXT_PUBLIC_PLATFORM=toss)에서만 동작하고, 웹·구글 앱에서는 아무것도 하지 않는다.
+
+const IS_TOSS_BUILD = process.env.NEXT_PUBLIC_PLATFORM === "toss";
+
+/** 토스 콘솔(분석 > 이벤트)로도 보낼 이벤트. 의미 있는 행동만 고른다 */
+const TOSS_EVENTS: Record<string, "screen" | "click"> = {
+  tool_result: "screen",
+  newyear_result: "screen",
+  week_luck_view: "screen",
+  payment_complete: "screen",
+  fortune_feedback: "click",
+  payment_start: "click",
+  newyear_share: "click",
+};
+
+/** 토스 분석은 문자·숫자·참거짓 값만 받는다 */
+function tossParams(eventData?: Record<string, unknown>): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {};
+  for (const [k, v] of Object.entries(eventData ?? {})) {
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") out[k] = v;
+  }
+  return out;
+}
+
+async function sendToTossAnalytics(eventName: string, eventData?: Record<string, unknown>) {
+  if (!IS_TOSS_BUILD) return;
+  const kind = TOSS_EVENTS[eventName];
+  if (!kind) return;
+  try {
+    // tool_result 는 기능별로 나눠 보이게 한다(예: fortune_result)
+    const tool = typeof eventData?.tool === "string" ? eventData.tool : null;
+    const logName = eventName === "tool_result" && tool ? `${tool}_result` : eventName;
+    await tossLog(kind, { ...tossParams(eventData), log_name: logName });
+  } catch {
+    // 토스 분석 전송이 실패해도 서비스 동작에는 영향이 없다
+  }
+}
+
+const REVIEW_KEY = "myeongun_toss_review_asked_v1";
+const REVIEW_GAP_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * 토스 리뷰(별점) 요청 — 결제를 마쳤거나 "맞았어요"를 누른 좋은 순간에만 부른다.
+ * 토스가 띄울지 말지를 다시 판단하므로 항상 뜨지는 않는다. 같은 기기에는 30일에 한 번만 요청한다.
+ */
+export async function requestTossReview(reason: string) {
+  if (!IS_TOSS_BUILD) return;
+  try {
+    const last = Number(localStorage.getItem(REVIEW_KEY) ?? 0);
+    if (last && Date.now() - last < REVIEW_GAP_MS) return;
+    localStorage.setItem(REVIEW_KEY, String(Date.now()));
+    await tossRequestReview();
+    void logEvent("toss_review_request", { reason });
+  } catch {
+    // 지원하지 않는 토스 버전이면 조용히 넘어간다
+  }
 }

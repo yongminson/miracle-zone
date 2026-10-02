@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { logEvent } from "@/lib/analytics";
+import { logEvent, requestTossReview } from "@/lib/analytics";
 import type { DayLuck, DayLuckRange } from "@/lib/calendar/day-luck-types";
 
 /**
@@ -130,6 +130,7 @@ export function WeekLuck({
       setStore(current);
       setThanks(true);
       void logEvent("fortune_feedback", { value, tone: current.seen[askYesterday]?.tone ?? null, source });
+      if (value === "hit") void requestTossReview("feedback_hit");
     },
     [askYesterday, source],
   );
