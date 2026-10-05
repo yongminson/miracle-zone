@@ -1,13 +1,24 @@
 import { NextResponse } from "next/server";
 import webpush from "web-push";
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
+import { calculateDayLuck } from "@/lib/calendar/day-luck";
+
+/**
+ * 매일 아침 8시(한국) 웹 알림 — Vercel 크론이 부른다(Bearer CRON_SECRET).
+ *
+ * 생년월일을 함께 구독한 사람에게는 그날의 흐름(운세 캘린더와 같은 계산)을 담아 보낸다.
+ * 예) "오늘은 ‘기회에 먼저 손 내미는 날’ 🟢" / "연락이 뜸했던 사람에게 먼저 연락해 보세요."
+ * 누르면 오늘의 운세로 바로 간다(utm_source=push 로 알림에서 온 방문을 센다).
+ */
 
 const VAPID_SUBJECT = "mailto:support@ymstudio.co.kr";
+const OPEN_URL = "/tools?tab=fortune&utm_source=push&utm_medium=daily";
+const TONE_EMOJI: Record<string, string> = { good: "🟢", normal: "🟡", caution: "🔴" };
 
-const DAILY_PAYLOAD = JSON.stringify({
-  title: "오늘의 운세가 도착했습니다! ✨",
-  body: "우주의 기운이 담긴 오늘의 맞춤 운세를 확인해보세요.",
-  url: "/?tab=fortune",
+const DEFAULT_PAYLOAD = JSON.stringify({
+  title: "오늘의 운세가 도착했어요 ✨",
+  body: "오늘 힘을 쓰면 좋은 일과 조심할 일을 확인해 보세요.",
+  url: OPEN_URL,
 });
 
 function isCronAuthorized(req: Request): boolean {
@@ -24,7 +35,27 @@ type PushSubscriptionRow = {
   endpoint: string;
   p256dh: string;
   auth: string;
+  birth_date?: string | null;
+  calendar_type?: string | null;
 };
+
+/** 그 사람의 오늘 흐름으로 알림 문구를 만든다. 계산이 안 되면 기본 문구 */
+function payloadFor(sub: PushSubscriptionRow): string {
+  if (!sub.birth_date) return DEFAULT_PAYLOAD;
+  try {
+    const calendarType =
+      sub.calendar_type === "lunar" || sub.calendar_type === "lunar-leap" ? sub.calendar_type : "solar";
+    const today = calculateDayLuck({ birthDate: sub.birth_date, calendarType, days: 1 }).days[0];
+    if (!today) return DEFAULT_PAYLOAD;
+    return JSON.stringify({
+      title: `오늘은 ‘${today.title}’ ${TONE_EMOJI[today.tone] ?? ""}`.trim(),
+      body: today.action,
+      url: OPEN_URL,
+    });
+  } catch {
+    return DEFAULT_PAYLOAD;
+  }
+}
 
 async function runDailyPush(req: Request): Promise<Response> {
   if (!isCronAuthorized(req)) {
@@ -40,10 +71,10 @@ async function runDailyPush(req: Request): Promise<Response> {
     );
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return NextResponse.json({ success: false, message: "서버 설정 문제로 보내지 못했습니다." }, { status: 503 });
+  }
 
   webpush.setVapidDetails(VAPID_SUBJECT, publicKey, privateKey);
 
@@ -55,33 +86,22 @@ async function runDailyPush(req: Request): Promise<Response> {
 
   const rows = (subscriptions ?? []) as PushSubscriptionRow[];
   if (rows.length === 0) {
-    return NextResponse.json({
-      success: true,
-      message: "발송 대상 구독이 없습니다.",
-      sent: 0,
-      failed: 0,
-      cleaned: 0,
-    });
+    return NextResponse.json({ success: true, message: "발송 대상 구독이 없습니다.", sent: 0, failed: 0, cleaned: 0 });
   }
 
   const results = await Promise.allSettled(
     rows.map((sub) =>
       webpush
-        .sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: { p256dh: sub.p256dh, auth: sub.auth },
-          },
-          DAILY_PAYLOAD,
-          { TTL: 86400 }
-        )
-        .then(() => ({ outcome: "sent" as const, sub }))
+        .sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payloadFor(sub), {
+          TTL: 4 * 60 * 60,
+        })
+        .then(() => ({ outcome: "sent" as const }))
         .catch(async (err: { statusCode?: number }) => {
           const code = err?.statusCode;
           if (code === 410 || code === 404) {
             const { error: delErr } = await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
             if (delErr) console.error("cron/push delete stale subscription:", delErr);
-            return { outcome: "cleaned" as const, sub };
+            return { outcome: "cleaned" as const };
           }
           throw err;
         })
@@ -90,27 +110,24 @@ async function runDailyPush(req: Request): Promise<Response> {
 
   let sent = 0;
   let cleaned = 0;
-  const failures: { endpoint: string; reason: string }[] = [];
-
-  for (let i = 0; i < results.length; i++) {
-    const r = results[i];
-    const sub = rows[i];
+  let failed = 0;
+  for (const r of results) {
     if (r.status === "fulfilled") {
       if (r.value.outcome === "sent") sent++;
-      else if (r.value.outcome === "cleaned") cleaned++;
-      continue;
+      else cleaned++;
+    } else {
+      failed++;
     }
-    const reason = r.reason instanceof Error ? r.reason.message : String(r.reason);
-    failures.push({ endpoint: sub.endpoint, reason });
   }
+  const personalized = rows.filter((r) => !!r.birth_date).length;
 
   return NextResponse.json({
     success: true,
-    message: `처리 완료: 성공 ${sent}건, 만료 구독 정리 ${cleaned}건, 실패 ${failures.length}건`,
+    message: `처리 완료: 성공 ${sent}건(맞춤 ${personalized}명), 만료 정리 ${cleaned}건, 실패 ${failed}건`,
     sent,
     cleaned,
-    failed: failures.length,
-    failures: failures.slice(0, 20),
+    failed,
+    personalized,
   });
 }
 

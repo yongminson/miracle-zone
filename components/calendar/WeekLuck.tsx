@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { logEvent, requestTossReview } from "@/lib/analytics";
+import { hasWebPushSubscription, isWebPushAvailable, subscribeDailyPush, unsubscribeDailyPush } from "@/lib/push/web-push";
 import type { DayLuck, DayLuckRange } from "@/lib/calendar/day-luck-types";
 
 /**
@@ -76,6 +77,36 @@ export function WeekLuck({
   const [picked, setPicked] = useState<string | null>(null);
   const [store, setStore] = useState<Store>({ seen: {}, feedback: {} });
   const [thanks, setThanks] = useState(false);
+
+  // 매일 아침 알림(웹에서만). unavailable 이면 버튼 자체를 숨긴다
+  const [push, setPush] = useState<"unavailable" | "off" | "on" | "busy">("unavailable");
+  const [pushNote, setPushNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isWebPushAvailable()) return;
+    void hasWebPushSubscription().then((on) => setPush(on ? "on" : "off"));
+  }, []);
+
+  const turnOnPush = useCallback(async () => {
+    setPush("busy");
+    setPushNote(null);
+    const result = await subscribeDailyPush({ birthDate, calendarType });
+    if (result.ok) {
+      setPush("on");
+      setPushNote("내일 아침 8시부터 알려 드릴게요.");
+      void logEvent("push_subscribe", { source });
+    } else {
+      setPush("off");
+      setPushNote(result.message);
+    }
+  }, [birthDate, calendarType, source]);
+
+  const turnOffPush = useCallback(async () => {
+    setPush("busy");
+    await unsubscribeDailyPush();
+    setPush("off");
+    setPushNote("알림을 껐어요.");
+    void logEvent("push_unsubscribe", { source });
+  }, [source]);
 
   useEffect(() => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return;
@@ -227,6 +258,31 @@ export function WeekLuck({
           </p>
         ) : null}
       </div>
+
+      {/* 매일 아침 알림 — 원하는 사람만 켠다(토스 UX 기준: 알림 동의는 필요할 때) */}
+      {push === "off" || push === "busy" ? (
+        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <button
+            type="button"
+            disabled={push === "busy"}
+            onClick={() => void turnOnPush()}
+            className="w-full rounded-lg bg-gradient-to-r from-amber-500 to-yellow-400 py-2.5 text-xs font-bold text-stone-950 disabled:opacity-60"
+          >
+            {push === "busy" ? "설정하는 중…" : "🔔 매일 아침 8시, 오늘의 흐름 알림 받기"}
+          </button>
+          <p className="mt-1.5 text-[10px] leading-relaxed text-white/40">
+            생년월일로 계산한 그날의 흐름을 알림으로 보내 드려요. 언제든 끌 수 있어요.
+          </p>
+        </div>
+      ) : push === "on" ? (
+        <p className="mt-3 text-[11px] text-emerald-200/80">
+          🔔 매일 아침 8시에 알려 드려요 ·{" "}
+          <button type="button" onClick={() => void turnOffPush()} className="underline underline-offset-2 text-white/45">
+            끄기
+          </button>
+        </p>
+      ) : null}
+      {pushNote ? <p className="mt-1.5 text-[11px] text-amber-200/90">{pushNote}</p> : null}
 
       <p className="mt-3 text-[10px] leading-relaxed text-white/35">
         사주의 날 기운을 계산한 참고용 흐름이에요. 일이 ‘생긴다’는 뜻이 아니라, 이런 일에 힘을 쓰면 좋다는 뜻이에요.
