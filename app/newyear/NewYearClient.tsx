@@ -9,6 +9,7 @@ import type { SavedProfile } from "@/lib/profiles/saved-profiles";
 import type { NewYearCalendarType, NewYearResult } from "@/lib/newyear/newyear-types";
 import { DetailPaywall, DetailView, DetailWaiting, useNewYearDetail } from "./NewYearDetail";
 import { MenuTabs } from "@/components/layout/MenuTabs";
+import { ZODIAC_2027 } from "@/lib/newyear/zodiac-2027";
 import { WeekLuck } from "@/components/calendar/WeekLuck";
 import { ShareCardButton } from "./ShareCardButton";
 
@@ -269,6 +270,21 @@ export function NewYearClient() {
             </p>
           </section>
         )}
+        {/* 띠별 2027 운세 — 검색 페이지로 이어지는 길(내부 링크) */}
+        <section className="mt-10">
+          <h2 className="text-center text-sm font-bold text-white/80">띠별 2027년 운세</h2>
+          <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
+            {ZODIAC_2027.map((z) => (
+              <Link
+                key={z.slug}
+                href={`/newyear/${z.slug}`}
+                className="rounded-xl border border-white/10 px-2 py-2 text-center text-xs text-white/60 transition hover:border-rose-400/40 hover:text-rose-100"
+              >
+                {z.animal}띠
+              </Link>
+            ))}
+          </div>
+        </section>
       </main>
       {paid.paymentModal}
     </div>

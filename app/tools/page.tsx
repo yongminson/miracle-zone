@@ -6292,6 +6292,15 @@ function ZodiacTab({ isVisible }: { isVisible: boolean }) {
             {/* 🔥 오늘의 운세 (날짜 기반 매일 변동) */}
             <DailyZodiacCard zodiacId={selectedZodiac.id} zodiacLabel={selectedZodiac.label} />
 
+            {/* 2027 신년운세(띠별 전용 페이지) — 올해 삼재·충·좋은 달을 보는 곳 */}
+            <a
+              href={`/newyear/${selectedZodiac.id}`}
+              className="block rounded-2xl border border-rose-400/30 bg-gradient-to-r from-rose-950/50 to-amber-950/40 p-4 transition hover:border-rose-300/60"
+            >
+              <p className="text-[11px] font-semibold tracking-widest text-rose-300/80">2027 丁未年</p>
+              <p className="mt-1 text-sm font-bold text-amber-100">2027 {selectedZodiac.label} 운세 — 삼재·좋은 달·조심할 달 보기 →</p>
+            </a>
+
             {/* 운세 섹션 탭 */}
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {SECTIONS.map((s) => (

@@ -1,3 +1,4 @@
+import { ZODIAC_2027 } from "@/lib/newyear/zodiac-2027";
 // app/sitemap.ts
 import { MetadataRoute } from 'next';
 import { supabase } from '@/app/lib/supabase';
@@ -40,6 +41,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly" as const,
       priority: 0.9,
     },
+    ...ZODIAC_2027.map((z) => ({
+      url: `${baseUrl}/newyear/${z.slug}`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    })),
     {
       url: `${baseUrl}/lock`,
       lastModified: new Date(),
