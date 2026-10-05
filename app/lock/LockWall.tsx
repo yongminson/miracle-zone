@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { MenuTabs } from "@/components/layout/MenuTabs";
 import {
   LOCK_TIERS,
   SILVER,
@@ -666,6 +667,7 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
   return (
     <div className="flex min-h-screen flex-col bg-[#070a12] text-slate-100">
       <SiteHeader variant="marketing" />
+      <MenuTabs active="lock" />
 
       {/* SVG 그라데이션 및 필터 전역 정의 (1회 로드) */}
       <svg className="absolute h-0 w-0 pointer-events-none" aria-hidden>

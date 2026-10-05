@@ -82,6 +82,8 @@ function readAppState(): { isApp: boolean; canBuy: boolean } {
 export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: NewYearResult) => void) {
   const [detail, setDetail] = useState<NewYearDetail | null>(null);
   const [busy, setBusy] = useState(false);
+  // busy 는 결제창이 열려 있을 때도 켜진다. generating 은 실제로 풀이를 쓰는 동안만
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [purchases, setPurchases] = useState<NewYearPurchase[]>([]);
@@ -107,6 +109,7 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
     // 결제 식별자를 먼저 남긴다. 응답을 못 받아도 다음에 열면 이어서 받는다
     writeJson(PENDING_KEY, { input, ids, savedAt: new Date().toISOString() } satisfies Pending);
     setBusy(true);
+    setGenerating(true);
     setError(null);
     try {
       // 토스 결제는 토스 전용 경로로, 웹·앱 결제는 공용 경로로 받는다
@@ -163,6 +166,7 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
       setError("상세 풀이를 불러오는 중 오류가 발생했습니다. 결제했다면 잠시 후 다시 열어 주세요. 추가 결제는 되지 않습니다.");
     } finally {
       setBusy(false);
+      setGenerating(false);
     }
   }, []);
 
@@ -293,6 +297,7 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
     detail,
     clearDetail: () => setDetail(null),
     busy,
+    generating,
     error,
     purchases,
     app,
@@ -304,6 +309,55 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
   };
 }
 
+/** 풀이를 쓰는 동안(약 20초) — 멈춘 게 아니라 진행 중이라는 걸 보여준다 */
+const WAIT_STEPS = [
+  "결제를 확인했어요",
+  "타고난 기운을 다시 계산하고 있어요",
+  "12개월 흐름을 하나씩 읽고 있어요",
+  "재물·연애·직장·건강 풀이를 쓰고 있어요",
+  "거의 다 됐어요. 정리하는 중이에요",
+];
+
+export function DetailWaiting() {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const started = Date.now();
+    const id = window.setInterval(() => setElapsed((Date.now() - started) / 1000), 500);
+    return () => window.clearInterval(id);
+  }, []);
+  const step = Math.min(WAIT_STEPS.length - 1, Math.floor(elapsed / 5));
+  // 처음엔 빠르게, 끝으로 갈수록 천천히 차서 95% 에서 멈춘다(끝나면 결과가 바로 뜬다)
+  const percent = Math.min(95, Math.round(100 * (1 - Math.exp(-elapsed / 9))));
+
+  return (
+    <div className="mt-4 rounded-2xl border border-amber-400/30 bg-black/40 p-4 text-left" role="status" aria-live="polite">
+      <div className="flex items-center gap-2">
+        <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-amber-300 border-t-transparent" aria-hidden />
+        <p className="text-sm font-bold text-amber-100">{WAIT_STEPS[step]}</p>
+      </div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-amber-500 to-rose-400 transition-all duration-500"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <ul className="mt-3 space-y-1">
+        {WAIT_STEPS.map((text, i) => (
+          <li
+            key={text}
+            className={`text-[11px] ${i < step ? "text-emerald-300/80" : i === step ? "text-amber-100" : "text-white/30"}`}
+          >
+            {i < step ? "✓" : i === step ? "•" : "○"} {text}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[11px] leading-relaxed text-white/45">
+        보통 20초쯤 걸려요. 화면을 닫아도 결제는 안전하고, 다시 열면 추가 결제 없이 이어서 받을 수 있어요.
+      </p>
+    </div>
+  );
+}
+
 /** 결제 전 — 무엇을 받는지와 가격 */
 export function DetailPaywall({
   onBuy,
@@ -312,6 +366,7 @@ export function DetailPaywall({
   appNeedsUpdate,
   isToss,
   adminFree = false,
+  generating = false,
 }: {
   onBuy: () => void;
   busy: boolean;
@@ -319,6 +374,8 @@ export function DetailPaywall({
   appNeedsUpdate: boolean;
   isToss: boolean;
   adminFree?: boolean;
+  /** 결제 확인 뒤 풀이를 쓰는 중 */
+  generating?: boolean;
 }) {
   return (
     <section className="rounded-3xl border border-amber-400/30 bg-gradient-to-b from-amber-950/40 to-rose-950/30 p-5 text-center">
@@ -338,6 +395,8 @@ export function DetailPaywall({
         >
           앱 업데이트 후 볼 수 있어요 →
         </a>
+      ) : generating ? (
+        <DetailWaiting />
       ) : (
         <button
           type="button"
@@ -346,7 +405,7 @@ export function DetailPaywall({
           className="mt-4 w-full rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-rose-400 py-3.5 text-sm font-black text-stone-950 shadow-lg shadow-amber-900/40 transition hover:brightness-105 disabled:opacity-60"
         >
           {busy
-            ? "상세 풀이를 쓰는 중… (최대 30초)"
+            ? "결제 진행 중…"
             : adminFree
               ? "⚡ [운영자] 무료로 상세 풀이 보기"
               : `상세 풀이 보기 · ${NEWYEAR_DETAIL_PRICE_WON.toLocaleString()}원`}

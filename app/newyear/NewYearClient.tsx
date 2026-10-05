@@ -7,7 +7,8 @@ import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 import { logEvent, withShareUtm } from "@/lib/analytics";
 import type { SavedProfile } from "@/lib/profiles/saved-profiles";
 import type { NewYearCalendarType, NewYearResult } from "@/lib/newyear/newyear-types";
-import { DetailPaywall, DetailView, useNewYearDetail } from "./NewYearDetail";
+import { DetailPaywall, DetailView, DetailWaiting, useNewYearDetail } from "./NewYearDetail";
+import { MenuTabs } from "@/components/layout/MenuTabs";
 import { WeekLuck } from "@/components/calendar/WeekLuck";
 import { ShareCardButton } from "./ShareCardButton";
 
@@ -109,6 +110,7 @@ export function NewYearClient() {
   return (
     <div className="min-h-screen bg-[#07060b] text-slate-100">
       <SiteHeader variant="marketing" />
+      <MenuTabs active="newyear" />
 
       <main className="mx-auto max-w-2xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">
         <header className="text-center">
@@ -147,16 +149,17 @@ export function NewYearClient() {
                   appNeedsUpdate={paid.app.isApp && !paid.app.canBuy}
                   isToss={paid.isToss}
                   adminFree={paid.isAdmin}
+                  generating={paid.generating}
                 />
               )
             }
           />
         ) : (
           <section className="mt-8 rounded-3xl border border-rose-500/20 bg-gradient-to-b from-rose-950/30 to-black/40 p-5 shadow-2xl shadow-black/40 sm:p-6">
-            {paid.busy ? (
-              <p className="mb-4 rounded-xl bg-amber-500/10 px-3 py-2.5 text-center text-xs text-amber-200">
-                결제를 확인하고 상세 풀이를 쓰는 중이에요… (최대 30초)
-              </p>
+            {paid.generating ? (
+              <div className="mb-4">
+                <DetailWaiting />
+              </div>
             ) : null}
             {paid.error ? (
               <p className="mb-4 rounded-xl bg-rose-500/10 px-3 py-2.5 text-center text-xs leading-relaxed text-rose-200">

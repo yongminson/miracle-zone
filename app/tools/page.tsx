@@ -284,6 +284,7 @@ const pushSecret = (char: string, callback?: () => void) => {
 
 // 🚀 사람들을 홀리는 마법의 네이밍 & 완벽한 탭 순서 배치
 // href가 있는 메뉴는 이 페이지의 탭이 아니라 별도 페이지로 이동한다
+// ⚠ 메뉴를 바꾸면 components/layout/MenuTabs.tsx(신년운세·사주 인사이트·자물쇠 화면 상단 메뉴)도 같이 고친다
 const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean; href?: string }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, isReady: true },
   { id: "newyear", label: "2027 신년운세", icon: CalendarHeart, isReady: true, href: "/newyear" },

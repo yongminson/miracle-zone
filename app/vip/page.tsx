@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { MenuTabs } from "@/components/layout/MenuTabs";
 import { PaymentMethodCheckoutModal } from "@/components/payments/PaymentMethodCheckoutModal";
 import { BrainCircuit, Calendar, Clock, Gem, Sparkles } from "lucide-react";
 import { DynamicLoader } from "@/components/ui/DynamicLoader";
@@ -933,6 +934,7 @@ export default function VipLandingPage() {
 
       <div className="relative z-10">
       <SiteHeader variant="vip" />
+      <MenuTabs active="vip" />
 
       <main className="relative mx-auto max-w-3xl px-4 pb-24 pt-12 sm:px-6 sm:pt-16">
         {isSuccess ? (
