@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { logEvent, requestTossReview } from "@/lib/analytics";
 import { hasWebPushSubscription, isWebPushAvailable, subscribeDailyPush, unsubscribeDailyPush } from "@/lib/push/web-push";
+import { disableAppDailyPush, enableAppDailyPush, hasAppDailyPush, isAppDailyPushAvailable } from "@/lib/push/app-push";
 import type { DayLuck, DayLuckRange } from "@/lib/calendar/day-luck-types";
 
 /**
@@ -78,10 +79,15 @@ export function WeekLuck({
   const [store, setStore] = useState<Store>({ seen: {}, feedback: {} });
   const [thanks, setThanks] = useState(false);
 
-  // 매일 아침 알림(웹에서만). unavailable 이면 버튼 자체를 숨긴다
+  // 매일 아침 알림 — 웹은 브라우저 알림, 구글 앱(1.1.5~)은 앱이 휴대폰에 예약한다.
+  // 토스·옛 앱처럼 둘 다 안 되면 unavailable 로 두고 버튼 자체를 숨긴다
   const [push, setPush] = useState<"unavailable" | "off" | "on" | "busy">("unavailable");
   const [pushNote, setPushNote] = useState<string | null>(null);
   useEffect(() => {
+    if (isAppDailyPushAvailable()) {
+      void hasAppDailyPush().then((on) => setPush(on ? "on" : "off"));
+      return;
+    }
     if (!isWebPushAvailable()) return;
     void hasWebPushSubscription().then((on) => setPush(on ? "on" : "off"));
   }, []);
@@ -89,11 +95,14 @@ export function WeekLuck({
   const turnOnPush = useCallback(async () => {
     setPush("busy");
     setPushNote(null);
-    const result = await subscribeDailyPush({ birthDate, calendarType });
+    const inApp = isAppDailyPushAvailable();
+    const result = inApp
+      ? await enableAppDailyPush({ birthDate, calendarType })
+      : await subscribeDailyPush({ birthDate, calendarType });
     if (result.ok) {
       setPush("on");
       setPushNote("내일 아침 8시부터 알려 드릴게요.");
-      void logEvent("push_subscribe", { source });
+      void logEvent("push_subscribe", { source, channel: inApp ? "app" : "web" });
     } else {
       setPush("off");
       setPushNote(result.message);
@@ -102,10 +111,12 @@ export function WeekLuck({
 
   const turnOffPush = useCallback(async () => {
     setPush("busy");
-    await unsubscribeDailyPush();
+    const inApp = isAppDailyPushAvailable();
+    if (inApp) await disableAppDailyPush();
+    else await unsubscribeDailyPush();
     setPush("off");
     setPushNote("알림을 껐어요.");
-    void logEvent("push_unsubscribe", { source });
+    void logEvent("push_unsubscribe", { source, channel: inApp ? "app" : "web" });
   }, [source]);
 
   useEffect(() => {
