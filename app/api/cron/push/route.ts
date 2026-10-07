@@ -94,6 +94,8 @@ async function runDailyPush(req: Request): Promise<Response> {
       webpush
         .sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payloadFor(sub), {
           TTL: 4 * 60 * 60,
+          // 아침 알림은 그 시각에 보여야 의미가 있다 — 휴대폰 절전 중에도 미루지 않게
+          urgency: "high",
         })
         .then(() => ({ outcome: "sent" as const }))
         .catch(async (err: { statusCode?: number }) => {
