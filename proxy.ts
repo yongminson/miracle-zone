@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 const ALLOWED_APP_ORIGINS = new Set([
   "https://myeongun.apps.tossmini.com",
   "https://myeongun.private-apps.tossmini.com",
+  // 토스 SDK 3.x 부터 미니앱 주소가 바뀐다(위 두 개는 2.x 로 출시된 버전용으로 남겨 둔다)
+  "https://myeongun.web.tossmini.com",
+  "https://myeongun.private-web.tossmini.com",
   "https://myeongun-app.vercel.app",
 ]);
 
