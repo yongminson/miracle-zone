@@ -136,7 +136,7 @@ export default async function ZodiacNewYearPage({ params }: Props) {
               </span>
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-white/35">나이는 한국 나이 기준이에요. 띠는 설날·입춘 무렵에 바뀌어서, 1~2월생은 앞 해의 띠일 수 있어요.</p>
+          <p className="mt-2 text-[11px] text-white/35">나이는 2027년 연 나이(2027 − 출생 연도)예요. 만 나이는 생일 전이면 한 살 적어요. 띠는 설날·입춘 무렵에 바뀌어서, 1~2월생은 앞 해의 띠일 수 있어요.</p>
         </section>
 
         <section className="mt-8">

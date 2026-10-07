@@ -212,12 +212,12 @@ export function zodiacMonths(branch: string): { good: number[]; caution: number[
   return { good, caution };
 }
 
-/** 그 띠의 출생 연도와 2027년 한국 나이(1930~2026년생) */
+/** 그 띠의 출생 연도와 2027년 연 나이(2027 − 출생 연도, 1930~2026년생) */
 export function zodiacBirthYears(branch: string): { year: number; age: number }[] {
   const index = BRANCH_ORDER.indexOf(branch);
   const out: { year: number; age: number }[] = [];
   for (let y = 1930; y <= 2026; y += 1) {
-    if ((((y - 4) % 12) + 12) % 12 === index) out.push({ year: y, age: 2027 - y + 1 });
+    if ((((y - 4) % 12) + 12) % 12 === index) out.push({ year: y, age: 2027 - y });
   }
   return out.reverse();
 }

@@ -30,6 +30,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import HeaderPushBell from "@/components/push/HeaderPushBell";
 import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
 import { captureAttribution, logEvent, withShareUtm } from "@/lib/analytics";
 import { clearPendingPaymentData, readPendingPaymentData, savePendingPaymentData } from "@/lib/payments/pending-payment-data";
@@ -6703,49 +6704,8 @@ export default function Home() {
         variant="app"
         right={
           <div className="flex items-center gap-3">
-            <button
-              onClick={async () => {
-                if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                  return alert("이 브라우저는 알림을 지원하지 않습니다.");
-                }
-                try {
-                  const registration = await navigator.serviceWorker.register('/sw.js');
-                  const permission = await Notification.requestPermission();
-                  if (permission !== 'granted') return alert("알림 권한이 거부되었습니다.");
-
-                  const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "";
-                  if (!VAPID_PUBLIC_KEY) return alert("알림 기능이 준비 중입니다. (베르첼 환경변수 VAPID 키 누락)");
-                  const base64ToUint8Array = (base64: string) => {
-                    const padding = '='.repeat((4 - base64.length % 4) % 4);
-                    const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
-                    const rawData = window.atob(b64);
-                    const outputArray = new Uint8Array(rawData.length);
-                    for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
-                    return outputArray;
-                  };
-
-                  const subscription = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: base64ToUint8Array(VAPID_PUBLIC_KEY)
-                  });
-
-                  await fetch('/api/push/subscribe', {
-                    method: 'POST',
-                    body: JSON.stringify(subscription),
-                    headers: { 'Content-Type': 'application/json' }
-                  });
-                  alert("✨ 매일 맞춤 운세 알림이 설정되었습니다!");
-                } catch (e: any) {
-                  console.error(e);
-                  alert("알림 설정 중 오류가 발생했습니다.\n브라우저나 기기 자체의 알림 차단을 해제한 뒤 다시 시도해주세요.");
-                }
-              }}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-yellow-500/20 bg-slate-800 text-yellow-400 shadow-lg transition-colors hover:bg-slate-700"
-              title="매일 운세 알림 받기"
-              type="button"
-            >
-              <Bell className="h-4 w-4 animate-bounce" />
-            </button>
+            {/* 매일 아침 알림 — 이번 주 나의 흐름의 알림 버튼과 같은 기능. 안 되는 곳(토스·예전 앱)에서는 숨는다 */}
+            <HeaderPushBell />
 
             <div className="hidden">
               {!isAuthChecking && (
