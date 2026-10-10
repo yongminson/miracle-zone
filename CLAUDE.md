@@ -13,9 +13,11 @@ npm run dev      # next dev — local dev server on :3000
 npm run build    # next build — production build (also the type-check gate; there is no separate tsc script)
 npm run start    # next start — serve the production build
 npm run lint     # eslint (flat config, next core-web-vitals + typescript)
+npm run check:manseryeok            # 만세력 자동 검사 — prebuild 로 매 빌드 전에 자동 실행, 틀리면 빌드(=배포) 중단
+npm run check:manseryeok -- --full  # 1900~2100년 매일 전체 검사(약 6분) — 사주 계산 코드를 고친 뒤 꼭 돌릴 것
 ```
 
-There is **no test suite**. Verification is done via `npm run build` (type errors surface here) and manual/browser testing. The top-level `테스트/` folder is a scratch/reference dump of old `.txt` snapshots and images — not part of the build.
+There is **no general test suite**, but saju/만세력 calculations are guarded by `scripts/check-manseryeok.ts` (independent references: JDN day formula, solar longitude for 절기, Korean vs Chinese lunar libraries, 오호둔/오서둔). Never hand-roll pillar formulas — use `lunar-javascript` (pillars) + `korean-lunar-calendar` (음력→양력). Verification is done via `npm run build` (type errors surface here) and manual/browser testing. The top-level `테스트/` folder is a scratch/reference dump of old `.txt` snapshots and images — not part of the build.
 
 ## Repository relationship
 
