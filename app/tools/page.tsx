@@ -387,7 +387,8 @@ type DaeunInfo = {
   currentDescription: string;
 };
 
-const FORTUNE_CACHE_PREFIX = "fortune-cache-";
+// v2: 2026-10-11 만세력(일주 이틀 밀림·음력 가짜 변환) 수정 — 그날 저장된 틀린 결과를 버리고 다시 계산하게 한다
+const FORTUNE_CACHE_PREFIX = "fortune-cache-v2-";
 const PREMIUM_CACHE_PREFIX = "fortune-premium-cache-";
 const NAME_CACHE_PREFIX = "name-cache-";
 

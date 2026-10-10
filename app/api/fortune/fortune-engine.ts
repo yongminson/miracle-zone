@@ -1,3 +1,6 @@
+import KoreanLunarCalendar from "korean-lunar-calendar";
+import { Solar } from "lunar-javascript";
+
 export type FortuneGender = "male" | "female";
 export type FortuneCalendarType = "solar" | "lunar" | "lunar-leap";
 export type FortuneBirthTime =
@@ -56,15 +59,6 @@ const EARTHLY_BRANCHES = [
   { korean: "술", hanja: "戌", element: "earth" as const }, { korean: "해", hanja: "亥", element: "water" as const },
 ];
 
-const MONTH_BRANCHES = [
-  { month: 1, korean: "인", hanja: "寅", element: "wood" as const }, { month: 2, korean: "묘", hanja: "卯", element: "wood" as const },
-  { month: 3, korean: "진", hanja: "辰", element: "earth" as const }, { month: 4, korean: "사", hanja: "巳", element: "fire" as const },
-  { month: 5, korean: "오", hanja: "午", element: "fire" as const }, { month: 6, korean: "미", hanja: "未", element: "earth" as const },
-  { month: 7, korean: "신", hanja: "申", element: "metal" as const }, { month: 8, korean: "유", hanja: "酉", element: "metal" as const },
-  { month: 9, korean: "술", hanja: "戌", element: "earth" as const }, { month: 10, korean: "해", hanja: "亥", element: "water" as const },
-  { month: 11, korean: "자", hanja: "子", element: "water" as const }, { month: 12, korean: "축", hanja: "丑", element: "earth" as const },
-];
-
 const TIME_LABELS: Record<string, string> = {
   unknown: "모름", ja: "자시(23~01)", chuk: "축시(01~03)", in: "인시(03~05)", myo: "묘시(05~07)",
   jin: "진시(07~09)", sa: "사시(09~11)", o: "오시(11~13)", mi: "미시(13~15)", sin: "신시(15~17)",
@@ -77,50 +71,42 @@ function normalizeGenderLabel(gender: FortuneGender): string { return gender ===
 function normalizeCalendarLabel(calendarType: FortuneCalendarType): string { if (calendarType === "solar") return "양력"; if (calendarType === "lunar") return "음력 평달"; return "음력 윤달"; }
 function normalizeTimeLabel(birthTime: string): string { return TIME_LABELS[birthTime] || "모름"; }
 
-// 🚀 음력/양력 날짜 변환 로직 (가상 만세력 동기화)
+// 음력(평달·윤달) 생일을 실제 음력 달력으로 양력 날짜로 바꾼다.
+// 2026-10-11 수정: 예전엔 29일(윤달 59일)을 더하는 가짜 변환이라 음력 입력의 사주가 전부 틀렸다.
 function adjustLunarDate(dateStr: string, calType: FortuneCalendarType): string {
   if (calType === "solar") return dateStr;
-  const d = new Date(`${dateStr}T00:00:00+09:00`);
-  d.setDate(d.getDate() + (calType === "lunar" ? 29 : 59)); // 평달/윤달에 따른 사주 변화 강제
-  return d.toISOString().slice(0, 10);
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const cal = new KoreanLunarCalendar();
+  if (!cal.setLunarDate(y, m, d, calType === "lunar-leap")) {
+    throw new Error(calType === "lunar-leap" ? "그해에는 그 달의 윤달이 없어요. 음력 평달로 다시 확인해 주세요." : "음력 날짜를 확인해 주세요.");
+  }
+  const solar = cal.getSolarCalendar();
+  return `${solar.year}-${String(solar.month).padStart(2, "0")}-${String(solar.day).padStart(2, "0")}`;
 }
 
-function extractBirthYear(actualDate: string): number { return Number(actualDate.slice(0, 4)); }
-function extractBirthMonthDay(actualDate: string): { month: number; day: number } { return { month: Number(actualDate.slice(5, 7)), day: Number(actualDate.slice(8, 10)) }; }
-function isBeforeIpchun(month: number, day: number): boolean { return month < 2 || (month === 2 && day < 4); }
-function getDayDiffFromReference(actualDate: string): number { const targetDate = new Date(`${actualDate}T00:00:00+09:00`); return Math.floor((targetDate.getTime() - new Date("1984-02-02T00:00:00+09:00").getTime()) / 86400000); }
-
-function getSajuMonthOrder(month: number, day: number): number {
-  if (month === 2) return day >= 4 ? 1 : 12; if (month === 3) return day >= 6 ? 2 : 1; if (month === 4) return day >= 5 ? 3 : 2;
-  if (month === 5) return day >= 6 ? 4 : 3; if (month === 6) return day >= 6 ? 5 : 4; if (month === 7) return day >= 7 ? 6 : 5;
-  if (month === 8) return day >= 8 ? 7 : 6; if (month === 9) return day >= 8 ? 8 : 7; if (month === 10) return day >= 8 ? 9 : 8;
-  if (month === 11) return day >= 7 ? 10 : 9; if (month === 12) return day >= 7 ? 11 : 10; return day >= 6 ? 12 : 11;
+// 년·월·일주는 절기(입춘·각 달의 절입)와 실제 60갑자 날짜로 계산한다 — VIP·신년운세·운세 캘린더와 같은 만세력.
+// 시간은 시진(자·축…)만 받으므로 그날 정오 기준으로 본다.
+function eightCharOf(dateStr: string) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return Solar.fromYmdHms(y, m, d, 12, 0, 0).getLunar().getEightChar();
 }
 
-function getMonthStemStartIndex(yearStem: string): number {
-  if (yearStem === "갑" || yearStem === "기") return 2; if (yearStem === "을" || yearStem === "경") return 4;
-  if (yearStem === "병" || yearStem === "신") return 6; if (yearStem === "정" || yearStem === "임") return 8; return 0;
+function pillarFromGanji(ganji: string): SajuPillar {
+  const stem = HEAVENLY_STEMS.find((item) => item.hanja === ganji[0]);
+  const branch = EARTHLY_BRANCHES.find((item) => item.hanja === ganji[1]);
+  if (!stem || !branch) throw new Error(`간지를 해석하지 못했습니다: ${ganji}`);
+  return { stem: stem.korean, branch: branch.korean, stemHanja: stem.hanja, branchHanja: branch.hanja, element: stem.element };
 }
+
 
 function getTimeStemStartIndex(dayStem: string): number {
   if (dayStem === "갑" || dayStem === "기") return 0; if (dayStem === "을" || dayStem === "경") return 2;
   if (dayStem === "병" || dayStem === "신") return 4; if (dayStem === "정" || dayStem === "임") return 6; return 8;
 }
 
-function calculateYearPillar(year: number): SajuPillar {
-  const offset = year - 1984; const stem = HEAVENLY_STEMS[((offset % 10) + 10) % 10]; const branch = EARTHLY_BRANCHES[((offset % 12) + 12) % 12];
-  return { stem: stem.korean, branch: branch.korean, stemHanja: stem.hanja, branchHanja: branch.hanja, element: stem.element };
-}
-
-function calculateMonthPillar(yearPillar: SajuPillar, month: number, day: number): SajuPillar {
-  const monthOrder = getSajuMonthOrder(month, day); const mb = MONTH_BRANCHES.find((item) => item.month === monthOrder)!;
-  const stem = HEAVENLY_STEMS[(getMonthStemStartIndex(yearPillar.stem) + (monthOrder - 1)) % 10];
-  return { stem: stem.korean, branch: mb.korean, stemHanja: stem.hanja, branchHanja: mb.hanja, element: stem.element };
-}
-
+// 2026-10-11 수정: 예전엔 1984-02-02 를 갑자일로 놓고 셌는데 그날은 병인일이라, 모든 일주(와 시주)가 이틀씩 틀렸다.
 function calculateDayPillar(actualDate: string): SajuPillar {
-  const dayDiff = getDayDiffFromReference(actualDate); const stem = HEAVENLY_STEMS[((dayDiff % 10) + 10) % 10]; const branch = EARTHLY_BRANCHES[((dayDiff % 12) + 12) % 12];
-  return { stem: stem.korean, branch: branch.korean, stemHanja: stem.hanja, branchHanja: branch.hanja, element: stem.element };
+  return pillarFromGanji(eightCharOf(actualDate).getDay());
 }
 
 function calculateTimePillar(dayPillar: SajuPillar, birthTime: string): SajuPillar | null {
@@ -350,12 +336,10 @@ export function buildFortuneProfile(input: FortuneEngineInput): FortuneEnginePro
   // 🚀 음양력 완벽 변환 (사주명식 교체용)
   const actualDate = adjustLunarDate(input.birthDate, calendarType);
   
-  const birthYear = extractBirthYear(actualDate);
-  const { month, day } = extractBirthMonthDay(actualDate);
-  const adjustedYear = isBeforeIpchun(month, day) ? birthYear - 1 : birthYear;
-
-  const yearPillar = calculateYearPillar(adjustedYear);
-  const monthPillar = calculateMonthPillar(yearPillar, month, day);
+  // 년주는 입춘, 월주는 그달 절입일 기준(예전엔 1월 1일·고정 날짜로 바뀌어 1~2월생 년주가 틀렸다)
+  const birthEightChar = eightCharOf(actualDate);
+  const yearPillar = pillarFromGanji(birthEightChar.getYear());
+  const monthPillar = pillarFromGanji(birthEightChar.getMonth());
   const dayPillar = calculateDayPillar(actualDate);
   const timePillar = calculateTimePillar(dayPillar, birthTime);
 
