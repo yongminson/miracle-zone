@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-**명운(命運) / Miracle Zone** — an AI-powered Korean fortune-telling (사주/명리학) web service. Free tools (daily fortune, zodiac, compatibility, MBTI, dream interpretation, lotto, wish altar) plus paid products (physiognomy/palmistry/name analysis at ₩4,900, and a ₩9,900 "명운 사주 인사이트 리포트" PDF). Production domain: `saju.ymstudio.co.kr`. The UI and nearly all code comments are in Korean.
+**명운(命運) / Miracle Zone** — an AI-powered Korean fortune-telling (사주/명리학) web service. Free tools (daily fortune, zodiac, compatibility, MBTI, dream interpretation, lotto, wish altar) plus small paid products (as of 2026-10: physiognomy/palmistry/name ₩1,900, altar 10-day ₩2,200, 2027 신년운세 상세 풀이 ₩3,300, and the ₩4,400 "명운 사주 인사이트 리포트" PDF — the highest price; check `lib/payments/vip-order-supabase.ts` / `lib/newyear/newyear-types.ts` before quoting prices). Production domain: `saju.ymstudio.co.kr`. The UI and nearly all code comments are in Korean.
 
 ## Commands
 
