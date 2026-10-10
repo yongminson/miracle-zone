@@ -166,7 +166,9 @@ for (let t = Date.UTC(startYear, 0, 1); t <= Date.UTC(endYear, 11, 31); t += 864
   // 절입이 있는 날은 하루에 여러 시각을 넣어, 절입 직전·직후 출생이 맞는지 본다.
   if (termDay) termCount++;
   const termSample = termDay && (FULL || termCount % 3 === 0);
-  if (dayIndex % vipStep === 0 || termSample) {
+  // VIP·신년운세는 한국 음력 라이브러리(2050년까지)를 거치므로 그 범위만 본다. 명운 입력은 1920~2026년생
+  const inKrRange = y <= 2050;
+  if (inKrRange && (dayIndex % vipStep === 0 || termSample)) {
     const hours = termSample ? (FULL ? [1, 4, 7, 10, 13, 16, 19, 22] : [2 + (termCount % 3), 9, 15, 21]) : [1 + (dayIndex % 22)];
     for (const hour of hours) {
       const minute = (dayIndex * 7 + hour * 13) % 60;
@@ -186,7 +188,7 @@ for (let t = Date.UTC(startYear, 0, 1); t <= Date.UTC(endYear, 11, 31); t += 864
   }
 
   // 2027 신년운세 — 일간과 띠
-  if (dayIndex % newyearStep === 0 && !ref.boundary) {
+  if (inKrRange && dayIndex % newyearStep === 0 && !ref.boundary) {
     const n = calculateNewYear({ birthDate: date, calendarType: "solar", gender: "male" });
     check("신년운세 일간", date, n.dayMaster.hanja, wantDay[0]);
     check("신년운세 띠", date, n.zodiac, ZODIAC[BRANCHES.indexOf(ref.year[1])]);
