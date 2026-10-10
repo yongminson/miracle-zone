@@ -59,7 +59,7 @@ export type VipCalculatedSaju = {
     library: "lunar-javascript";
     version: "1.7.7";
     monthBoundary: "solar-terms";
-    timeBasis: "KST civil time without true-solar correction";
+    timeBasis: "KST civil time without true-solar correction (solar terms compared in KST)";
     lateZiRule: "sect-2 (23:00 day pillar does not roll forward)";
     birthTimePrecision: "minute" | "unknown-noon-estimate";
     limitations: string[];
@@ -186,8 +186,18 @@ export function calculateVipSaju(params: {
   const eightChar = solar.getLunar().getEightChar();
   eightChar.setSect(2);
 
-  const year = buildPillar(eightChar, "year");
-  const month = buildPillar(eightChar, "month");
+  // 절기(년·월주·대운)는 라이브러리가 중국 표준시(UTC+8)로 잡는다. 한국 시각을 그대로 넣으면
+  // 절입 직전 1시간 안에 태어난 사람이 다음 달 월주로 나온다(2026-10-11 만세력 검사에서 발견).
+  // 같은 순간을 중국 시각(한국 −1시간)으로 바꿔 년·월주와 대운을 잡고, 일·시주는 한국 시각 그대로 쓴다.
+  const china = new Date(Date.UTC(params.solarDate.year, params.solarDate.month - 1, params.solarDate.day, time.hour, time.minute) - 60 * 60 * 1000);
+  const termEightChar = Solar.fromYmdHms(
+    china.getUTCFullYear(), china.getUTCMonth() + 1, china.getUTCDate(), china.getUTCHours(), china.getUTCMinutes(), 0,
+  ).getLunar().getEightChar();
+  // 0시대 출생은 한 시간 당기면 전날 23시가 된다 — 일간(십성 기준)이 바뀌지 않게 그때만 23시를 다음 날로 본다
+  termEightChar.setSect(time.hour === 0 ? 1 : 2);
+
+  const year = buildPillar(termEightChar, "year");
+  const month = buildPillar(termEightChar, "month");
   const day = buildPillar(eightChar, "day");
   const hour = time.known ? buildPillar(eightChar, "hour") : null;
   const pillars = [year, month, day, ...(hour ? [hour] : [])];
@@ -198,7 +208,7 @@ export function calculateVipSaju(params: {
     }
   }
 
-  const yun = eightChar.getYun(params.gender === "male" ? 1 : 0);
+  const yun = termEightChar.getYun(params.gender === "male" ? 1 : 0);
   const periods = yun
     .getDaYun(10)
     .filter((item) => item.getGanZhi())
@@ -235,7 +245,7 @@ export function calculateVipSaju(params: {
       library: "lunar-javascript",
       version: "1.7.7",
       monthBoundary: "solar-terms",
-      timeBasis: "KST civil time without true-solar correction",
+      timeBasis: "KST civil time without true-solar correction (solar terms compared in KST)",
       lateZiRule: "sect-2 (23:00 day pillar does not roll forward)",
       birthTimePrecision: time.known ? "minute" : "unknown-noon-estimate",
       limitations: [

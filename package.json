@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run check:manseryeok",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:manseryeok": "tsx scripts/check-manseryeok.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.99.0",
@@ -40,6 +42,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.7",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }
