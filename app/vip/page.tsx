@@ -20,6 +20,21 @@ import { appendVipSymbolicAmulet } from "@/lib/saju/vip-symbolic-amulet";
 import { logEvent } from "@/lib/analytics";
 import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 
+/** 구글 플레이 인앱 상품 ID — 명운-rn IAP_PRODUCTS, /api/payment/verify-google 과 같은 값 */
+const VIP_APP_PRODUCT_ID = "vip_report";
+
+/**
+ * 구글 앱(명운-rn WebView) 안인지, 구글 결제를 부를 수 있는 버전인지.
+ * 1.1.4 부터 userAgent 에 "MyeongunIAP/" 가 붙고 vip_report 결제를 처리한다.
+ */
+function readVipAppPay(): "web" | "google" | "old-app" {
+  if (typeof navigator === "undefined") return "web";
+  const ua = navigator.userAgent;
+  if (!ua.includes("MyeongunApp")) return "web";
+  const hasBridge = typeof window !== "undefined" && !!(window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+  return ua.includes("MyeongunIAP/") && hasBridge ? "google" : "old-app";
+}
+
 type VipApiSuccess = { success: true; markdown: string };
 type VipApiFail = { success: false; error?: string };
 type VipStreamChunk =
@@ -209,6 +224,11 @@ export default function VipLandingPage() {
   const [amuletUrl, setAmuletUrl] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isPaymentPending, setIsPaymentPending] = useState(false);
+  // 구글 앱이면 구글 플레이 결제(첫 화면 그린 뒤에 판별 — 서버 렌더와 어긋나지 않게)
+  const [vipAppPay, setVipAppPay] = useState<"web" | "google" | "old-app">("web");
+  useEffect(() => {
+    setVipAppPay(readVipAppPay());
+  }, []);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   /** PDF 또는 부적 수동 저장 시도 완료 — '새 리포트 받기' CS 방어 */
   const [isDownloaded, setIsDownloaded] = useState(false);
@@ -424,9 +444,11 @@ export default function VipLandingPage() {
     : "잠시만 기다려 주세요...";
   const isBusy = isFetchingReport || isPdfGenerating;
 
-  const handleIssueReport = useCallback(async (options?: { imp_uid?: string | null }) => {
+  const handleIssueReport = useCallback(async (options?: { imp_uid?: string | null; paymentRef?: string | null }) => {
     setErrorMessage(null);
-    if (!options?.imp_uid) {
+    // 결제를 마치고 온 경우(웹 포트원 imp_uid 또는 구글 앱 paymentRef) — 결제 직전에 저장한 입력값을 쓴다
+    const paid = !!(options?.imp_uid || options?.paymentRef);
+    if (!paid) {
       setIsSuccess(false);
       setAmuletUrl(null);
       setPdfFallback((p) => {
@@ -436,7 +458,7 @@ export default function VipLandingPage() {
       setIsDownloaded(false);
     }
 
-    const draft = options?.imp_uid ? readVipCheckoutDraft() : null;
+    const draft = paid ? readVipCheckoutDraft() : null;
     const trimmedName = (draft?.name ?? name).trim();
     const birthDateEff = (draft?.birthDate ?? birthDate).trim();
     const birthTimeEff = (draft?.birthTime ?? birthTime).trim();
@@ -444,7 +466,7 @@ export default function VipLandingPage() {
     const mbtiEff = (draft?.mbti ?? mbti).trim();
 
     if (!trimmedName) {
-      const msg = options?.imp_uid
+      const msg = paid
         ? "모바일 결제 직전에 저장된 이름이 없습니다. 다시 입력 후 결제해 주세요."
         : "이름을 입력해 주세요.";
       setErrorMessage(msg);
@@ -452,7 +474,7 @@ export default function VipLandingPage() {
       return;
     }
     if (!birthDateEff) {
-      const msg = options?.imp_uid
+      const msg = paid
         ? "모바일 결제 직전에 저장된 생년월일이 없습니다. 다시 입력 후 결제해 주세요."
         : "생년월일을 입력해 주세요.";
       setErrorMessage(msg);
@@ -473,10 +495,14 @@ export default function VipLandingPage() {
     const timeoutId = window.setTimeout(() => controller.abort(), VIP_FETCH_MS);
 
     const imp = options?.imp_uid?.trim();
+    const googleRef = options?.paymentRef?.trim();
+    // 구글 앱 결제는 서버(/api/payment/verify-google)가 이미 확인하고 vip_orders 에 기록했다 — 그 paymentRef 를 넘긴다
     const paymentPayload =
-      imp != null && imp !== ""
-        ? { imp_uid: imp, phone_number: "010-0000-0000" as const }
-        : {};
+      googleRef
+        ? { paymentRef: googleRef }
+        : imp != null && imp !== ""
+          ? { imp_uid: imp, phone_number: "010-0000-0000" as const }
+          : {};
 
         try {
           // 1. 백엔드에 스트리밍 요청
@@ -550,7 +576,7 @@ export default function VipLandingPage() {
             return;
           }
     
-          if (options?.imp_uid) {
+          if (paid) {
             clearVipCheckoutDraft();
             setName(trimmedName);
             setBirthDate(birthDateEff);
@@ -672,6 +698,17 @@ export default function VipLandingPage() {
 
     if (!hasReturnSignal) return;
 
+    // 📊 결제사에서 돌아온 기록 — 실패·취소 사유가 주소에만 남던 것을 이벤트로 남긴다
+    void logEvent("payment_return", {
+      product: "vip",
+      paymentId: returnPayId || params.get("paymentId") || null,
+      code: errorCode || null,
+      message: errorMsg ? errorMsg.slice(0, 120) : null,
+    });
+    if (errorCode) {
+      void logEvent("payment_fail", { product: "vip", amount: 4400, reason: errorCode, message: errorMsg ? errorMsg.slice(0, 120) : null });
+    }
+
     const cleanUrl = () => {
       clearPendingPaymentData();
       clearPendingPaymentState();
@@ -755,8 +792,49 @@ export default function VipLandingPage() {
     });
     // 📊 계측 — 입력 완료 후 결제창 진입(퍼널 2단계)
     void logEvent("payment_start", { product: "vip", amount: 4400 });
+
+    // 구글 앱 안에서는 웹 결제(포트원)가 카드·카카오페이·토스페이 앱으로 넘어가지 못한다
+    // (net::ERR_UNKNOWN_URL_SCHEME, 2026-10-10~12 결제 8번 모두 실패). 구글 플레이 결제로 산다.
+    const appPay = readVipAppPay();
+    if (appPay === "google") {
+      const bridge = (window as unknown as { ReactNativeWebView?: { postMessage: (m: string) => void } }).ReactNativeWebView;
+      setIsPaymentPending(true);
+      void logEvent("payment_open", { product: "vip", amount: 4400, method: "google_play" });
+      bridge?.postMessage(JSON.stringify({ type: "PURCHASE_ITEM", productId: VIP_APP_PRODUCT_ID }));
+      return;
+    }
+    if (appPay === "old-app") {
+      setErrorMessage("앱을 최신 버전으로 업데이트하면 사주 인사이트를 구매할 수 있어요. (Play 스토어 → 명운 → 업데이트)");
+      void logEvent("payment_fail", { product: "vip", amount: 4400, reason: "old_app" });
+      return;
+    }
     setShowPaymentModal(true);
   }, [birthDate, birthTime, gender, mbti, name]);
+
+  // 구글 앱이 구글 플레이 결제 결과를 알려 준다(명운-rn app/index.tsx — vip_report 는 서버 확인 후 paymentRef 를 준다)
+  useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      let msg: { type?: string; productId?: string; paymentRef?: string | null; message?: string } | null = null;
+      try {
+        msg = typeof event.data === "string" ? JSON.parse(event.data) : null;
+      } catch {
+        return;
+      }
+      if (!msg?.type || msg.productId !== VIP_APP_PRODUCT_ID) return;
+      if (msg.type === "PURCHASE_SUCCESS" && msg.paymentRef) {
+        void logEvent("payment_complete", { product: "vip", amount: 4400, method: "google_play" });
+        setIsPaymentPending(false);
+        void handleIssueReport({ paymentRef: msg.paymentRef });
+      } else if (msg.type === "PURCHASE_SUCCESS" || msg.type === "PURCHASE_FAILED") {
+        setIsPaymentPending(false);
+        const text = msg.message || "결제를 완료하지 못했습니다. 결제 내역은 보존되며 다시 시도할 수 있어요.";
+        void logEvent("payment_fail", { product: "vip", amount: 4400, method: "google_play", reason: text.slice(0, 80) });
+        setErrorMessage(text);
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [handleIssueReport]);
 
   const pdfFallbackRef = useRef(pdfFallback);
   pdfFallbackRef.current = pdfFallback;
@@ -1226,7 +1304,9 @@ export default function VipLandingPage() {
                 <span className="absolute inset-0 bg-gradient-to-t from-black/10 to-white/20 opacity-40" />
               </button>
               <p className="mt-3 text-center text-[11px] text-slate-500">
-                결제 수단을 고른 뒤 포트원 결제창에서 결제합니다. 완료 및 서버 검증 후 리포트 생성과 PDF 저장이 진행됩니다.
+                {vipAppPay === "google"
+                  ? "구글 플레이로 결제합니다. 결제 확인 후 리포트 생성과 PDF 저장이 진행됩니다."
+                  : "결제 수단을 고른 뒤 포트원 결제창에서 결제합니다. 완료 및 서버 검증 후 리포트 생성과 PDF 저장이 진행됩니다."}
               </p>
             </div>
           </div>

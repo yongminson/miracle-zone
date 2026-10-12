@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { logEvent } from "@/lib/analytics";
 import { PaymentMethodSelector, type PayMethodPg } from "@/components/payments/PaymentMethodSelector";
 import { pickPaymentLookupIdFromPortOneResponse } from "@/lib/payments/imp-uid";
 import { savePendingPaymentData } from "@/lib/payments/pending-payment-data";
@@ -144,10 +145,25 @@ export function PaymentMethodCheckoutModal({
         };
       }
 
+      // 📊 실제 결제창(포트원)을 여는 순간 — 결제수단 포함. 팝업만 보고 닫은 것과 구분된다
+      void logEvent("payment_open", {
+        product: pendingPaymentType || productName,
+        amount,
+        method: selectedPayMethod,
+        paymentId: merchant_uid,
+        mobile: isMobile,
+      });
       const response = await PortOne.requestPayment(payPayload);
 
       const failReason = getPortOnePaymentFailureReason(response, { isMobile });
       if (failReason) {
+        void logEvent("payment_fail", {
+          product: pendingPaymentType || productName,
+          amount,
+          method: selectedPayMethod,
+          paymentId: merchant_uid,
+          reason: failReason.slice(0, 120),
+        });
         localStorage.removeItem("vip_mobile_payment_pending");
         localStorage.removeItem("pendingVipMerchantUid");
         onPaymentError(failReason);
