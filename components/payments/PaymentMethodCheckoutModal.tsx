@@ -7,6 +7,7 @@ import { pickPaymentLookupIdFromPortOneResponse } from "@/lib/payments/imp-uid";
 import { savePendingPaymentData } from "@/lib/payments/pending-payment-data";
 import { savePendingPaymentState } from "@/lib/payments/pending-payment-state";
 import { getPortOnePaymentFailureReason } from "@/lib/payments/portone-response-guards";
+import { APP_WEB_PAYMENT_BLOCKED_MESSAGE, blockWebPaymentInApp } from "@/lib/payments/app-payment-guard";
 
 const STORE_ID = "store-dfe94d23-cfea-4a4d-a36a-0b1864b0903d";
 
@@ -84,6 +85,11 @@ export function PaymentMethodCheckoutModal({
   }, [open]);
 
   const handleConfirm = async () => {
+    // 구글 앱 안에서는 웹 결제창이 결제앱으로 넘어가지 못한다 — 열지 않는다
+    if (blockWebPaymentInApp(pendingPaymentType || productName)) {
+      onPaymentError(APP_WEB_PAYMENT_BLOCKED_MESSAGE);
+      return;
+    }
     if (typeof window === "undefined") return;
 
     let PortOne: PortOneWindow | undefined = (window as unknown as { PortOne?: PortOneWindow }).PortOne;

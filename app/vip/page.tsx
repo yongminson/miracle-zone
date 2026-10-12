@@ -19,6 +19,7 @@ import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 import { appendVipSymbolicAmulet } from "@/lib/saju/vip-symbolic-amulet";
 import { logEvent } from "@/lib/analytics";
 import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
+import { isAppFileSave, saveUrlInApp } from "@/lib/app-file-save";
 
 /** 구글 플레이 인앱 상품 ID — 명운-rn IAP_PRODUCTS, /api/payment/verify-google 과 같은 값 */
 const VIP_APP_PRODUCT_ID = "vip_report";
@@ -911,6 +912,17 @@ export default function VipLandingPage() {
     "inline-flex min-h-[48px] cursor-not-allowed items-center justify-center rounded-2xl bg-slate-800/90 px-5 py-3.5 text-sm font-bold text-slate-500 sm:min-w-[200px] sm:px-6";
   const linkButtonAmulet =
     "inline-flex min-h-[48px] items-center justify-center rounded-2xl border-2 border-amber-400/60 bg-amber-500/15 px-5 py-3.5 text-sm font-bold text-amber-100 transition hover:bg-amber-500/25 sm:min-w-[200px] sm:px-6";
+  // 구글 앱 안에서는 <a download> 가 동작하지 않는다 — 앱에 파일을 넘겨 저장·공유 창을 연다
+  const saveInAppOnClick =
+    (url: string | null | undefined, kind: "pdf" | "image", filename: string) =>
+    (e: { preventDefault: () => void }) => {
+      if (!url || !isAppFileSave()) return;
+      e.preventDefault();
+      void logEvent("vip_save", { kind, via: "app" });
+      void saveUrlInApp(url, kind, filename).catch((err: unknown) => {
+        setErrorMessage(`저장하지 못했어요. 잠시 후 다시 눌러 주세요. (${err instanceof Error ? err.message : String(err)})`);
+      });
+    };
   const renderVipDownloadButtonRow = (placement: "top" | "bottom") => {
     const pdfHref = pdfFallback?.blobUrl;
     return (
@@ -919,7 +931,12 @@ export default function VipLandingPage() {
         className="mt-8 flex w-full max-w-md flex-col items-stretch gap-3 sm:mx-auto sm:max-w-lg sm:flex-row sm:justify-center sm:items-center"
       >
         {pdfHref ? (
-          <a href={pdfHref} download={VIP_PDF_FILENAME} className={linkButtonPdf}>
+          <a
+            href={pdfHref}
+            download={VIP_PDF_FILENAME}
+            className={linkButtonPdf}
+            onClick={saveInAppOnClick(pdfHref, "pdf", "myeongun_saju_insight_report.pdf")}
+          >
             [📥 PDF 다운로드]
           </a>
         ) : isPdfGenerating ? (
@@ -940,7 +957,12 @@ export default function VipLandingPage() {
         )}
         {amuletUrl ? (
           amuletBlobUrl ? (
-            <a href={amuletBlobUrl} download={amuletDownloadName} className={linkButtonAmulet}>
+            <a
+              href={amuletBlobUrl}
+              download={amuletDownloadName}
+              className={linkButtonAmulet}
+              onClick={saveInAppOnClick(amuletBlobUrl, "image", amuletDownloadName)}
+            >
               [🖼️ 이미지 저장]
             </a>
           ) : (
@@ -949,6 +971,7 @@ export default function VipLandingPage() {
               target="_blank"
               rel="noopener noreferrer"
               className={linkButtonAmulet}
+              onClick={saveInAppOnClick(amuletUrl, "image", amuletDownloadName)}
             >
               [🖼️ 상징 이미지 열기 · 저장]
             </a>
@@ -961,7 +984,11 @@ export default function VipLandingPage() {
   const vipMobileSaveHint =
     isSuccess && (pdfFallback?.blobUrl || amuletUrl) ? (
       <p className="mx-auto mt-4 max-w-lg text-center text-xs leading-relaxed text-amber-200/65">
-        모바일·인앱에서는 링크를 <strong className="text-amber-200/90">길게 눌러</strong> 파일로 저장하거나 공유 메뉴를 이용해 주세요.
+        {vipAppPay !== "web" ? (
+          <>버튼을 누르면 <strong className="text-amber-200/90">저장·공유 창</strong>이 열려요. 원하는 곳(내 파일·카카오톡 등)을 골라 저장해 주세요.</>
+        ) : (
+          <>모바일·인앱에서는 링크를 <strong className="text-amber-200/90">길게 눌러</strong> 파일로 저장하거나 공유 메뉴를 이용해 주세요.</>
+        )}
       </p>
     ) : null;
 
@@ -1045,7 +1072,7 @@ export default function VipLandingPage() {
                   className="mx-auto mt-6 max-h-80 w-auto max-w-full rounded-3xl object-contain shadow-[0_0_40px_rgba(245,158,11,0.45),0_25px_50px_-12px_rgba(0,0,0,0.6)] ring-2 ring-amber-500/35"
                 />
                 <p className="mx-auto mt-4 max-w-md text-xs leading-relaxed text-amber-200/60">
-                  상징 이미지는 상단·하단 <strong className="text-amber-200/90">[🖼️ 이미지 저장]</strong> 링크를 길게 눌러 앨범에 저장해 주세요.
+                  상징 이미지는 상단·하단 <strong className="text-amber-200/90">[🖼️ 이미지 저장]</strong> {vipAppPay !== "web" ? "버튼을 눌러 저장해 주세요." : "링크를 길게 눌러 앨범에 저장해 주세요."}
                 </p>
               </div>
             ) : null}

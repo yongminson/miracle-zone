@@ -47,6 +47,8 @@ import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 import { DailyMoodTracker } from "@/components/records/DailyMoodTracker";
 import { WeekLuck } from "@/components/calendar/WeekLuck";
 import { CheckinBanner } from "@/components/records/CheckinBanner";
+import { saveUrlInApp } from "@/lib/app-file-save";
+import { APP_WEB_PAYMENT_BLOCKED_MESSAGE, blockWebPaymentInApp } from "@/lib/payments/app-payment-guard";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -236,6 +238,9 @@ async function captureAndShareElement(
     });
 
     document.body.removeChild(tempContainer);
+
+    // 구글 앱 안에서는 공유·다운로드가 동작하지 않는다 — 앱에 넘겨 저장·공유 창을 연다
+    if (await saveUrlInApp(dataUrl, "image", options?.fileName ?? "result-share.png")) return;
 
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -1833,6 +1838,7 @@ const ALTAR_FOOTER_REFUND =
   // 🚀 프리미엄 결제창 — 포트원 응답 가드 → PC만 즉시 서버 검증 → 성공 시에만 UI 반영
   const handlePremiumConfirm = async () => {
     if (!premiumWishText.trim()) return;
+    if (blockWebPaymentInApp("altar")) { alert(APP_WEB_PAYMENT_BLOCKED_MESSAGE); return; } // 앱 안에서는 웹 결제창을 열지 않는다
 
     if (typeof window !== "undefined") {
       const amount = premiumPeriod === "24h" ? 900 : 2200;
@@ -2751,6 +2757,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
 
   // 🚀 관상 심층 리포트 프리미엄 결제 연동 (1,900원)
   const handlePhysiognomyPaymentConfirm = async () => {
+    if (blockWebPaymentInApp("physiognomy")) { alert(APP_WEB_PAYMENT_BLOCKED_MESSAGE); return; } // 앱 안에서는 웹 결제창을 열지 않는다
     let PortOne = (window as any).PortOne;
     if (!PortOne) {
       for (let i = 0; i < 10; i++) {
@@ -3058,6 +3065,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
 
   // 🚀 이름 풀이 프리미엄 결제 연동 (1,900원)
   const handleNamePaymentConfirm = async () => {
+    if (blockWebPaymentInApp("name")) { alert(APP_WEB_PAYMENT_BLOCKED_MESSAGE); return; } // 앱 안에서는 웹 결제창을 열지 않는다
     if (typeof window !== "undefined") {
       let PortOne = (window as any).PortOne;
       if (!PortOne) {
@@ -5519,6 +5527,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
   };
 
   const handlePremiumPayment = async () => {
+    if (blockWebPaymentInApp("palmistry")) { alert(APP_WEB_PAYMENT_BLOCKED_MESSAGE); return; } // 앱 안에서는 웹 결제창을 열지 않는다
     if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
       await doPremiumAnalyze(); return;
     }
@@ -5820,7 +5829,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
                           <div className="absolute inset-0 flex items-center justify-center">
                             <button
                               type="button"
-                              onClick={() => isPremiumUnlocked ? doPremiumAnalyze() : setShowPremiumModal(true)}
+                              onClick={() => { if (isPremiumUnlocked) doPremiumAnalyze(); else if (isApp) { (window as any).ReactNativeWebView?.postMessage(JSON.stringify({ type: "SHOW_REWARDED_AD", feature: "palmistry" })); } else setShowPremiumModal(true); }}
                               className="flex items-center gap-1.5 rounded-full border border-yellow-400/60 bg-slate-900/90 px-4 py-2 text-xs font-bold text-yellow-400 shadow-lg hover:bg-slate-800 transition-all hover:scale-105"
                             >
                               🔒 잠금 해제
@@ -5855,7 +5864,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
                 <p className="text-xs text-white/40 mb-4">감정선·두뇌선·운명선 상세 해석 포함</p>
                 <button
                   type="button"
-                  onClick={() => isPremiumUnlocked ? doPremiumAnalyze() : setShowPremiumModal(true)}
+                  onClick={() => { if (isPremiumUnlocked) doPremiumAnalyze(); else if (isApp) { (window as any).ReactNativeWebView?.postMessage(JSON.stringify({ type: "SHOW_REWARDED_AD", feature: "palmistry" })); } else setShowPremiumModal(true); }}
                   disabled={isLoading}
                   className="w-full rounded-2xl bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-400 bg-size-200 py-4 text-base font-bold text-slate-900 shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-all hover:shadow-[0_0_40px_rgba(245,158,11,0.7)] hover:scale-[1.03] active:scale-[0.98] disabled:opacity-40 animate-pulse"
                 >
