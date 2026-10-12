@@ -1804,14 +1804,35 @@ const ALTAR_FOOTER_REFUND =
     setShowPremiumModal(true);
   };
 
-  // 앱에서 광고 완료 메시지 수신 → 기적의제단 프리미엄 소원 바로 올리기
+  // 앱에서 광고 완료 메시지 수신 → 기적의제단에 24시간 소원 바로 올리기(결제 없음)
+  // 2026-10-13 수정: 예전엔 광고를 다 본 뒤 웹 결제창이 열려(앱 안에선 결제 불가) 소원이 올라가지 않았다
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       try {
         const msg = JSON.parse(e.data);
         if (msg.type === "AD_REWARD_GRANTED" && msg.feature === "altar") {
-          setPremiumWishText(wishText.trim());
-          setShowPremiumModal(true);
+          const wish = wishText.trim();
+          if (!wish) { alert("소원을 먼저 입력해 주세요."); return; }
+          void logEvent("ad_reward", { feature: "altar" });
+          supabase.from("wishes").insert({
+            content: wish,
+            duration: "24h",
+            display_mode: "anonymous",
+            display_name: ""
+          }).then(({ error }) => {
+            if (error) {
+              alert("🚨 제단 등록 실패: " + error.message);
+              return;
+            }
+            setLastWish(wish);
+            setIsCandleOn(true);
+            setIsPremiumGlow(true);
+            if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(() => {}); }
+            setTimeout(() => { setIsCandleOn(false); setIsPremiumGlow(false); }, 5000);
+            setWishText("");
+            if (typeof fetchWishes === 'function') fetchWishes();
+            alert("✨ 광고 시청 완료! 소원이 제단에 24시간 올라갔어요.");
+          });
         }
       } catch {}
     };
@@ -2168,12 +2189,13 @@ const ALTAR_FOOTER_REFUND =
               </button>
               <button type="button" onClick={() => {
                 if (isApp && (window as any).ReactNativeWebView) {
+                  if (!wishText.trim()) { alert("소원을 먼저 입력해 주세요."); return; }
                   (window as any).ReactNativeWebView.postMessage(JSON.stringify({ type: "SHOW_REWARDED_AD", feature: "altar" }));
                 } else {
                   handleOpenPremiumModal();
                 }
               }} className="w-full rounded-lg bg-gradient-to-r from-amber-500 to-rose-600 px-1 py-2 text-xs font-bold text-white shadow-md shadow-rose-500/25 transition-all hover:active:scale-95 break-keep">
-                {isApp ? "📺 광고 보고 프리미엄 소원" : "✨ 프리미엄 소원 띄우기"}
+                {isApp ? "📺 광고 보고 24시간 소원" : "✨ 프리미엄 소원 띄우기"}
               </button>
             </div>
             
