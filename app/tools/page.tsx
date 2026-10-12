@@ -2033,10 +2033,109 @@ const ALTAR_FOOTER_REFUND =
   };
 
   const handlePremiumCancel = () => {
+    if (isAltarAppPaying) return; // 구글 결제 진행 중엔 닫지 않는다
     setShowPremiumModal(false);
     setPremiumWishText("");
     setPremiumNameInput("");
   };
+
+  // ── 구글 앱: 10일 고정 소원(2,200원) 구글 플레이 결제 ──
+  // 앱(명운-rn)이 구글 영수증을 서버(/api/payment/verify-google)에서 확인하고 매출(vip_orders)을 기록한 뒤
+  // PURCHASE_SUCCESS 를 보낸다. 웹은 결제 직전에 저장해 둔 소원을 10일로 올린다.
+  // 등록이 실패해도 저장해 둔 소원은 남겨 두고 다음에 제단을 열 때 다시 올린다(결제한 소원을 잃지 않게).
+  const ALTAR_APP_PENDING_KEY = "altar_app_10d_pending";
+  const [isAltarAppPaying, setIsAltarAppPaying] = useState(false);
+  const altarAppPostingRef = useRef(false);
+
+  const postPaidAltarAppWish = useCallback(async () => {
+    if (altarAppPostingRef.current) return;
+    let draft: { wish?: string; nameDisplay?: string; nameInput?: string; paid?: boolean } | null = null;
+    try { draft = JSON.parse(localStorage.getItem(ALTAR_APP_PENDING_KEY) || "null"); } catch {}
+    if (!draft?.paid || !draft.wish) return;
+    altarAppPostingRef.current = true;
+    const { error } = await supabase.from("wishes").insert({
+      content: draft.wish,
+      duration: "10d",
+      display_mode: draft.nameDisplay || "anonymous",
+      display_name: draft.nameInput || ""
+    });
+    altarAppPostingRef.current = false;
+    setIsAltarAppPaying(false);
+    if (error) {
+      void logEvent("payment_fail", { product: "altar", amount: 2200, method: "google_play", reason: "wish_insert" });
+      alert("결제는 확인됐어요. 소원 등록이 잠시 실패해, 제단을 다시 열면 자동으로 올라가요.\n(" + error.message + ")");
+      return;
+    }
+    try { localStorage.removeItem(ALTAR_APP_PENDING_KEY); } catch {}
+    void logEvent("payment_complete", { product: "altar", amount: 2200, method: "google_play" });
+    setLastWish(draft.wish);
+    setIsCandleOn(true);
+    setIsPremiumGlow(true);
+    if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(() => {}); }
+    if (fireAudioRef.current) { fireAudioRef.current.play().catch(() => {}); }
+    setTimeout(() => {
+      setIsCandleOn(false);
+      setIsPremiumGlow(false);
+      if (fireAudioRef.current) fireAudioRef.current.pause();
+    }, 5000);
+    setShowPremiumModal(false);
+    setPremiumWishText("");
+    setPremiumNameInput("");
+    setWishText("");
+    if (typeof fetchWishes === 'function') fetchWishes();
+    alert("💎 결제 완료! 소원이 제단에 10일간 고정됩니다.");
+  }, [fetchWishes]);
+
+  const handleAltarAppPurchase = () => {
+    const wish = premiumWishText.trim();
+    if (!wish) return;
+    const bridge = (window as any).ReactNativeWebView;
+    if (!bridge) { alert(APP_WEB_PAYMENT_BLOCKED_MESSAGE); return; }
+    try {
+      localStorage.setItem(ALTAR_APP_PENDING_KEY, JSON.stringify({
+        wish,
+        nameDisplay: premiumNameDisplay,
+        nameInput: premiumNameInput.trim(),
+        paid: false,
+        savedAt: new Date().toISOString(),
+      }));
+    } catch {}
+    setIsAltarAppPaying(true);
+    void logEvent("payment_open", { product: "altar", amount: 2200, method: "google_play" });
+    bridge.postMessage(JSON.stringify({ type: "PURCHASE_ITEM", productId: "altar_10days" }));
+  };
+
+  // 앱이 구글 결제 결과를 알려 준다
+  useEffect(() => {
+    if (!isApp) return;
+    const handler = (e: MessageEvent) => {
+      let msg: any = null;
+      try { msg = typeof e.data === "string" ? JSON.parse(e.data) : null; } catch { return; }
+      if (!msg?.type || msg.productId !== "altar_10days") return;
+      if (msg.type === "PURCHASE_SUCCESS") {
+        try {
+          const d = JSON.parse(localStorage.getItem(ALTAR_APP_PENDING_KEY) || "null");
+          if (d) localStorage.setItem(ALTAR_APP_PENDING_KEY, JSON.stringify({ ...d, paid: true, paidAt: new Date().toISOString() }));
+        } catch {}
+        void postPaidAltarAppWish();
+      } else if (msg.type === "PURCHASE_FAILED") {
+        setIsAltarAppPaying(false);
+        try {
+          const d = JSON.parse(localStorage.getItem(ALTAR_APP_PENDING_KEY) || "null");
+          if (d && !d.paid) localStorage.removeItem(ALTAR_APP_PENDING_KEY);
+        } catch {}
+        void logEvent("payment_fail", { product: "altar", amount: 2200, method: "google_play", reason: String(msg.message || "").slice(0, 80) });
+        alert(msg.message || "결제를 완료하지 못했습니다.");
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [isApp, postPaidAltarAppWish]);
+
+  // 결제는 됐는데 소원 등록이 끝나지 않은 게 있으면 다시 올린다
+  useEffect(() => {
+    if (isApp) void postPaidAltarAppWish();
+  }, [isApp, postPaidAltarAppWish]);
 
   const handleAltarFooterCopyrightDoubleClick = () => {
     if (typeof window === "undefined") return;
@@ -2197,6 +2296,14 @@ const ALTAR_FOOTER_REFUND =
               }} className="w-full rounded-lg bg-gradient-to-r from-amber-500 to-rose-600 px-1 py-2 text-xs font-bold text-white shadow-md shadow-rose-500/25 transition-all hover:active:scale-95 break-keep">
                 {isApp ? "📺 광고 보고 24시간 소원" : "✨ 프리미엄 소원 띄우기"}
               </button>
+              {isApp && (
+                <button type="button" onClick={() => {
+                  setPremiumPeriod("10d");
+                  handleOpenPremiumModal();
+                }} className="col-span-2 w-full rounded-lg bg-gradient-to-r from-yellow-600 to-amber-700 px-1 py-2 text-xs font-bold text-white shadow-md shadow-amber-500/25 transition-all hover:active:scale-95 break-keep">
+                  💎 10일 고정 소원 (2,200원)
+                </button>
+              )}
             </div>
             
             <button type="button" onClick={handleAltarShare} className="mt-2 w-full rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition-all active:scale-95 shadow-inner flex items-center justify-center gap-1.5">
@@ -2311,6 +2418,9 @@ const ALTAR_FOOTER_REFUND =
                 <textarea value={premiumWishText} onChange={(e) => setPremiumWishText(e.target.value)} placeholder="소원을 적어주세요..." rows={2} className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 focus:border-yellow-500/50 focus:outline-none" />
               </div>
               <div className="mb-3">
+                {isApp ? (
+                  <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-100">💎 10일 고정 (2,200원 · 구글 플레이 결제)</div>
+                ) : (
                 <div className="flex flex-col gap-2">
                   <label className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
                     <input type="radio" checked={premiumPeriod === "24h"} onChange={() => setPremiumPeriod("24h")} className="accent-yellow-500" />
@@ -2321,6 +2431,7 @@ const ALTAR_FOOTER_REFUND =
                     <span className="text-sm text-white/90">10일 고정 (2,200원)</span>
                   </label>
                 </div>
+                )}
               </div>
               <div className="mb-4">
                 <div className="flex gap-2 mb-2">
@@ -2332,10 +2443,10 @@ const ALTAR_FOOTER_REFUND =
                   <input type="text" value={premiumNameInput} onChange={(e) => setPremiumNameInput(e.target.value)} placeholder={premiumNameDisplay === "partial" ? "예: 홍길동 → 홍*동" : "이름 입력"} className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 focus:border-yellow-500/50 focus:outline-none" />
                 )}
               </div>
-              <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />
+              {!isApp && <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />}
               <div className="flex gap-2">
-                <button type="button" onClick={handlePremiumCancel} className="flex-1 rounded-xl border border-white/20 bg-white/5 py-3 text-sm font-medium text-white/90">취소</button>
-                <button type="button" onClick={handlePremiumConfirm} disabled={!premiumWishText.trim()} className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3 text-sm font-semibold text-slate-900 disabled:opacity-50">결제하고 띄우기</button>
+                <button type="button" onClick={handlePremiumCancel} disabled={isAltarAppPaying} className="flex-1 rounded-xl border border-white/20 bg-white/5 py-3 text-sm font-medium text-white/90 disabled:opacity-50">취소</button>
+                <button type="button" onClick={isApp ? handleAltarAppPurchase : handlePremiumConfirm} disabled={!premiumWishText.trim() || isAltarAppPaying} className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3 text-sm font-semibold text-slate-900 disabled:opacity-50">{isApp ? (isAltarAppPaying ? "결제 확인 중…" : "구글 결제로 10일 띄우기") : "결제하고 띄우기"}</button>
               </div>
             </div>
           </div>
