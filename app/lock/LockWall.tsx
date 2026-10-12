@@ -181,6 +181,9 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
   const userMovedRef = useRef(false);
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
   const pinchRef = useRef<{ dist: number; scale: number } | null>(null);
+  // 전체 보기 배율 — 이보다 확대했을 때만 벽이 손가락 끌기를 모두 가져간다(아래 touchAction)
+  const [fitScale, setFitScale] = useState(0.5);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   /** 실제로 걸린 자물쇠를 읽어온다. 아직 하나도 없으면 예시로 벽을 채운다 */
   const loadLocks = useCallback(async () => {
@@ -216,6 +219,13 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
   }, [locks, myIds]);
 
   const selectedLock = useMemo(() => placed.find((l) => l.id === selected) ?? null, [placed, selected]);
+
+  // 자물쇠를 누르면 소원 내용이 벽 아래에 열린다 — 휴대폰에선 화면 밖이라 보이는 곳까지 내려 준다
+  useEffect(() => {
+    if (!selected) return;
+    const t = window.setTimeout(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 80);
+    return () => window.clearTimeout(t);
+  }, [selected]);
   const size = useMemo(() => wallSize(locks.length), [locks.length]);
 
   /** 벽 위의 한 점을 화면 가운데로 가져온다 */
@@ -238,6 +248,7 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
       MAX_SCALE,
     );
     setScale(s);
+    setFitScale(s);
     setTx((el.clientWidth - size.width * s) / 2);
     setTy((el.clientHeight - size.height * s) / 2);
   }, [size]);
@@ -310,7 +321,8 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
     if (!d || !el || !d.active) return;
     const dx = e.clientX - d.x;
     const dy = e.clientY - d.y;
-    if (!d.moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+    const slop = e.pointerType === "touch" ? 10 : 3;
+    if (!d.moved && (Math.abs(dx) > slop || Math.abs(dy) > slop)) {
       d.moved = true;
       userMovedRef.current = true;
       try {
@@ -732,6 +744,11 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
             <>
               <span className="min-w-0 flex-1 text-[11px] leading-relaxed text-slate-400">
                 로그인하지 않으면 이 기기에서만 내 자물쇠를 찾을 수 있습니다.
+                {isApp ? (
+                  <span className="mt-0.5 block text-amber-200/80">
+                    앱에서는 카카오 화면 아래쪽 <strong>카카오계정(아이디·비밀번호)</strong>으로 로그인해 주세요.
+                  </span>
+                ) : null}
               </span>
               <button
                 type="button"
@@ -754,8 +771,8 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
           onPointerUp={endPointer}
           onPointerCancel={endPointer}
           onClick={onWallClick}
-          className="relative h-[62vh] min-h-[400px] w-full touch-none overflow-hidden rounded-2xl border border-amber-500/20 bg-[radial-gradient(ellipse_at_50%_0%,#141c2e_0%,#090d18_60%,#040508_100%)] shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_0_80px_rgba(0,0,0,0.8)]"
-          style={{ cursor: "grab" }}
+          className="relative h-[46vh] min-h-[300px] w-full overflow-hidden rounded-2xl border border-amber-500/20 bg-[radial-gradient(ellipse_at_50%_0%,#141c2e_0%,#090d18_60%,#040508_100%)] shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_0_80px_rgba(0,0,0,0.8)] sm:h-[62vh] sm:min-h-[400px]"
+          style={{ cursor: "grab", touchAction: scale > fitScale * 1.2 ? "none" : "pan-y" }}
         >
           {/* 밤하늘 별빛 및 원경 분위기 조명 (뷰포트 고정) */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -921,7 +938,7 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
 
         {/* 선택된 자물쇠 소원 카드 */}
         {selectedLock ? (
-          <div className="relative mt-4 overflow-hidden rounded-2xl border border-amber-400/30 bg-gradient-to-b from-[#0f172a]/95 via-[#0b101f]/95 to-[#060812]/95 p-4 sm:p-5 shadow-[0_16px_40px_rgba(0,0,0,0.7)] backdrop-blur-xl">
+          <div ref={detailRef} className="relative mt-4 scroll-mb-4 overflow-hidden rounded-2xl border border-amber-400/30 bg-gradient-to-b from-[#0f172a]/95 via-[#0b101f]/95 to-[#060812]/95 p-4 sm:p-5 shadow-[0_16px_40px_rgba(0,0,0,0.7)] backdrop-blur-xl">
             {/* 은은한 배경 광택 */}
             <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-500/10 blur-2xl" />
 
