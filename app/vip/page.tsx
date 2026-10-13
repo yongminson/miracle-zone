@@ -137,6 +137,44 @@ function clearVipCheckoutDraft(): void {
   }
 }
 
+/**
+ * 결제는 됐는데 리포트를 아직 못 받은 결제. 리포트 만들기가 실패하면 서버가 지급권을 되돌려 두므로
+ * 같은 결제로 다시 만들 수 있다(추가 결제 없음). 2026-10-13 구글 앱 손님이 결제 후 리포트를 못 받고
+ * 다시 결제하려다 떠났다 — 그래서 결제 정보를 남겨 두고 [결제한 리포트 다시 받기]를 보여 준다.
+ */
+const VIP_PAID_PENDING_KEY = "vip_paid_pending";
+type VipPaidPending = { paymentRef: string | null; imp_uid: string | null; savedAt: string };
+
+function readVipPaidPending(): VipPaidPending | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const d = JSON.parse(localStorage.getItem(VIP_PAID_PENDING_KEY) || "null") as VipPaidPending | null;
+    if (!d || (!d.paymentRef && !d.imp_uid)) return null;
+    if (Date.now() - new Date(d.savedAt).getTime() > 30 * 24 * 60 * 60 * 1000) return null;
+    return d;
+  } catch {
+    return null;
+  }
+}
+
+function writeVipPaidPending(d: VipPaidPending): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(VIP_PAID_PENDING_KEY, JSON.stringify(d));
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearVipPaidPending(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(VIP_PAID_PENDING_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 const SAVED_VIP_RESULT_KEY = "saved_vip_result";
 
 type SavedVipResultV1 = {
@@ -229,7 +267,10 @@ export default function VipLandingPage() {
   const [vipAppPay, setVipAppPay] = useState<"web" | "google" | "old-app">("web");
   useEffect(() => {
     setVipAppPay(readVipAppPay());
+    setPaidRetry(readVipPaidPending());
   }, []);
+  /** 결제했지만 리포트를 아직 못 받은 결제 — 있으면 [결제한 리포트 다시 받기] */
+  const [paidRetry, setPaidRetry] = useState<VipPaidPending | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   /** PDF 또는 부적 수동 저장 시도 완료 — '새 리포트 받기' CS 방어 */
   const [isDownloaded, setIsDownloaded] = useState(false);
@@ -449,6 +490,21 @@ export default function VipLandingPage() {
     setErrorMessage(null);
     // 결제를 마치고 온 경우(웹 포트원 imp_uid 또는 구글 앱 paymentRef) — 결제 직전에 저장한 입력값을 쓴다
     const paid = !!(options?.imp_uid || options?.paymentRef);
+    let succeeded = false;
+    if (paid) {
+      writeVipPaidPending({
+        paymentRef: options?.paymentRef?.trim() || null,
+        imp_uid: options?.imp_uid?.trim() || null,
+        savedAt: new Date().toISOString(),
+      });
+      setPaidRetry(null);
+    }
+    const failAlert = (reason: string) =>
+      reportGenAlert(
+        paid
+          ? `${reason}\n\n결제는 정상 처리됐어요. 화면의 [결제한 리포트 다시 받기]를 누르면 추가 결제 없이 다시 만들어요.`
+          : reason,
+      );
     if (!paid) {
       setIsSuccess(false);
       setAmuletUrl(null);
@@ -471,7 +527,7 @@ export default function VipLandingPage() {
         ? "모바일 결제 직전에 저장된 이름이 없습니다. 다시 입력 후 결제해 주세요."
         : "이름을 입력해 주세요.";
       setErrorMessage(msg);
-      reportGenAlert(msg);
+      failAlert(msg);
       return;
     }
     if (!birthDateEff) {
@@ -479,13 +535,13 @@ export default function VipLandingPage() {
         ? "모바일 결제 직전에 저장된 생년월일이 없습니다. 다시 입력 후 결제해 주세요."
         : "생년월일을 입력해 주세요.";
       setErrorMessage(msg);
-      reportGenAlert(msg);
+      failAlert(msg);
       return;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDateEff)) {
       const msg = "생년월일을 YYYY-MM-DD 형식(8자리 숫자)으로 입력해 주세요.";
       setErrorMessage(msg);
-      reportGenAlert(msg);
+      failAlert(msg);
       return;
     }
 
@@ -529,8 +585,18 @@ export default function VipLandingPage() {
               if (!errData.success && errData.error) errMsg = errData.error;
             } catch {}
             const full = `API 응답 오류 (HTTP ${res.status}): ${errMsg}`;
+            if (paid && res.status === 409) {
+              // 이미 리포트를 만든 결제 — 다시 받기로는 해결되지 않는다
+              clearVipPaidPending();
+              succeeded = true;
+              const msg = `${full}\n같은 결제로 이미 리포트가 만들어졌어요. [이어보기]가 없다면 support@ymstudio.co.kr 로 결제 시각을 알려 주세요.`;
+              setErrorMessage(msg);
+              reportGenAlert(msg);
+              setIsSuccess(false);
+              return;
+            }
             setErrorMessage(full);
-            reportGenAlert(full);
+            failAlert(full);
             setIsSuccess(false);
             return;
           }
@@ -572,12 +638,15 @@ export default function VipLandingPage() {
           if (!fullMarkdown.trim()) {
             const msg = "리포트 내용이 비어 있습니다. 다시 시도해 주세요.";
             setErrorMessage(msg);
-            reportGenAlert(msg);
+            failAlert(msg);
             setIsSuccess(false);
             return;
           }
     
           if (paid) {
+            succeeded = true;
+            clearVipPaidPending();
+            setPaidRetry(null);
             clearVipCheckoutDraft();
             setName(trimmedName);
             setBirthDate(birthDateEff);
@@ -619,17 +688,21 @@ export default function VipLandingPage() {
       if (aborted) {
         const msg = "시간 초과: 리포트 생성에 5분 이상 소요되었습니다.";
         setErrorMessage(msg);
-        reportGenAlert(msg);
+        failAlert(msg);
       } else {
         const msg = e instanceof Error ? e.message : String(e);
         const full = `네트워크 또는 예외 — ${msg}`;
         setErrorMessage(`시스템 에러 (F12 콘솔 확인): ${msg}`);
-        reportGenAlert(full);
+        failAlert(full);
       }
       setIsSuccess(false);
     } finally {
       window.clearTimeout(timeoutId);
       setIsFetchingReport(false);
+      if (paid && !succeeded) {
+        setPaidRetry(readVipPaidPending());
+        void logEvent("vip_report_fail", { paid: true, retryable: true });
+      }
     }
   }, [birthDate, birthTime, gender, mbti, name]);
 
@@ -1097,6 +1170,24 @@ export default function VipLandingPage() {
           </section>
         ) : (
           <>
+        {paidRetry && !isFetchingReport ? (
+          <div className="mb-8 rounded-2xl border border-emerald-500/40 bg-emerald-950/40 px-4 py-4 shadow-lg shadow-emerald-950/20 sm:px-5">
+            <p className="text-center text-xs leading-relaxed text-emerald-100/90 sm:text-sm">
+              결제는 정상 처리됐는데 리포트를 아직 받지 못했어요. 아래 버튼을 누르면 <strong>추가 결제 없이</strong> 다시 만들어요.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                void logEvent("vip_report_retry", { kind: paidRetry.paymentRef ? "google" : "web" });
+                void handleIssueReport({ paymentRef: paidRetry.paymentRef, imp_uid: paidRetry.imp_uid });
+              }}
+              className="mt-3 flex w-full min-h-[48px] items-center justify-center rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-400 px-4 py-3 text-sm font-bold text-stone-950 transition hover:brightness-105"
+            >
+              [결제한 리포트 다시 받기]
+            </button>
+          </div>
+        ) : null}
+
         {hasSavedVipRestore ? (
           <div className="mb-8 rounded-2xl border border-amber-500/40 bg-amber-950/40 px-4 py-4 shadow-lg shadow-amber-950/20 sm:px-5">
             <p className="text-center text-xs text-amber-100/85 sm:text-sm">
