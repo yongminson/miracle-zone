@@ -2348,7 +2348,7 @@ const ALTAR_FOOTER_REFUND =
                 <p className="font-bold text-white/55">와이엠 스튜디오 (YM Studio)</p>
                 <p>대표자: 손용민 | 사업자등록번호: 510-21-21827</p>
                 <p>주소: 충청남도 아산시 둔포면 운교길 129번길 14-71</p>
-                <p>고객센터: 0507-1385-9994 | 이메일: support@ymsudio.co.kr</p>
+                <p>고객센터: 0507-1385-9994 | 이메일: support@ymstudio.co.kr</p>
                 <p>통신판매업신고번호: 제 2026-충남아산-0479 호</p>
               </div>
             ) : null}
