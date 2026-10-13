@@ -24,6 +24,11 @@ function getSessionId(): string {
   }
 }
 
+/** 이 브라우저(기기)의 분석용 id — 생일 선물권처럼 기기당 한 번인 혜택에 쓴다 */
+export function getAnalyticsDeviceId(): string {
+  return getSessionId();
+}
+
 /** 첫 진입 시 referrer + UTM 파싱해서 저장 (이미 있으면 유지 = 최초 유입 기준) */
 export function captureAttribution() {
   try {

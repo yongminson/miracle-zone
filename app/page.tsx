@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
+import { BirthdayGiftBanner } from "@/components/birthday/BirthdayGiftBanner";
 
 export default function Home() {
   return (
@@ -13,7 +14,11 @@ export default function Home() {
       <div className="relative z-10">
         <SiteHeader />
 
-        <main className="mx-auto max-w-5xl px-4 pt-20 sm:px-6">
+        <div className="pt-16">
+          <BirthdayGiftBanner />
+        </div>
+
+        <main className="mx-auto max-w-5xl px-4 pt-4 sm:px-6">
 
           {/* ① 히어로 섹션 */}
           <div className="text-center">

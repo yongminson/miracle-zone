@@ -47,6 +47,8 @@ import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 import { DailyMoodTracker } from "@/components/records/DailyMoodTracker";
 import { WeekLuck } from "@/components/calendar/WeekLuck";
 import { CheckinBanner } from "@/components/records/CheckinBanner";
+import { BirthdayGiftBanner, readSelfProfile } from "@/components/birthday/BirthdayGiftBanner";
+import { getAnalyticsDeviceId } from "@/lib/analytics";
 import { saveUrlInApp } from "@/lib/app-file-save";
 import { APP_WEB_PAYMENT_BLOCKED_MESSAGE, blockWebPaymentInApp } from "@/lib/payments/app-payment-guard";
 
@@ -2033,7 +2035,8 @@ const ALTAR_FOOTER_REFUND =
   };
 
   const handlePremiumCancel = () => {
-    if (isAltarAppPaying) return; // 구글 결제 진행 중엔 닫지 않는다
+    if (isAltarAppPaying || isGiftClaiming) return; // 결제·선물 등록 중엔 닫지 않는다
+    setGiftMode(false);
     setShowPremiumModal(false);
     setPremiumWishText("");
     setPremiumNameInput("");
@@ -2085,6 +2088,68 @@ const ALTAR_FOOTER_REFUND =
     if (typeof fetchWishes === 'function') fetchWishes();
     alert("💎 결제 완료! 소원이 제단에 10일간 고정됩니다.");
   }, [fetchWishes]);
+
+  // ── 생일 선물권: 기적의 제단 10일 고정 소원 1회 무료(서버 /api/birthday-gift 가 확인) ──
+  const [giftMode, setGiftMode] = useState(false);
+  const [isGiftClaiming, setIsGiftClaiming] = useState(false);
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get("gift") !== "birthday") return;
+    } catch {
+      return;
+    }
+    setGiftMode(true);
+    setPremiumPeriod("10d");
+    setShowPremiumModal(true);
+  }, []);
+
+  const handleBirthdayGiftClaim = async () => {
+    const wish = premiumWishText.trim();
+    if (!wish || isGiftClaiming) return;
+    const self = readSelfProfile();
+    if (!self) { alert("생일 선물권은 '본인'으로 저장한 프로필의 생일에 드려요."); return; }
+    setIsGiftClaiming(true);
+    try {
+      const res = await fetch("/api/birthday-gift", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sid: getAnalyticsDeviceId(),
+          birthDate: self.birthDate,
+          calendar: self.calendar,
+          wish,
+          nameDisplay: premiumNameDisplay,
+          nameInput: premiumNameInput.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        void logEvent("birthday_gift_fail", { reason: data?.reason ?? res.status });
+        alert(data?.error || "선물 소원을 올리지 못했어요. 잠시 후 다시 시도해 주세요.");
+        return;
+      }
+      void logEvent("birthday_gift_claimed", {});
+      setLastWish(wish);
+      setIsCandleOn(true);
+      setIsPremiumGlow(true);
+      if (bellAudioRef.current) { bellAudioRef.current.currentTime = 0; bellAudioRef.current.play().catch(() => {}); }
+      if (fireAudioRef.current) { fireAudioRef.current.play().catch(() => {}); }
+      setTimeout(() => {
+        setIsCandleOn(false);
+        setIsPremiumGlow(false);
+        if (fireAudioRef.current) fireAudioRef.current.pause();
+      }, 5000);
+      setGiftMode(false);
+      setShowPremiumModal(false);
+      setPremiumWishText("");
+      setPremiumNameInput("");
+      try { window.history.replaceState(null, "", "/tools?tab=altar"); } catch {}
+      if (typeof fetchWishes === 'function') fetchWishes();
+      alert("🎂 생일 축하해요! 소원이 제단에 10일간 고정됩니다.");
+    } finally {
+      setIsGiftClaiming(false);
+    }
+  };
 
   const handleAltarAppPurchase = () => {
     const wish = premiumWishText.trim();
@@ -2413,12 +2478,14 @@ const ALTAR_FOOTER_REFUND =
         {showPremiumModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => handlePremiumCancel()}>
             <div className="w-full max-w-md rounded-2xl border-2 border-yellow-500/50 bg-slate-900/90 p-5 shadow-2xl shadow-yellow-500/10 backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="mb-4 text-center text-base font-semibold text-yellow-400">✨ 프리미엄 소원</h3>
+              <h3 className="mb-4 text-center text-base font-semibold text-yellow-400">{giftMode ? "🎂 생일 선물 소원" : "✨ 프리미엄 소원"}</h3>
               <div className="mb-3">
                 <textarea value={premiumWishText} onChange={(e) => setPremiumWishText(e.target.value)} placeholder="소원을 적어주세요..." rows={2} className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 focus:border-yellow-500/50 focus:outline-none" />
               </div>
               <div className="mb-3">
-                {isApp ? (
+                {giftMode ? (
+                  <div className="rounded-lg border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-sm text-amber-100">🎁 생일 선물 · 10일 고정 소원 (무료)</div>
+                ) : isApp ? (
                   <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-100">💎 10일 고정 (2,200원 · 구글 플레이 결제)</div>
                 ) : (
                 <div className="flex flex-col gap-2">
@@ -2443,10 +2510,10 @@ const ALTAR_FOOTER_REFUND =
                   <input type="text" value={premiumNameInput} onChange={(e) => setPremiumNameInput(e.target.value)} placeholder={premiumNameDisplay === "partial" ? "예: 홍길동 → 홍*동" : "이름 입력"} className="w-full rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-amber-50 focus:border-yellow-500/50 focus:outline-none" />
                 )}
               </div>
-              {!isApp && <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />}
+              {!isApp && !giftMode && <PaymentMethodSelector selectedPayMethod={selectedPayMethod} setSelectedPayMethod={setSelectedPayMethod} />}
               <div className="flex gap-2">
-                <button type="button" onClick={handlePremiumCancel} disabled={isAltarAppPaying} className="flex-1 rounded-xl border border-white/20 bg-white/5 py-3 text-sm font-medium text-white/90 disabled:opacity-50">취소</button>
-                <button type="button" onClick={isApp ? handleAltarAppPurchase : handlePremiumConfirm} disabled={!premiumWishText.trim() || isAltarAppPaying} className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3 text-sm font-semibold text-slate-900 disabled:opacity-50">{isApp ? (isAltarAppPaying ? "결제 확인 중…" : "구글 결제로 10일 띄우기") : "결제하고 띄우기"}</button>
+                <button type="button" onClick={handlePremiumCancel} disabled={isAltarAppPaying || isGiftClaiming} className="flex-1 rounded-xl border border-white/20 bg-white/5 py-3 text-sm font-medium text-white/90 disabled:opacity-50">취소</button>
+                <button type="button" onClick={giftMode ? handleBirthdayGiftClaim : isApp ? handleAltarAppPurchase : handlePremiumConfirm} disabled={!premiumWishText.trim() || isAltarAppPaying || isGiftClaiming} className="flex-1 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 py-3 text-sm font-semibold text-slate-900 disabled:opacity-50">{giftMode ? (isGiftClaiming ? "올리는 중…" : "🎁 선물로 10일 띄우기") : isApp ? (isAltarAppPaying ? "결제 확인 중…" : "구글 결제로 10일 띄우기") : "결제하고 띄우기"}</button>
               </div>
             </div>
           </div>
@@ -7004,6 +7071,9 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
 
       {/* 출석 상태 — 평소엔 조용하고, 받을 보상이 생기면 눈에 띈다 */}
       <CheckinBanner />
+
+      {/* 본인 생일 주간에만 — 생일 선물권(제단 10일 소원) */}
+      <BirthdayGiftBanner />
 
       {/* 메인 콘텐츠 영역 */}
       <main className="relative flex w-full flex-1 flex-col">
