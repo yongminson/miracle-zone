@@ -132,7 +132,8 @@ VAPID-based web push. Service worker at `public/sw.js`; subscribe via `app/api/p
   | `/api/payments/verify` | POST | 포트원/아임포트 결제 서버 검증(정본) |
   | `/api/payment/verify` | (위임) | `/api/payments/verify`로 위임 |
   | `/api/payment/verify-google` | POST | 구글 플레이 IAP 검증 |
-  | `/api/yongmincucu/data` | POST | 내부 CS 대시보드 데이터(비밀번호 게이트) |
+  | `/api/birthday-gift` | GET·POST | 생일 선물권(본인 생일 7일·기기 30일·연 1회 서버 확인 → 제단 10일 소원 무료, 매출 아님) |
+| `/api/yongmincucu/data` | POST | 내부 CS 대시보드 데이터(비밀번호 게이트) |
 
 - **VIP PDF 생성 관련 파일과 주의점** (과거 페이지 누락 버그가 있었던 민감 영역)
   - 렌더: [`components/vip/VipPdfTemplate.tsx`](components/vip/VipPdfTemplate.tsx) — 각 페이지를 `[data-pdf-page]` 노드로 렌더.
