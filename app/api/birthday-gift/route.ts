@@ -63,6 +63,20 @@ async function getStatus(sid: string, birthDate: string, calendar: BirthCalendar
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
+  // 앱 생일 알림 문구용 — 이 기기가 명운을 처음 쓴 날(선물권 받을 수 있는 생일인지 미리 안다)
+  if (url.searchParams.get("peek") === "device") {
+    const sid = url.searchParams.get("sid")?.trim() ?? "";
+    if (!/^[0-9a-f-]{20,64}$/i.test(sid)) return NextResponse.json({ success: false }, { status: 400 });
+    const db = createSupabaseAdminClient();
+    if (!db) return NextResponse.json({ success: false }, { status: 503 });
+    const { data } = await db
+      .from("user_events")
+      .select("created_at")
+      .eq("session_id", sid)
+      .order("created_at", { ascending: true })
+      .limit(1);
+    return NextResponse.json({ success: true, deviceSince: data?.[0]?.created_at ?? null });
+  }
   const input = parseInput(url.searchParams.get("sid"), url.searchParams.get("birthDate"), url.searchParams.get("calendar"));
   if (!input) return NextResponse.json({ success: false, error: "입력값을 확인해 주세요." }, { status: 400 });
   const status = await getStatus(input.sid, input.birthDate, input.calendar);

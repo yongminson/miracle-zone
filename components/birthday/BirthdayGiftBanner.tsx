@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getAnalyticsDeviceId, logEvent } from "@/lib/analytics";
 import { readProfiles, type SavedProfile } from "@/lib/profiles/saved-profiles";
-import { BIRTHDAY_GIFT_DAYS, birthdayWindow, todayKst } from "@/lib/birthday/birthday";
+import { BIRTHDAY_GIFT_DAYS, birthdayWindow, todayKst, upcomingBirthdays } from "@/lib/birthday/birthday";
 
 /**
  * 생일 축하 띠 — 저장된 '본인' 프로필의 생일(당일~6일 뒤)에만 보인다.
@@ -20,6 +20,48 @@ export function readSelfProfile(): SavedProfile | null {
 
 type Status = { eligible: boolean; claimed: boolean; reason: string | null; birthday: string | null };
 
+const APP_SYNC_KEY = "mu_bday_app_sync";
+const GIFT_DEVICE_DAYS = 30; // /api/birthday-gift 의 기기 30일 조건과 같다
+
+/**
+ * 구글 앱(1.1.7~)에 '본인' 생일 날짜를 알려 생일 아침 8시 축하 알림을 예약하게 한다.
+ * 하루 한 번만 보낸다. 본인 프로필이 없으면 빈 목록을 보내 예약을 지운다.
+ * 예전 앱은 이 메시지를 모르고 그냥 넘긴다.
+ */
+async function syncAppBirthdayReminder(self: SavedProfile | null) {
+  if (typeof navigator === "undefined" || !navigator.userAgent.includes("MyeongunApp")) return;
+  const bridge = (window as unknown as { ReactNativeWebView?: { postMessage: (m: string) => void } }).ReactNativeWebView;
+  if (!bridge) return;
+  const dates = self ? upcomingBirthdays(self.birthDate, self.calendar, 2) : [];
+  const stamp = `${todayKst()}|${self?.name ?? ""}|${dates.join(",")}`;
+  try {
+    if (localStorage.getItem(APP_SYNC_KEY) === stamp) return;
+  } catch {
+    // 저장소가 막혀 있으면 매번 보낸다
+  }
+  let since = todayKst();
+  if (dates.length > 0) {
+    try {
+      const r = await fetch(`/api/birthday-gift?peek=device&sid=${encodeURIComponent(getAnalyticsDeviceId())}`);
+      const d = (await r.json()) as { deviceSince?: string | null };
+      if (d.deviceSince) since = d.deviceSince.slice(0, 10);
+    } catch {
+      // 모르면 오늘부터로 본다
+    }
+  }
+  const dayMs = 86_400_000;
+  const items = dates.map((date) => ({
+    date,
+    gift: (Date.parse(date) - Date.parse(since)) / dayMs >= GIFT_DEVICE_DAYS,
+  }));
+  bridge.postMessage(JSON.stringify({ type: "BIRTHDAY_REMINDER_SET", name: self?.name ?? "", items }));
+  try {
+    localStorage.setItem(APP_SYNC_KEY, stamp);
+  } catch {
+    // 무시
+  }
+}
+
 export function BirthdayGiftBanner() {
   const [profile, setProfile] = useState<SavedProfile | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
@@ -27,6 +69,7 @@ export function BirthdayGiftBanner() {
 
   useEffect(() => {
     const self = readSelfProfile();
+    void syncAppBirthdayReminder(self);
     if (!self) return;
     const win = birthdayWindow(self.birthDate, self.calendar);
     if (!win.inWindow || win.daysSince === null) return;
