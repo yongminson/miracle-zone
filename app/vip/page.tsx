@@ -486,11 +486,13 @@ export default function VipLandingPage() {
     : "잠시만 기다려 주세요...";
   const isBusy = isFetchingReport || isPdfGenerating;
 
-  const handleIssueReport = useCallback(async (options?: { imp_uid?: string | null; paymentRef?: string | null }) => {
+  const handleIssueReport = useCallback(async (options?: { imp_uid?: string | null; paymentRef?: string | null; attempt?: number }) => {
     setErrorMessage(null);
     // 결제를 마치고 온 경우(웹 포트원 imp_uid 또는 구글 앱 paymentRef) — 결제 직전에 저장한 입력값을 쓴다
     const paid = !!(options?.imp_uid || options?.paymentRef);
     let succeeded = false;
+    /** 서버가 아직 이 결제의 리포트를 만드는 중 — 화면은 기다림 상태로 두고 잠시 뒤 다시 확인한다 */
+    let waitingServer = false;
     if (paid) {
       writeVipPaidPending({
         paymentRef: options?.paymentRef?.trim() || null,
@@ -580,10 +582,23 @@ export default function VipLandingPage() {
     
           if (!res.ok || !res.body) {
             let errMsg = "리포트 생성 실패";
+            let errPending = false;
             try {
-              const errData = (await res.json()) as VipApiFail;
+              const errData = (await res.json()) as VipApiFail & { pending?: boolean };
               if (!errData.success && errData.error) errMsg = errData.error;
+              errPending = errData.pending === true;
             } catch {}
+            // 화면을 나갔다 돌아왔는데 서버가 아직 그 결제의 리포트를 만드는 중 — 10초마다 다시 확인(최대 6분)
+            const attempt = options?.attempt ?? 0;
+            if (paid && errPending && attempt < 36) {
+              waitingServer = true;
+              setErrorMessage(null);
+              setProgressMessage("결제하신 리포트를 마무리하는 중이에요. 화면을 닫지 말고 잠시만 기다려 주세요.");
+              window.setTimeout(() => {
+                void issueReportRef.current?.({ imp_uid: options?.imp_uid, paymentRef: options?.paymentRef, attempt: attempt + 1 });
+              }, 10_000);
+              return;
+            }
             const full = `API 응답 오류 (HTTP ${res.status}): ${errMsg}`;
             if (paid && res.status === 409) {
               // 이미 리포트를 만든 결제 — 다시 받기로는 해결되지 않는다
@@ -698,13 +713,32 @@ export default function VipLandingPage() {
       setIsSuccess(false);
     } finally {
       window.clearTimeout(timeoutId);
-      setIsFetchingReport(false);
-      if (paid && !succeeded) {
+      if (!waitingServer) setIsFetchingReport(false);
+      if (paid && !succeeded && !waitingServer) {
         setPaidRetry(readVipPaidPending());
         void logEvent("vip_report_fail", { paid: true, retryable: true });
       }
     }
   }, [birthDate, birthTime, gender, mbti, name]);
+
+  // 늘 최신 handleIssueReport 를 부르기 위한 참조(기다렸다 다시 확인·자동 이어받기)
+  const issueReportRef = useRef<typeof handleIssueReport | null>(null);
+  issueReportRef.current = handleIssueReport;
+
+  // 결제했는데 리포트를 받기 전에 나갔다가 돌아온 손님 — 들어오자마자 자동으로 이어 받는다(추가 결제 없음)
+  const autoResumeRef = useRef(false);
+  useEffect(() => {
+    if (autoResumeRef.current) return;
+    autoResumeRef.current = true;
+    const pending = readVipPaidPending();
+    if (!pending) return;
+    // 결제사에서 막 돌아온 경우는 그 흐름(결제 확인 → 리포트)이 처리한다
+    if (/[?&](paymentId|imp_uid|txId|code|imp_success)=/.test(window.location.search)) return;
+    window.setTimeout(() => {
+      void logEvent("vip_report_retry", { kind: pending.paymentRef ? "google" : "web", auto: true });
+      void issueReportRef.current?.({ paymentRef: pending.paymentRef, imp_uid: pending.imp_uid });
+    }, 800);
+  }, []);
 
   const completeVipAfterPayment = useCallback(
     async (imp_uid: string, merchant_uid: string) => {

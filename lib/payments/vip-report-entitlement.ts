@@ -102,6 +102,46 @@ export async function claimVipReportEntitlement(
   return { ok: true };
 }
 
+/** 결제 하나의 지급 상태(다시 받기 판단용) */
+export async function getVipReportEntitlementState(
+  supabase: SupabaseClient,
+  paymentRef: string,
+): Promise<{ status: EntitlementRow["status"]; processingStartedAt: string | null } | null> {
+  const { data, error } = await supabase
+    .from("vip_report_entitlements")
+    .select("status,processing_started_at")
+    .eq("payment_ref", paymentRef)
+    .eq("product_key", VIP_REPORT_PRODUCT_KEY)
+    .maybeSingle();
+  if (error || !data) return null;
+  return { status: data.status as EntitlementRow["status"], processingStartedAt: data.processing_started_at ?? null };
+}
+
+/**
+ * 만드는 중(processing)으로 너무 오래 남은 결제를 다시 맡는다.
+ * 서버가 리포트를 만들다 멈추면(시간 초과 등) 되돌려 놓지 못해 영영 다시 받을 수 없었다.
+ */
+export async function reclaimStaleVipReportEntitlement(
+  supabase: SupabaseClient,
+  paymentRef: string,
+  expectedAmount: number,
+  staleBeforeIso: string,
+): Promise<EntitlementResult> {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("vip_report_entitlements")
+    .update({ status: "processing", processing_started_at: now, updated_at: now })
+    .eq("payment_ref", paymentRef)
+    .eq("product_key", VIP_REPORT_PRODUCT_KEY)
+    .eq("amount", expectedAmount)
+    .eq("status", "processing")
+    .or(`processing_started_at.is.null,processing_started_at.lt.${staleBeforeIso}`)
+    .select("payment_ref")
+    .maybeSingle();
+  if (error || !data) return { ok: false, message: "리포트를 만드는 중입니다." };
+  return { ok: true };
+}
+
 export async function completeVipReportEntitlement(
   supabase: SupabaseClient,
   paymentRef: string,

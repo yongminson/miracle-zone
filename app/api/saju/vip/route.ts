@@ -12,9 +12,12 @@ import {
   upsertVipOrderRow,
   VIP_ORDER_AMOUNT_WON,
 } from "@/lib/payments/vip-order-supabase";
+import { loadVipReport, saveVipReport } from "@/lib/payments/vip-report-store";
 import {
   claimVipReportEntitlement,
   completeVipReportEntitlement,
+  getVipReportEntitlementState,
+  reclaimStaleVipReportEntitlement,
   releaseVipReportEntitlement,
   tossVipPaymentRef,
   webVipPaymentRef,
@@ -414,6 +417,25 @@ if (!meetsPremiumContract(text)) {
 return normalizeGeneratedMarkdown(text);
 }
 
+/** 리포트를 2000자씩 줄 단위 JSON 으로 보낸다(웹·토스 화면이 읽는 형식 — 바꾸지 말 것) */
+function streamMarkdown(markdown: string): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      const chunkSize = 2000;
+      for (let i = 0; i < markdown.length; i += chunkSize) {
+        const chunk = markdown.slice(i, i + chunkSize);
+        controller.enqueue(encoder.encode(JSON.stringify({ type: "chunk", text: chunk }) + "\n"));
+      }
+      controller.enqueue(encoder.encode(JSON.stringify({ type: "done" }) + "\n"));
+      controller.close();
+    },
+  });
+  return new Response(stream, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as VipRequestBody;
@@ -466,10 +488,33 @@ export async function POST(request: NextRequest) {
         payment.expectedAmount,
       );
       if (!claimed.ok) {
-        return NextResponse.json(
-          { success: false, error: claimed.message },
-          { status: 409 },
-        );
+        // 같은 결제로 다시 온 경우 — 화면을 나가 리포트를 못 받은 손님
+        const state = await getVipReportEntitlementState(supabaseAdmin, payment.paymentRef);
+        if (state?.status === "completed") {
+          const stored = await loadVipReport(supabaseAdmin, payment.paymentRef);
+          if (stored) return streamMarkdown(stored);
+        }
+        if (state?.status === "processing") {
+          // 서버가 아직 만드는 중이면 기다리게 하고, 6분 넘게 멈춰 있으면 다시 만든다(함수 최대 5분)
+          const staleBefore = new Date(Date.now() - 6 * 60 * 1000).toISOString();
+          const reclaimed = await reclaimStaleVipReportEntitlement(
+            supabaseAdmin,
+            payment.paymentRef,
+            payment.expectedAmount,
+            staleBefore,
+          );
+          if (!reclaimed.ok) {
+            return NextResponse.json(
+              { success: false, pending: true, error: "결제하신 리포트를 만드는 중이에요. 잠시 후 자동으로 이어서 받아요." },
+              { status: 409 },
+            );
+          }
+        } else {
+          return NextResponse.json(
+            { success: false, error: claimed.message },
+            { status: 409 },
+          );
+        }
       }
     }
 
@@ -490,6 +535,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (payment && supabaseAdmin) {
+      // 완성본을 먼저 보관한다 — 손님이 받기 전에 화면을 나가도 같은 결제로 다시 받을 수 있게
+      await saveVipReport(supabaseAdmin, payment.paymentRef, markdown);
       await persistVipOrderRow(request, {
         imp_uid: payment.paymentRef.startsWith("toss:") ? null : body.imp_uid ?? payment.paymentRef,
         user_name: clientName,
@@ -506,24 +553,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 스트리밍 응답으로 전송
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      start(controller) {
-        // 청크 단위로 전송 (2000자씩)
-        const chunkSize = 2000;
-        for (let i = 0; i < markdown.length; i += chunkSize) {
-          const chunk = markdown.slice(i, i + chunkSize);
-          const line = JSON.stringify({ type: "chunk", text: chunk }) + "\n";
-          controller.enqueue(encoder.encode(line));
-        }
-        controller.enqueue(encoder.encode(JSON.stringify({ type: "done" }) + "\n"));
-        controller.close();
-      },
-    });
-    return new Response(stream, {
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    return streamMarkdown(markdown);
   } catch (error: unknown) {
     console.error("서버 전체 에러:", error);
     const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
