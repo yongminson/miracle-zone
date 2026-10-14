@@ -3,9 +3,12 @@
 import { createClient } from "@supabase/supabase-js";
 import { tossLog, tossRequestReview } from "@/lib/toss-bridge";
 
+// 기록은 늘 비로그인 방문자로 남긴다. 같은 브라우저에 카카오 로그인 세션이 있으면 그걸 집어 회원 권한으로 보내는데,
+// user_events 는 비로그인 쓰기만 받아서 로그인한 손님의 기록이 통째로 빠졌다(2026-10-14 발견).
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: "mu-analytics-anon" } },
 );
 
 const SESSION_KEY = "mu_session_id";
