@@ -922,7 +922,7 @@ export default function VipLandingPage() {
   // 구글 앱이 구글 플레이 결제 결과를 알려 준다(명운-rn app/index.tsx — vip_report 는 서버 확인 후 paymentRef 를 준다)
   useEffect(() => {
     const handler = (event: MessageEvent) => {
-      let msg: { type?: string; productId?: string; paymentRef?: string | null; message?: string } | null = null;
+      let msg: { type?: string; productId?: string; paymentRef?: string | null; message?: string; code?: string; detail?: string } | null = null;
       try {
         msg = typeof event.data === "string" ? JSON.parse(event.data) : null;
       } catch {
@@ -936,7 +936,8 @@ export default function VipLandingPage() {
       } else if (msg.type === "PURCHASE_SUCCESS" || msg.type === "PURCHASE_FAILED") {
         setIsPaymentPending(false);
         const text = msg.message || "결제를 완료하지 못했습니다. 결제 내역은 보존되며 다시 시도할 수 있어요.";
-        void logEvent("payment_fail", { product: "vip", amount: 4400, method: "google_play", reason: text.slice(0, 80) });
+        // code: 구글 결제 오류 코드(앱 1.1.8~) — 취소인지, 이미 산 상품인지, 결제 수단 문제인지 구분한다
+        void logEvent("payment_fail", { product: "vip", amount: 4400, method: "google_play", reason: text.slice(0, 80), code: msg.code ?? null, detail: msg.detail ?? null });
         setErrorMessage(text);
       }
     };

@@ -209,6 +209,8 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
       } else if (msg.type === "PURCHASE_FAILED") {
         setBusy(false);
         setError(msg.message || "결제를 완료하지 못했습니다.");
+        const m = msg as { code?: string; detail?: string };
+        void logEvent("payment_fail", { product: "newyear", amount: 3300, method: "google_play", reason: String(msg.message || "").slice(0, 80), code: m.code ?? null, detail: m.detail ?? null });
       }
     };
     window.addEventListener("message", handler);

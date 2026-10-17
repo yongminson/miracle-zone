@@ -2185,12 +2185,16 @@ const ALTAR_FOOTER_REFUND =
         void postPaidAltarAppWish();
       } else if (msg.type === "PURCHASE_FAILED") {
         setIsAltarAppPaying(false);
+        let recoveredPaid = false;
         try {
           const d = JSON.parse(localStorage.getItem(ALTAR_APP_PENDING_KEY) || "null");
           if (d && !d.paid) localStorage.removeItem(ALTAR_APP_PENDING_KEY);
+          recoveredPaid = !!d?.paid;
         } catch {}
-        void logEvent("payment_fail", { product: "altar", amount: 2200, method: "google_play", reason: String(msg.message || "").slice(0, 80) });
+        void logEvent("payment_fail", { product: "altar", amount: 2200, method: "google_play", reason: String(msg.message || "").slice(0, 80), code: msg.code ?? null, detail: msg.detail ?? null });
         alert(msg.message || "결제를 완료하지 못했습니다.");
+        // 앱이 확인을 못 마친 지난 결제를 찾아 '결제됨'으로 바꿔 놓았으면 바로 올린다
+        if (recoveredPaid) void postPaidAltarAppWish();
       }
     };
     window.addEventListener("message", handler);

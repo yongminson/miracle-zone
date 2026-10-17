@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PaymentMethodCheckoutModal } from "@/components/payments/PaymentMethodCheckoutModal";
+import { logEvent } from "@/lib/analytics";
 import {
   LOCK_COLORS,
   LOCK_PRODUCT_IDS,
@@ -140,6 +141,8 @@ export function LockComposer({
       if (msg.type === "PURCHASE_FAILED") {
         setWaitingApp(false);
         setError(msg.message || "결제를 완료하지 못했습니다.");
+        const m = msg as { code?: string; detail?: string };
+        void logEvent("payment_fail", { product: "lock", method: "google_play", reason: String(msg.message || "").slice(0, 80), code: m.code ?? null, detail: m.detail ?? null });
       }
     };
     window.addEventListener("message", handler);
