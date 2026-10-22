@@ -12,6 +12,7 @@ import { MenuTabs } from "@/components/layout/MenuTabs";
 import { ZODIAC_2027 } from "@/lib/newyear/zodiac-2027";
 import { WeekLuck } from "@/components/calendar/WeekLuck";
 import { ShareCardButton } from "./ShareCardButton";
+import { AppInstallCta } from "@/components/app/AppInstallCta";
 
 /** 앱인토스에서는 명운 웹 주소로 보낸다 */
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
@@ -421,6 +422,7 @@ function ResultView({
         </button>
       </div>
       <ShareCardButton result={result} />
+      <AppInstallCta place="newyear" />
       {notice ? <p className="text-center text-xs text-amber-200/90">{notice}</p> : null}
 
       <Link

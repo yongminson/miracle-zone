@@ -46,6 +46,7 @@ import { PaymentMethodSelector, type PayMethodPg } from "@/components/payments/P
 import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 import { DailyMoodTracker } from "@/components/records/DailyMoodTracker";
 import { WeekLuck } from "@/components/calendar/WeekLuck";
+import { AppInstallCta } from "@/components/app/AppInstallCta";
 import { CheckinBanner } from "@/components/records/CheckinBanner";
 import { BirthdayGiftBanner, readSelfProfile } from "@/components/birthday/BirthdayGiftBanner";
 import { getAnalyticsDeviceId } from "@/lib/analytics";
@@ -1008,6 +1009,9 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
 
                 {/* 이번 주 나의 흐름 — 날마다 다시 볼 이유 */}
                 <WeekLuck birthDate={birthDate} calendarType={calendarType} source="fortune" />
+
+                {/* 웹 손님을 앱으로 — 앱 손님이 다시 오고 사는 비율이 훨씬 높다(앱 안·아이폰에선 안 보임) */}
+                <AppInstallCta place="fortune" />
 
                 {/* 오늘 실제로 어땠는지 1탭 기록 — 다시 올 이유를 만드는 지점 */}
                 <DailyMoodTracker />

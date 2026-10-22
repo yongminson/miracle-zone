@@ -1011,6 +1011,27 @@ export default function VipLandingPage() {
     clearVipCheckoutDraft();
   }, [isDownloaded]);
 
+  /**
+   * 가족·지인 리포트 받기 — 2026-10 구매자 4명 중 2명이 바로 한 장 더 샀다(가족·지인 것으로 보임).
+   * 지금 리포트를 저장했는지 한 번 확인하고, 입력칸을 비워 저장된 프로필에서 고르게 한다.
+   */
+  const handleFamilyReportClick = useCallback(() => {
+    if (
+      !confirm(
+        "지금 리포트는 PDF로 저장해 두셨나요?\n새 리포트를 받으면 [이어보기]는 새 리포트로 바뀌어요.\n\n저장하셨다면 '확인'을 눌러 주세요.",
+      )
+    ) {
+      return;
+    }
+    void logEvent("vip_family_cta_click", {});
+    handleNewReportClick();
+    setName("");
+    setBirthDate("");
+    setBirthTime("");
+    setMbti("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [handleNewReportClick]);
+
   const amuletDownloadName =
     amuletUrl?.split("/").pop()?.replace(/[^a-zA-Z0-9._-]/g, "_") || "vip-amulet.jpg";
 
@@ -1187,7 +1208,24 @@ export default function VipLandingPage() {
 
             {amuletUrl ? renderVipDownloadButtonRow("bottom") : null}
 
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-4 border-t border-white/10 pt-10">
+            {/* 소중한 사람 것도 — 구매자 절반이 바로 한 장 더 샀다 */}
+            <div className="mx-auto mt-12 max-w-lg rounded-2xl border border-rose-300/30 bg-gradient-to-b from-rose-950/40 to-amber-950/30 px-5 py-5 text-center shadow-[0_0_30px_-12px_rgba(244,114,182,0.5)]">
+              <p className="text-base font-bold text-rose-100">💝 소중한 사람의 사주 인사이트도 받아 보세요</p>
+              <p className="mt-2 text-xs leading-relaxed text-rose-100/75">
+                가족·연인·친구의 타고난 기질, 올해와 앞으로 10년의 흐름을 같은 깊이로 풀어 드려요.
+                <br />
+                서로를 이해하는 선물이 돼요.
+              </p>
+              <button
+                type="button"
+                onClick={handleFamilyReportClick}
+                className="mt-4 w-full rounded-xl bg-gradient-to-r from-rose-400 via-amber-300 to-rose-400 py-3 text-sm font-bold text-stone-950 shadow-md transition hover:brightness-105 active:scale-[0.98]"
+              >
+                가족·지인 리포트 받기
+              </button>
+            </div>
+
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-4 border-t border-white/10 pt-10">
               <Link
                 href="/"
                 className="text-sm text-amber-400/90 underline-offset-4 hover:text-amber-300 hover:underline"

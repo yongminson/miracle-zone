@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 import { BirthdayGiftBanner } from "@/components/birthday/BirthdayGiftBanner";
+import { AppInstallCta } from "@/components/app/AppInstallCta";
 
 export default function Home() {
   return (
@@ -48,6 +49,10 @@ export default function Home() {
               >
                 🔥 사주 인사이트 리포트 받기
               </Link>
+            </div>
+
+            <div className="mt-8">
+              <AppInstallCta place="landing" />
             </div>
           </div>
 
