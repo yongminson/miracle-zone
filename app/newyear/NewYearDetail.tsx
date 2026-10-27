@@ -221,16 +221,17 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
     (input: NewYearDetailInput) => {
       inputRef.current = input;
       setError(null);
-      void logEvent("payment_start", { product: "newyear", amount: NEWYEAR_DETAIL_PRICE_WON });
 
-      // 이미 이 사람 풀이를 산 적이 있으면 다시 결제하지 않고 연다
+      // 이미 이 사람 풀이를 산 적이 있으면 다시 결제하지 않고 연다(버튼에도 '다시 보기'로 보인다)
       const owned = readNewYearPurchases().find(
         (p) => p.input.birthDate === input.birthDate && p.input.calendarType === input.calendarType,
       );
       if (owned) {
+        void logEvent("newyear_reopen", { from: "buy_button" });
         void requestDetail(owned.ids, owned.input);
         return;
       }
+      void logEvent("payment_start", { product: "newyear", amount: NEWYEAR_DETAIL_PRICE_WON });
 
       if (isAdmin) {
         // 서버가 운영자 로그인을 다시 확인한다. 금액 0원으로 남아 매출에서 빠진다
@@ -369,8 +370,11 @@ export function DetailPaywall({
   isToss,
   adminFree = false,
   generating = false,
+  alreadyOwned = false,
 }: {
   onBuy: () => void;
+  /** 이 사람 풀이를 이 기기에서 이미 샀다 — 결제 없이 다시 연다 */
+  alreadyOwned?: boolean;
   busy: boolean;
   error: string | null;
   appNeedsUpdate: boolean;
@@ -408,9 +412,11 @@ export function DetailPaywall({
         >
           {busy
             ? "결제 진행 중…"
-            : adminFree
-              ? "⚡ [운영자] 무료로 상세 풀이 보기"
-              : `상세 풀이 보기 · ${NEWYEAR_DETAIL_PRICE_WON.toLocaleString()}원`}
+            : alreadyOwned
+              ? "✓ 구매한 상세 풀이 다시 보기 (추가 결제 없음)"
+              : adminFree
+                ? "⚡ [운영자] 무료로 상세 풀이 보기"
+                : `상세 풀이 보기 · ${NEWYEAR_DETAIL_PRICE_WON.toLocaleString()}원`}
         </button>
       )}
       {error ? <p className="mt-3 text-xs leading-relaxed text-rose-300">{error}</p> : null}

@@ -152,6 +152,9 @@ export function NewYearClient() {
                   isToss={paid.isToss}
                   adminFree={paid.isAdmin}
                   generating={paid.generating}
+                  alreadyOwned={paid.purchases.some(
+                    (p) => p.input.birthDate === birthDate && p.input.calendarType === calendar,
+                  )}
                 />
               )
             }
