@@ -13,7 +13,8 @@ type EntitlementRow = {
   product_key: string;
   amount: number;
   currency: "KRW";
-  status: "available" | "processing" | "completed";
+  /** refunded: 구글·포트원에서 환불한 결제 — 리포트를 받을 수 없다(받기는 available 에서만) */
+  status: "available" | "processing" | "completed" | "refunded";
 };
 
 type EntitlementResult =
