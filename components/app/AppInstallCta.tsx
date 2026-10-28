@@ -70,7 +70,17 @@ export function AppInstallCta({ place }: { place: AppCtaPlace }) {
         href={playUrl(place)}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={() => void logEvent("app_cta_click", { place })}
+        onClick={(e) => {
+          const logged = logEvent("app_cta_click", { place });
+          // 안드로이드 폰은 누르자마자 Play 스토어 앱으로 넘어가 기록 전송이 끊길 수 있다 —
+          // 기록을 먼저 보내고(최대 0.6초 기다림) 이동한다. PC 는 새 탭으로 열려 이 화면이 남으므로 그대로 둔다.
+          if (!/Android/i.test(navigator.userAgent)) return;
+          e.preventDefault();
+          const url = e.currentTarget.href;
+          void Promise.race([logged, new Promise((r) => setTimeout(r, 600))]).then(() => {
+            window.location.href = url;
+          });
+        }}
         className="mt-3 flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-emerald-400 to-teal-300 py-2.5 text-sm font-bold text-stone-950 shadow-md transition hover:brightness-105 active:scale-[0.98]"
       >
         Google Play에서 무료로 받기
