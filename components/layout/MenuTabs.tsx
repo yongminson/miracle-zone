@@ -5,10 +5,13 @@ import Link from "next/link";
 import {
   Activity,
   BookOpen,
+  CalendarCheck,
+  CalendarDays,
   CalendarHeart,
   Crown,
   FileText,
   Flame,
+  GraduationCap,
   Hand,
   Heart,
   KeyRound,
@@ -18,6 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { logEvent } from "@/lib/analytics";
+import { APP_GATED_MENU_IDS, useHiddenInApp, type AppGatedProduct } from "@/lib/app-product-gate";
 
 /**
  * 별도 페이지(신년운세·사주 인사이트·소원 자물쇠)에서도 도구 화면과 같은 메뉴를 보여준다.
@@ -29,13 +33,15 @@ import { logEvent } from "@/lib/analytics";
 type MenuId =
   | "fortune" | "newyear" | "vip" | "zodiac" | "saju" | "palmistry"
   | "match" | "mbti" | "dream" | "lotto" | "altar" | "lock"
-  // 이달의 운세(/monthly) — 출시(12/1) 때 아래 MENU 와 tools TABS 에 함께 넣는다
   | "monthly" | "taekil" | "season";
 
 const MENU: { id: MenuId; label: string; icon: LucideIcon; href: string }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, href: "/tools?tab=fortune" },
+  { id: "monthly", label: "이달의 운세", icon: CalendarDays, href: "/monthly" },
   { id: "newyear", label: "2027 신년운세", icon: CalendarHeart, href: "/newyear" },
   { id: "vip", label: "사주 인사이트", icon: Crown, href: "/vip" },
+  { id: "season", label: "시험 합격운", icon: GraduationCap, href: "/season" },
+  { id: "taekil", label: "좋은 날 고르기", icon: CalendarCheck, href: "/taekil" },
   { id: "zodiac", label: "띠별 운세", icon: Star, href: "/tools?tab=zodiac" },
   { id: "saju", label: "관상/이름 풀이", icon: FileText, href: "/tools?tab=saju" },
   { id: "palmistry", label: "손금 분석", icon: Hand, href: "/tools?tab=palmistry" },
@@ -49,6 +55,11 @@ const MENU: { id: MenuId; label: string; icon: LucideIcon; href: string }[] = [
 
 export function MenuTabs({ active }: { active: MenuId }) {
   const navRef = useRef<HTMLDivElement>(null);
+  const hiddenInApp = useHiddenInApp();
+  // 옛 앱(1.1.9 전)에서는 새 유료 메뉴를 숨긴다 — 지금 보고 있는 화면이면 그대로 둔다
+  const menu = MENU.filter(
+    (item) => item.id === active || !APP_GATED_MENU_IDS.includes(item.id) || !hiddenInApp(item.id as AppGatedProduct),
+  );
 
   // 지금 메뉴가 화면 가운데에 오도록 (모바일에서 오른쪽 끝 메뉴가 안 보이는 문제)
   useEffect(() => {
@@ -65,7 +76,7 @@ export function MenuTabs({ active }: { active: MenuId }) {
         ref={navRef}
         className="no-scrollbar relative z-0 mx-auto flex max-w-screen-lg items-center justify-start gap-6 overflow-x-auto px-4 py-2 sm:justify-between sm:gap-0 sm:px-6"
       >
-        {MENU.map((item) => {
+        {menu.map((item) => {
           const isActive = item.id === active;
           return (
             <Link

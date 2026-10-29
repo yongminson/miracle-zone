@@ -27,6 +27,8 @@ import {
   Crown, // 사주 인사이트(별도 페이지) 메뉴 아이콘
   KeyRound, // 소원 자물쇠(별도 페이지) 메뉴 아이콘
   CalendarHeart, // 2027 신년운세(별도 페이지 /newyear) 메뉴 아이콘
+  CalendarDays, // 이달의 운세(별도 페이지 /monthly)
+  CalendarCheck, // 좋은 날 고르기(별도 페이지 /taekil)
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -48,6 +50,7 @@ import { DailyMoodTracker } from "@/components/records/DailyMoodTracker";
 import { WeekLuck } from "@/components/calendar/WeekLuck";
 import { AppInstallCta } from "@/components/app/AppInstallCta";
 import { MatchDeep } from "@/components/match/MatchDeep";
+import { APP_GATED_MENU_IDS, useHiddenInApp } from "@/lib/app-product-gate";
 import { isPaidProductReturn } from "@/lib/paid/use-paid-product";
 import { CheckinBanner } from "@/components/records/CheckinBanner";
 import { BirthdayGiftBanner, readSelfProfile } from "@/components/birthday/BirthdayGiftBanner";
@@ -172,7 +175,7 @@ function AdminDashboard() {
 }
 
 // 🚀 mbti와 match(궁합) 탭 추가
-type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match" | "zodiac" | "palmistry" | "vip" | "lock";
+type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match" | "zodiac" | "palmistry" | "vip" | "lock" | "monthly" | "taekil" | "season";
 
 async function captureAndShareElement(
   target: HTMLElement | null,
@@ -298,8 +301,11 @@ const pushSecret = (char: string, callback?: () => void) => {
 // ⚠ 메뉴를 바꾸면 components/layout/MenuTabs.tsx(신년운세·사주 인사이트·자물쇠 화면 상단 메뉴)도 같이 고친다
 const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean; href?: string }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, isReady: true },
+  { id: "monthly", label: "이달의 운세", icon: CalendarDays, isReady: true, href: "/monthly" },
   { id: "newyear", label: "2027 신년운세", icon: CalendarHeart, isReady: true, href: "/newyear" },
   { id: "vip",     label: "사주 인사이트", icon: Crown,  isReady: true, href: "/vip" },
+  { id: "season",  label: "시험 합격운", icon: GraduationCap, isReady: true, href: "/season" },
+  { id: "taekil",  label: "좋은 날 고르기", icon: CalendarCheck, isReady: true, href: "/taekil" },
   { id: "zodiac",     label: "띠별 운세",    icon: Star,     isReady: true },
   { id: "saju",       label: "관상/이름 풀이", icon: FileText, isReady: true },
   { id: "palmistry",  label: "손금 분석",    icon: Hand,     isReady: true },
@@ -5172,6 +5178,7 @@ function MbtiTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (i
 
 // 🚀 [소름돋는 궁합 컴포넌트 - 음/양력 추가 및 이름 기반 캐싱]
 function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (id: TabId) => void }) {
+  const hiddenInApp = useHiddenInApp();
   // 🚀 상태에 calendar(음양력) 추가
   const [myInfo, setMyInfo] = useState({ name: "", gender: "male", calendar: "solar", birthDate: "", birthTime: "unknown" });
   const [partnerInfo, setPartnerInfo] = useState({ name: "", gender: "female", calendar: "solar", birthDate: "", birthTime: "unknown" });
@@ -5527,9 +5534,11 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
               </div>
 
               {/* 궁합 심층 풀이는 카드 아래에 있어 공유 버튼에서 끝난 줄 알기 쉬움 — 여기서 바로 내려가게 */}
+              {!hiddenInApp("match") && (
               <button onClick={() => document.getElementById("match-deep")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="mb-3 w-full rounded-2xl border border-pink-400/40 bg-gradient-to-r from-pink-500/15 to-violet-500/15 px-4 py-4 text-sm font-bold text-pink-200 transition-colors hover:from-pink-500/25 hover:to-violet-500/25">
                 💞 더 깊이 보기 — 어디서 맞고 어디서 부딪힐까? ↓
               </button>
+              )}
 
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
@@ -6624,6 +6633,7 @@ function ZodiacTab({ isVisible }: { isVisible: boolean }) {
 
 export default function Home() {
   const isApp = useIsAppMode();
+  const hiddenInApp = useHiddenInApp();
   const router = useRouter();
   const pathname = usePathname() || "/tools";
   const [activeTab, setActiveTab] = useState<TabId>("fortune");
@@ -7052,7 +7062,8 @@ export default function Home() {
           ref={navRef}
           className="mx-auto flex max-w-screen-lg items-center justify-start gap-6 px-4 py-2 overflow-x-auto no-scrollbar sm:px-6 sm:justify-between sm:gap-0 relative z-0"
         >
-          {TABS.map((tab) => {
+          {/* 옛 앱(1.1.9 전)에서는 새 유료 메뉴(이달의 운세·택일·시험 합격운)를 숨긴다 */}
+          {TABS.filter((tab) => !APP_GATED_MENU_IDS.includes(tab.id) || !hiddenInApp(tab.id)).map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
@@ -7062,9 +7073,13 @@ export default function Home() {
                 onClick={(e) => {
                   if (!tab.isReady) return;
                   if (tab.href) {
-                    logEvent(tab.id === "lock" ? "lock_link_click" : "vip_link_click", {
-                      from: "tools_tab",
-                    });
+                    if (APP_GATED_MENU_IDS.includes(tab.id)) {
+                      logEvent("menu_click", { to: tab.id, from: "tools" });
+                    } else {
+                      logEvent(tab.id === "lock" ? "lock_link_click" : "vip_link_click", {
+                        from: "tools_tab",
+                      });
+                    }
                     router.push(tab.href);
                     return;
                   }

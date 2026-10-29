@@ -78,11 +78,14 @@ export default function Home() {
             <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 { href: "/newyear", emoji: "🐑", title: "2027 신년운세", desc: "정미년 총운 · 월별 흐름 · 좋은 달과 조심할 달", badge: "NEW 무료", badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30" },
+                { href: "/monthly", emoji: "📅", title: "이달의 운세", desc: "이번 달 좋은 날·조심할 날 · 한 달 달력", badge: "NEW 무료~", badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30" },
+                { href: "/season", emoji: "📝", title: "시험 합격운", desc: "시험 날 흐름 · 집중하기 좋은 날 · D-day 준비 계획", badge: "NEW 무료~", badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30" },
+                { href: "/taekil", emoji: "🗓️", title: "좋은 날 고르기", desc: "이사·계약·고백·결혼… 앞으로 90일 중 좋은 날", badge: "NEW 무료~", badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30" },
                 { href: "/tools?tab=fortune", emoji: "✨", title: "오늘의 운세", desc: "음양오행 기반 금전·직장·애정운 분석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=zodiac", emoji: "🐉", title: "띠별 운세", desc: "12띠 오행 기운 · 재물·연애·직업운 분석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=saju", emoji: "👁️", title: "관상 / 이름 풀이", desc: "AI 관상 분석 · 성명학 이름풀이", badge: "1,900원", badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
                 { href: "/tools?tab=palmistry", emoji: "✋", title: "손금 분석", desc: "AI 손금 분석 · 재물·결혼·건강·직업운", badge: "1,900원", badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
-                { href: "/tools?tab=match", emoji: "❤️", title: "소름 돋는 궁합", desc: "오행 기반 두 사람의 인연 깊이 분석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
+                { href: "/tools?tab=match", emoji: "❤️", title: "소름 돋는 궁합", desc: "두 사람의 사주로 계산한 궁합 · 심층 풀이", badge: "무료~", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=mbti", emoji: "🧠", title: "MBTI 심층 검사", desc: "사주 × MBTI 맞춤 연애·직업 솔루션", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=dream", emoji: "📖", title: "꿈 해몽", desc: "무의식이 보내는 메시지 해석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=altar", emoji: "🕯️", title: "기적의 제단", desc: "소원을 우주에 띄우는 에너지 집중", badge: "무료~", badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30" },

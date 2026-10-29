@@ -71,6 +71,8 @@ export function MatchDeep({
 
   const paid = deep.paid;
   if (!paid && !hasFreeResult && !deep.generating && !deep.error) return deep.paymentModal;
+  // 옛 앱(1.1.9 전)은 구글 결제가 안 되므로 판매 안내를 숨긴다
+  if (!paid && !deep.generating && deep.app.isApp && !deep.app.canBuy) return deep.paymentModal;
 
   const input = toInput(myInfo, partnerInfo, relationshipType);
   const owned = !!deep.owned(input);
