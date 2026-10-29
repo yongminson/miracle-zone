@@ -39,12 +39,14 @@ const SYSTEM_PROMPT = `당신은 한국 명리학에 밝은 상담가입니다. 
 7. 무료 결과(이달의 한 줄 요약)를 그대로 되풀이하지 않습니다. 그 사람의 나이대와 성별에 맞는 현실적인 상황(직장·가정·연애·돈 관리 등)을 예로 들어 한 단계 더 깊게 씁니다.
 8. 주별 풀이에는 그 주에 있는 좋은 날·조심할 날을 "O일"처럼 날짜로 짚어 줍니다.
 9. 그달 특이 사항(충·합)이 있으면 총평에서 반드시 짚고 어떻게 대비할지 알려 줍니다.
+10. 이 풀이의 주인공은 날짜입니다. 총평(overview)은 [꼭 기억할 날]의 날짜 3개로 시작해 각각 왜 중요한지와 그날 무엇을 하면 좋은지 씁니다. 무료 요약 문장("요약")을 다시 쓰지 않습니다.
+11. 주별 할 일(doThis)은 그 주의 좋은 날 중 하루를 골라 "O일에 ~" 형식으로 씁니다. 그 주에 좋은 날이 없으면 조심할 날을 피하라는 내용으로 씁니다. 조심할 날을 무언가 시작하기 좋은 날로 쓰지 않습니다.
 
 반드시 아래 JSON 형식으로만 답합니다.
 {
-  "overview": "이달 상세 총평 4~5문장",
+  "overview": "꼭 기억할 날 3개로 시작하는 이달 상세 총평 4~5문장",
   "weeks": [
-    {"index": 1, "focus": "그 주에 생기기 쉬운 상황과 흐름 2~3문장", "doThis": "1문장"}
+    {"index": 1, "focus": "그 주에 생기기 쉬운 상황과 흐름 2~3문장", "doThis": "그 주 좋은 날 하루를 짚은 1문장"}
     ... 주어진 주 수만큼
   ],
   "areas": [
@@ -74,6 +76,19 @@ function dayNum(date: string): number {
   return Number(date.slice(8, 10));
 }
 
+/** 이달 꼭 기억할 날 — 가장 좋은 날 둘과 가장 조심할 날 하나(날짜 순) */
+export function pickKeyDays(days: DayLuck[]): DayLuck[] {
+  const best = [...days]
+    .filter((d) => d.tone === "good")
+    .sort((a, b) => b.score - a.score || a.date.localeCompare(b.date))
+    .slice(0, 2);
+  const worst = [...days]
+    .filter((d) => d.tone === "caution")
+    .sort((a, b) => a.score - b.score || a.date.localeCompare(b.date))
+    .slice(0, 1);
+  return [...best, ...worst].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function describeInput(input: MonthlyInput, result: MonthlyResult, days: DayLuck[], purposes: MonthlyPurpose[]): string {
   const birthYear = Number(input.birthDate.slice(0, 4));
   const age = Number.isFinite(birthYear) ? result.year - birthYear + 1 : null;
@@ -86,6 +101,9 @@ function describeInput(input: MonthlyInput, result: MonthlyResult, days: DayLuck
     .join("\n");
   const purposeLines = purposes
     .map((p) => `${p.label}: ${p.dates.map((d) => `${dayNum(d)}일`).join(", ") || "없음"}`)
+    .join("\n");
+  const keyDays = pickKeyDays(days)
+    .map((d) => `${dayNum(d.date)}일(${d.tone === "caution" ? "조심" : "좋음"}) — ${d.title}${d.note ? `. ${d.note}` : ""}`)
     .join("\n");
 
   return `[대상]
@@ -104,6 +122,9 @@ ${weeks}
 
 [목적별 날짜]
 ${purposeLines}
+
+[꼭 기억할 날]
+${keyDays}
 
 위 계산 결과를 근거로 상세 풀이를 JSON 으로 작성해 주세요. 주는 ${splitWeeks(days).length}개입니다.`;
 }
@@ -142,7 +163,12 @@ function normalize(raw: unknown, result: MonthlyResult, days: DayLuck[]): Monthl
   });
 
   return {
-    overview: text(obj.overview, `${result.summary}${result.note ? ` ${result.note}` : ""}`),
+    overview: text(
+      obj.overview,
+      `이달 꼭 기억할 날은 ${pickKeyDays(days)
+        .map((d) => `${dayNum(d.date)}일(${d.title})`)
+        .join(", ")}입니다.${result.note ? ` ${result.note}` : ""}`,
+    ),
     weeks,
     areas,
     motto: text(obj.motto, result.keywords.join(" · ")).slice(0, 60),

@@ -111,11 +111,24 @@ export function MonthlyClient() {
                 {result.year}년 {result.month}월 · 일간 {result.dayMaster.korean}
                 {result.dayMaster.element}({result.dayMaster.hanja})
               </p>
-              <p className="mt-3 text-5xl font-black text-sky-200">{result.score}</p>
-              <p className="text-xs text-white/45">
-                {result.month}월 종합 · {scoreLabel(result.score)}
+              {/* 신년운세(한 해 흐름)와 달리 이 화면의 주인공은 날짜다 — 좋은 날·조심할 날 개수를 크게 */}
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-2xl border border-emerald-400/30 bg-emerald-950/30 py-3">
+                  <p className="text-[11px] text-emerald-200/70">{result.month}월 좋은 날</p>
+                  <p className="text-3xl font-black text-emerald-200">{result.goodCount}일</p>
+                </div>
+                <div className="rounded-2xl border border-amber-400/30 bg-amber-950/30 py-3">
+                  <p className="text-[11px] text-amber-200/70">{result.month}월 조심할 날</p>
+                  <p className="text-3xl font-black text-amber-200">{result.cautionCount}일</p>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] text-white/45">
+                🔒 그 날짜가 언제인지, 계약·고백·이사에 좋은 날은 상세 풀이에서 알려 드려요
               </p>
-              <h2 className="mt-4 text-2xl font-black text-violet-100">{result.title}</h2>
+              <h2 className="mt-4 text-xl font-black text-violet-100">{result.title}</h2>
+              <p className="text-[11px] text-white/40">
+                {result.month}월 기운 {result.score}점 · {scoreLabel(result.score)}
+              </p>
               <div className="mt-2 flex flex-wrap justify-center gap-1.5">
                 {result.keywords.map((k) => (
                   <span key={k} className="rounded-full bg-sky-500/15 px-2.5 py-1 text-[11px] text-sky-100">

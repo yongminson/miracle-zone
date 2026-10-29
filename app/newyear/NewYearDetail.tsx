@@ -426,6 +426,13 @@ export function DetailPaywall({
   );
 }
 
+/** 이달의 운세(/monthly)에서 지금 볼 수 있는 달 — 이번 달·다음 달(한국 시간) */
+function monthlyOpenKeys(): string[] {
+  const [y, m] = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()).split("-").map(Number);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return [`${y}-${pad(m)}`, m === 12 ? `${y + 1}-01` : `${y}-${pad(m + 1)}`];
+}
+
 /** 결제 후 — 상세 풀이 */
 export function DetailView({ detail, result }: { detail: NewYearDetail; result: NewYearResult }) {
   return (
@@ -448,7 +455,8 @@ export function DetailView({ detail, result }: { detail: NewYearDetail; result: 
       </section>
 
       <section className="rounded-3xl border border-white/10 bg-black/40 p-4 sm:p-5">
-        <h3 className="text-sm font-bold text-white/85">12개월 상세</h3>
+        {/* 신년운세는 한 해를 달 단위로, 날짜 단위 풀이는 이달의 운세가 맡는다 */}
+        <h3 className="text-sm font-bold text-white/85">달별 큰 흐름</h3>
         <div className="mt-3 space-y-2">
           {detail.months.map((month) => {
             const tag = result.bestMonths.includes(month.month)
@@ -474,6 +482,15 @@ export function DetailView({ detail, result }: { detail: NewYearDetail; result: 
                 <p className="mt-2 text-[13px] leading-relaxed text-white/70">{month.focus}</p>
                 <p className="mt-1.5 text-xs leading-relaxed text-emerald-200/90">✅ {month.doThis}</p>
                 <p className="mt-1 text-xs leading-relaxed text-amber-200/90">⚠️ {month.avoid}</p>
+                {!IS_TOSS && monthlyOpenKeys().includes(`${result.year}-${String(month.month).padStart(2, "0")}`) ? (
+                  <a
+                    href="/monthly"
+                    onClick={() => void logEvent("monthly_link_click", { from: "newyear_detail", month: month.month })}
+                    className="mt-2 block rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-center text-xs font-bold text-sky-100"
+                  >
+                    📅 {month.month}월 날짜별 좋은 날 보기 — 이달의 운세 →
+                  </a>
+                ) : null}
               </details>
             );
           })}
