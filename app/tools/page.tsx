@@ -47,6 +47,8 @@ import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 import { DailyMoodTracker } from "@/components/records/DailyMoodTracker";
 import { WeekLuck } from "@/components/calendar/WeekLuck";
 import { AppInstallCta } from "@/components/app/AppInstallCta";
+import { MatchDeep } from "@/components/match/MatchDeep";
+import { isPaidProductReturn } from "@/lib/paid/use-paid-product";
 import { CheckinBanner } from "@/components/records/CheckinBanner";
 import { BirthdayGiftBanner, readSelfProfile } from "@/components/birthday/BirthdayGiftBanner";
 import { getAnalyticsDeviceId, logTesterOrder, markTesterDevice } from "@/lib/analytics";
@@ -5554,6 +5556,9 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
 </div>
 )}
 
+{/* 궁합 심층 풀이(2,200원) — 무료 결과 아래. 모바일 결제에서 돌아오면 무료 결과 없이도 풀이를 보여 주고 이 탭으로 옮긴다 */}
+<MatchDeep myInfo={myInfo} partnerInfo={partnerInfo} relationshipType={relationshipType} hasFreeResult={!!resultData && !isLoading} onShow={() => onNavigate("match")} />
+
 <SeoAccordion title="궁합(宮合)이란 무엇인가요? ▾" items={[
 { q: "궁합의 원리", a: "궁합은 두 사람의 사주팔자를 대조하여 음양오행의 조화와 상생·상극 관계를 분석하는 것입니다. 단순한 미신이 아니라 두 사람의 에너지 특성을 이해하여 더 행복한 관계를 만들기 위한 지혜입니다." },
 { q: "삼합(三合) — 가장 잘 맞는 띠 조합", a: "인·오·술(화火), 신·자·진(수水), 해·묘·미(목木), 사·유·축(금金)의 삼합 관계가 궁합이 잘 맞는 대표적인 조합입니다." },
@@ -6722,6 +6727,9 @@ export default function Home() {
 
     const pendingState = readPendingPaymentState();
     const pendingType = pendingState?.flow ?? localStorage.getItem("pendingPaymentType");
+
+    // 궁합 심층·택일·시즌 운세 결제 복귀는 그 화면 부품(lib/paid/use-paid-product.tsx)이 처리한다 — 여기선 손대지 않는다
+    if (!pendingType && returnPayId && isPaidProductReturn(returnPayId)) return;
 
     if (localStorage.getItem("vip_mobile_payment_pending") === "1" || pendingType === "vip") {
       localStorage.removeItem("vip_mobile_payment_pending");

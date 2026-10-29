@@ -86,8 +86,13 @@ export async function verifyPaidAmount(params: {
   lookupId: string;
   expectedAmountWon: number;
   merchantUidToMatch?: string | null;
+  /**
+   * 포트원 V2 결제 상품명(orderName)까지 맞춰 본다 — 같은 금액의 다른 상품 결제를 이 상품으로 인정하지 않게.
+   * 궁합 심층·택일·시즌 운세(lib/paid/product-route.ts)만 넘긴다. 기존 상품 호출에는 영향 없음
+   */
+  expectedOrderName?: string;
 }): Promise<VerifyResult> {
-  const { lookupId, expectedAmountWon, merchantUidToMatch } = params;
+  const { lookupId, expectedAmountWon, merchantUidToMatch, expectedOrderName } = params;
 
   if (isIamportStyleId(lookupId)) {
     const detail = await fetchIamportPaymentDetail(lookupId);
@@ -128,6 +133,12 @@ export async function verifyPaidAmount(params: {
   }
   if (merchantUidToMatch && merchantUidToMatch.trim() !== "" && parsed.id !== merchantUidToMatch.trim()) {
     return { ok: false, message: "결제 검증에 실패했습니다. 주문번호(결제 ID)가 일치하지 않습니다." };
+  }
+  if (expectedOrderName) {
+    const payment = (raw && typeof raw.payment === "object" && raw.payment ? raw.payment : raw) as Record<string, unknown> | null;
+    if (payment?.orderName !== expectedOrderName) {
+      return { ok: false, message: "결제 검증에 실패했습니다. 결제한 상품이 일치하지 않습니다." };
+    }
   }
   return { ok: true };
 }

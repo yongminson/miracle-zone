@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { ELEMENT_LABEL, calculateMatch, describeMatchFacts, type MatchElement, type MatchPerson } from "@/lib/match/match-engine";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
@@ -18,27 +19,9 @@ function getNameElement(name: string) {
   return "나무의 기운(木)";
 }
 
-// 🚀 2. 사주 오행 계산기 (절대 안 바뀜)
-function getSajuElement(birthDate: string) {
-  const cleanDate = birthDate.replace(/[^0-9]/g, '');
-  const year = parseInt(cleanDate.substring(0, 4) || "1990");
-  const month = parseInt(cleanDate.substring(4, 6) || "1");
-  const day = parseInt(cleanDate.substring(6, 8) || "1");
-  const elements = ["물의 기운(水)", "나무의 기운(木)", "불의 기운(火)", "흙의 기운(土)", "쇠의 기운(金)"];
-  return elements[(year + month + day) % 5];
-}
-
-// 🚀 3. 궁합 점수 계산기 (위치를 바꿔도 항상 똑같은 점수 보장)
-function getFixedScore(name1: string, date1: string, name2: string, date2: string) {
-  const sorted = [`${name1}${date1}`, `${name2}${date2}`].sort();
-  const combined = sorted[0] + sorted[1];
-  let hash = 0;
-  for (let i = 0; i < combined.length; i++) {
-    hash = combined.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return 50 + (Math.abs(hash) % 49); // 50점 ~ 98점 사이로 완벽 고정
-}
-
+// 사주 오행·궁합 점수는 2026-10-29 부터 진짜 사주 계산(lib/match/match-engine.ts)으로 낸다.
+// 예전엔 (년+월+일)÷5 나머지와 이름·생일 문자열을 섞은 숫자였다 — 무료 점수와 유료 궁합 심층 풀이가 같은 계산이어야 한다.
+// 요청·응답 형식은 그대로(토스 미니앱도 이 경로를 부른다).
 const RESPONSE_FORMAT = `
 {
   "score": 85,
@@ -91,15 +74,30 @@ export async function POST(request: NextRequest) {
 
     // 🚀 서버에서 모든 것을 통제! AI의 헛소리 원천 차단
     const myNameElem = getNameElement(myInfo.name);
-    const mySajuElem = getSajuElement(myInfo.birthDate);
     const partnerNameElem = getNameElement(partnerInfo.name);
-    const partnerSajuElem = getSajuElement(partnerInfo.birthDate);
-    const fixedScore = getFixedScore(myInfo.name, myInfo.birthDate, partnerInfo.name, partnerInfo.birthDate);
+    const toPerson = (info: Record<string, unknown>): MatchPerson => ({
+      name: String(info.name ?? "").slice(0, 20),
+      birthDate: String(info.birthDate ?? "").trim(),
+      calendarType: info.calendar === "lunar" || info.calendar === "lunar-leap" ? info.calendar : "solar",
+      gender: info.gender === "female" ? "female" : "male",
+    });
+    let calc;
+    try {
+      calc = calculateMatch(toPerson(myInfo), toPerson(partnerInfo));
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : "생년월일을 확인해 주세요." }, { status: 400 });
+    }
+    const mySajuElem = ELEMENT_LABEL[calc.a.dayMaster.element as MatchElement] ?? calc.a.dayMaster.element;
+    const partnerSajuElem = ELEMENT_LABEL[calc.b.dayMaster.element as MatchElement] ?? calc.b.dayMaster.element;
+    const fixedScore = calc.score;
 
     const prompt = `
     [사람 A] 이름: ${myInfo.name} (초성 기운: ${myNameElem}), 사주 기운: ${mySajuElem}
     [사람 B] 이름: ${partnerInfo.name} (초성 기운: ${partnerNameElem}), 사주 기운: ${partnerSajuElem}
     [관계 유형]: ${relLabel}
+
+    [사주 계산 근거 — 이 내용과 어긋나는 말을 하지 마세요]
+    ${describeMatchFacts(calc, myInfo.name, partnerInfo.name)}
     
     🚨 [긴급 명령] 이 두 사람의 궁합 점수는 **${fixedScore}점**으로 이미 확정되었습니다!
     이 점수(${fixedScore}점)와 확정된 오행 기운, 그리고 [${relLabel}] 관계에 맞는 톤으로 JSON 답변을 만들어줘.
@@ -123,7 +121,9 @@ export async function POST(request: NextRequest) {
 
     // 강제로 점수를 서버에서 계산한 fixedScore로 덮어씌움 (AI가 혹시라도 실수할까봐 이중 잠금)
     const parsedData = JSON.parse(completion.choices[0]?.message?.content || "{}");
-    parsedData.score = fixedScore; 
+    parsedData.score = fixedScore;
+    parsedData.grade = calc.grade;
+    parsedData.categoryScores = calc.categoryScores;
 
     return NextResponse.json(parsedData);
   } catch (error: any) {

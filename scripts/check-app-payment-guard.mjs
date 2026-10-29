@@ -17,6 +17,7 @@ const APP_PURCHASE_PRODUCTS = [
   "altar_10days", // 기적의 제단 10일 2,200
   "newyear_detail", // 신년운세 상세 3,300
   "monthly_luck", // 이달의 운세 상세 1,100
+  "match_deep", // 궁합 심층 2,200
   "lock_basic",
   "lock_color",
   "lock_shine", // 소원 자물쇠
