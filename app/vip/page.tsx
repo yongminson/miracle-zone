@@ -17,7 +17,7 @@ import { clearPendingPaymentState } from "@/lib/payments/pending-payment-state";
 import { extractPaymentReturnId } from "@/lib/payments/return-params";
 import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 import { appendVipSymbolicAmulet } from "@/lib/saju/vip-symbolic-amulet";
-import { logEvent } from "@/lib/analytics";
+import { logEvent, logTesterOrder } from "@/lib/analytics";
 import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 import { isAppFileSave, saveUrlInApp } from "@/lib/app-file-save";
 
@@ -771,6 +771,7 @@ export default function VipLandingPage() {
 
         // 📊 계측 — 서버 검증 통과(퍼널 3단계)
         void logEvent("payment_complete", { product: "vip", amount: 4400 });
+        logTesterOrder("vip", imp_uid);
         setShowPaymentModal(false);
         await handleIssueReport({ imp_uid });
       } catch (e: unknown) {
@@ -931,6 +932,7 @@ export default function VipLandingPage() {
       if (!msg?.type || msg.productId !== VIP_APP_PRODUCT_ID) return;
       if (msg.type === "PURCHASE_SUCCESS" && msg.paymentRef) {
         void logEvent("payment_complete", { product: "vip", amount: 4400, method: "google_play" });
+        logTesterOrder("vip", msg.paymentRef);
         setIsPaymentPending(false);
         void handleIssueReport({ paymentRef: msg.paymentRef });
       } else if (msg.type === "PURCHASE_SUCCESS" || msg.type === "PURCHASE_FAILED") {

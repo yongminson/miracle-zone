@@ -15,7 +15,7 @@ import {
   type WallLock,
 } from "@/lib/locks/wall-locks";
 import { supabase } from "@/app/lib/supabase";
-import { logEvent, withShareUtm } from "@/lib/analytics";
+import { logEvent, logTesterOrder, withShareUtm } from "@/lib/analytics";
 import { extractPaymentReturnId } from "@/lib/payments/return-params";
 import {
   LockComposer,
@@ -575,6 +575,7 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
           amount: LOCK_TIERS[params.draft.tier].priceWon,
           recorded: "locks",
         });
+        if (!params.admin) logTesterOrder("lock", json.lock.id);
 
         clearLockDraft();
         try {

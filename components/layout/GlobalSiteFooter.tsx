@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { logEvent, markTesterDevice } from "@/lib/analytics";
 
 const TERMS_TEXT = `제1조 (목적)
 본 약관은 와이엠 스튜디오(이하 "회사")가 운영하는 명운(命運) 서비스(이하 "서비스")의 이용조건 및 절차, 이용자와 회사의 권리·의무·책임사항을 규정함을 목적으로 합니다.
@@ -109,6 +110,9 @@ export function GlobalSiteFooter() {
     }).catch(() => null);
     if (response?.ok) {
       localStorage.setItem("MASTER_ADMIN", "true");
+      // 이 기기를 테스트 기기로 영구 표시 — 새로고침 전에 표시 기록을 보낸다(최대 0.8초)
+      markTesterDevice();
+      await Promise.race([logEvent("tester_device_marked", { via: "footer" }), new Promise((r) => setTimeout(r, 800))]);
       alert("✨ 운영자 모드 활성화!");
       window.location.reload();
     } else {

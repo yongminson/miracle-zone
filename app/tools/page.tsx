@@ -49,7 +49,7 @@ import { WeekLuck } from "@/components/calendar/WeekLuck";
 import { AppInstallCta } from "@/components/app/AppInstallCta";
 import { CheckinBanner } from "@/components/records/CheckinBanner";
 import { BirthdayGiftBanner, readSelfProfile } from "@/components/birthday/BirthdayGiftBanner";
-import { getAnalyticsDeviceId } from "@/lib/analytics";
+import { getAnalyticsDeviceId, logTesterOrder, markTesterDevice } from "@/lib/analytics";
 import { saveUrlInApp } from "@/lib/app-file-save";
 import { APP_WEB_PAYMENT_BLOCKED_MESSAGE, blockWebPaymentInApp } from "@/lib/payments/app-payment-guard";
 
@@ -1998,6 +1998,7 @@ const ALTAR_FOOTER_REFUND =
             const verifyData = await verifyRes.json();
             if (verifyRes.ok && verifyData.success) {
                             logEvent("payment_complete", { product: "altar", amount });
+                            logTesterOrder("altar", (response as { paymentId: string }).paymentId);
                             // 🚀 [추가] PC 환경에서도 결제 즉시 제단에 소원이 짠! 하고 나타나도록 강제 업데이트
                             setLastWish(premiumWishText);
                             const newPremiumWish: PremiumWish = {
@@ -2075,6 +2076,7 @@ const ALTAR_FOOTER_REFUND =
     }
     try { localStorage.removeItem(ALTAR_APP_PENDING_KEY); } catch {}
     void logEvent("payment_complete", { product: "altar", amount: 2200, method: "google_play" });
+    logTesterOrder("altar_app", null);
     setLastWish(draft.wish);
     setIsCandleOn(true);
     setIsPremiumGlow(true);
@@ -2210,10 +2212,11 @@ const ALTAR_FOOTER_REFUND =
     if (isApp) void postPaidAltarAppWish();
   }, [isApp, postPaidAltarAppWish]);
 
-  const handleAltarFooterCopyrightDoubleClick = () => {
+  const handleAltarFooterCopyrightDoubleClick = async () => {
     if (typeof window === "undefined") return;
     if (localStorage.getItem("MASTER_ADMIN") === "true") {
       if (confirm("현재 운영자 모드입니다. 종료할까요?")) {
+        await fetch("/api/admin/session", { method: "DELETE" }).catch(() => null);
         localStorage.removeItem("MASTER_ADMIN");
         alert("운영자 모드가 종료되었습니다.");
         window.location.reload();
@@ -2221,11 +2224,21 @@ const ALTAR_FOOTER_REFUND =
       return;
     }
     const pwd = prompt("운영자 비밀번호를 입력하세요.");
-    if (pwd === "s1223534") {
+    if (pwd === null) return;
+    // 비밀번호는 서버가 확인한다(예전엔 화면 코드에 적혀 있어 누구나 볼 수 있었다) — 하단 푸터 운영자 로그인과 같은 비밀번호
+    const response = await fetch("/api/admin/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: pwd }),
+    }).catch(() => null);
+    if (response?.ok) {
       localStorage.setItem("MASTER_ADMIN", "true");
+      // 이 기기를 테스트 기기로 영구 표시(운영자 모드를 꺼도 남는다)
+      markTesterDevice();
+      await Promise.race([logEvent("tester_device_marked", { via: "altar_footer" }), new Promise((r) => setTimeout(r, 800))]);
       alert("✨ 운영자 모드 활성화! 모든 유료 서비스가 프리패스됩니다.");
       window.location.reload();
-    } else if (pwd !== null) {
+    } else {
       alert("비밀번호가 일치하지 않습니다.");
     }
   };
@@ -3032,6 +3045,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
         const verifyData = (await verifyRes.json()) as { success?: boolean; message?: string };
         if (verifyRes.ok && verifyData.success) {
           logEvent("payment_complete", { product: "physiognomy", amount });
+          logTesterOrder("physiognomy", (response as { paymentId: string }).paymentId);
           setIsPhysiognomyPremiumUnlocked(true);
           setShowPhysiognomyPaymentModal(false);
         } else {
@@ -3351,6 +3365,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
           const verifyData = await verifyRes.json();
           if (verifyRes.ok && verifyData.success) {
             logEvent("payment_complete", { product: "name", amount });
+            logTesterOrder("name", (response as { paymentId: string }).paymentId);
             setShowNamePaymentModal(false);
             setIsNamePremiumUnlocked(true);
           } else {
@@ -4576,6 +4591,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
 
             if (verifyRes.ok && verifyData.success) {
               setShowLottoPaymentModal(false);
+              logTesterOrder("lotto", rsp.imp_uid);
               alert("✨ 결제 성공! 로또 10회 이용권이 충전되었습니다.");
               const { data } = await supabase.from('profiles').select('premium_lotto_count').eq('id', user.id).single();
               if (data) setPremiumCount(data.premium_lotto_count);
@@ -5806,6 +5822,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
       const verifyData = await verifyRes.json() as { success?: boolean; message?: string };
       if (verifyRes.ok && verifyData.success) {
         logEvent("payment_complete", { product: "palmistry", amount });
+        logTesterOrder("palmistry", (response as any).paymentId);
         setShowPremiumModal(false);
         await doPremiumAnalyze();
       } else {
@@ -6747,6 +6764,7 @@ export default function Home() {
           return;
         }
         onOk();
+        logTesterOrder(String(pendingType || "tools"), returnPayId);
         clearAllReturnArtifacts();
       } catch (e) {
         console.error("[payment/verify]", e);

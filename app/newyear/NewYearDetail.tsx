@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PaymentMethodCheckoutModal } from "@/components/payments/PaymentMethodCheckoutModal";
-import { logEvent, requestTossReview } from "@/lib/analytics";
+import { logEvent, logTesterOrder, requestTossReview } from "@/lib/analytics";
 import { extractPaymentReturnId } from "@/lib/payments/return-params";
 import {
   NEWYEAR_DETAIL_PRICE_WON,
@@ -160,6 +160,8 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
           amount: NEWYEAR_DETAIL_PRICE_WON,
           recorded: "newyear_orders",
         });
+        // 앱 결제는 영수증 앞 12자만 남긴다(newyear_orders.payment_ref 가 'app:영수증' 으로 시작) — 영수증 전체는 기록하지 않는다
+        logTesterOrder("newyear", ids.paymentId ?? ids.tossOrderId ?? (ids.purchaseToken ? `app:${ids.purchaseToken.slice(0, 12)}` : null));
         void requestTossReview("newyear_purchase");
       }
     } catch {

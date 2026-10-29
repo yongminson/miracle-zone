@@ -32,6 +32,30 @@ export function getAnalyticsDeviceId(): string {
   return getSessionId();
 }
 
+// ───────────── 테스트 기기 표시 ─────────────
+// 운영자 우회(저작권 문구 더블클릭)에 성공한 기기는 오너·본사 테스트 기기다.
+// 한 번 표시하면 운영자 모드를 꺼도 지우지 않는다 — 이 기기의 기록은 계속 tester:true 로 남아 통계에서 뺄 수 있다.
+const TESTER_KEY = "mu_tester_device";
+
+/** 운영자 우회에 성공했을 때 부른다 */
+export function markTesterDevice() {
+  try {
+    if (!localStorage.getItem(TESTER_KEY)) localStorage.setItem(TESTER_KEY, new Date().toISOString());
+  } catch {}
+}
+
+export function isTesterDevice(): boolean {
+  try {
+    if (localStorage.getItem(TESTER_KEY)) return true;
+    // 이 기능 전부터 운영자 모드로 쓰던 기기도 테스트 기기로 잡는다
+    if (localStorage.getItem("MASTER_ADMIN") === "true") {
+      markTesterDevice();
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
 /** 첫 진입 시 referrer + UTM 파싱해서 저장 (이미 있으면 유지 = 최초 유입 기준) */
 export function captureAttribution() {
   try {
@@ -90,6 +114,16 @@ export function withShareUtm(url: string, feature: string): string {
   }
 }
 
+/**
+ * 테스트 기기에서 결제가 끝났을 때 그 주문번호를 남긴다(tester_order) — 본사가 주문 표에서 테스트 주문을 골라낼 수 있게.
+ * 손님 기기에서는 아무것도 하지 않는다(손님 주문번호는 기록하지 않음). 결제 흐름에는 영향이 없다.
+ * ref 는 각 주문 표의 값: vip_orders.imp_uid · vip_report_entitlements.payment_ref · newyear_orders.payment_ref · locks.id
+ */
+export function logTesterOrder(kind: string, ref: string | null | undefined) {
+  if (!isTesterDevice()) return;
+  void logEvent("tester_order", { kind, ref: ref ?? null });
+}
+
 /** 이벤트 기록. 실패해도 서비스 동작에 영향 없음 */
 export async function logEvent(eventName: string, eventData?: Record<string, unknown>) {
   // 앱인토스 빌드면 토스 분석에도 보낸다(웹·구글 앱에서는 아무것도 안 함)
@@ -99,7 +133,8 @@ export async function logEvent(eventName: string, eventData?: Record<string, unk
     const row = {
       session_id: getSessionId(),
       event_name: eventName,
-      event_data: eventData ?? null,
+      // 테스트 기기면 tester:true 를 붙인다(본사 집계에서 뺄 수 있게)
+      event_data: isTesterDevice() ? { ...(eventData ?? {}), tester: true } : (eventData ?? null),
       referrer: attribution.referrer,
       utm_source: attribution.utm_source,
       utm_medium: attribution.utm_medium,

@@ -57,10 +57,35 @@ async function verifyWithGoogle(productId: string, purchaseToken: string) {
     if (p.purchaseState !== 0) {
       return { ok: false as const, message: "결제가 완료 상태가 아닙니다." };
     }
-    return { ok: true as const, orderId: p.orderId ?? "", purchaseTimeMillis: p.purchaseTimeMillis ?? "" };
+    return {
+      ok: true as const,
+      orderId: p.orderId ?? "",
+      purchaseTimeMillis: p.purchaseTimeMillis ?? "",
+      // 구글이 알려 주는 결제 종류: 없음 = 실제 결제, 0 = 테스트(라이선스 테스터), 1 = 프로모션 코드, 2 = 리워드
+      purchaseType: typeof p.purchaseType === "number" ? p.purchaseType : null,
+    };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Google 검증 실패";
     return { ok: false as const, message: msg };
+  }
+}
+
+/**
+ * 구글 결제 종류(테스트 결제인지)를 별도 표(google_purchase_checks)에 남긴다 — 매출 집계에서 테스트를 빼기 위해.
+ * 지급·매출 기록(vip_orders, vip_report_entitlements)은 건드리지 않고, 여기서 실패해도 결제 응답에는 영향이 없다.
+ */
+async function recordGooglePurchaseCheck(
+  supabaseAdmin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  row: { order_id: string; product_id: string; purchase_type: number | null; payment_ref: string },
+) {
+  if (!row.order_id) return;
+  try {
+    const { error } = await supabaseAdmin
+      .from("google_purchase_checks")
+      .upsert(row, { onConflict: "order_id", ignoreDuplicates: true });
+    if (error) console.error("[verify-google] purchase check save failed", { code: error.code });
+  } catch (e) {
+    console.error("[verify-google] purchase check save error", e);
   }
 }
 
@@ -132,6 +157,13 @@ export async function POST(req: Request) {
         console.error("[verify-google] vip_orders save failed", { code: orderResult.code });
       }
 
+      await recordGooglePurchaseCheck(supabaseAdmin, {
+        order_id: verified.orderId,
+        product_id: productId,
+        purchase_type: verified.purchaseType,
+        payment_ref: paymentRef,
+      });
+
       return NextResponse.json({
         success: true,
         duplicated: entitlement.duplicated === true,
@@ -150,6 +182,13 @@ export async function POST(req: Request) {
     if (existing) {
       return NextResponse.json({ success: true, message: "이미 처리된 결제입니다.", duplicated: true });
     }
+
+    await recordGooglePurchaseCheck(supabaseAdmin, {
+      order_id: verified.orderId,
+      product_id: productId,
+      purchase_type: verified.purchaseType,
+      payment_ref: `google_${verified.orderId}`,
+    });
 
     // 3. DB 기록 (vip_orders 재사용, imp_uid에 google_ 접두사)
     const { error } = await supabaseAdmin.from("vip_orders").insert({
