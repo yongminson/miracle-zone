@@ -30,7 +30,7 @@ type MenuId =
   | "fortune" | "newyear" | "vip" | "zodiac" | "saju" | "palmistry"
   | "match" | "mbti" | "dream" | "lotto" | "altar" | "lock"
   // 이달의 운세(/monthly) — 출시(12/1) 때 아래 MENU 와 tools TABS 에 함께 넣는다
-  | "monthly";
+  | "monthly" | "taekil" | "season";
 
 const MENU: { id: MenuId; label: string; icon: LucideIcon; href: string }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, href: "/tools?tab=fortune" },
