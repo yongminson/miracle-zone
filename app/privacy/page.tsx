@@ -19,6 +19,7 @@ export default function PrivacyPage() {
             <h2 className="text-base font-bold text-white mb-2">제4조 (개인정보 보유기간)</h2>
             <p>회원 탈퇴 시 즉시 삭제하며, 관련 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.</p>
             <p className="mt-2">사주 인사이트 리포트 내용(입력한 이름·생년월일 포함)은 결제 후 화면을 벗어나도 다시 받을 수 있도록 생성일로부터 30일간 비공개로 보관한 뒤 자동 삭제합니다.</p>
+            <p className="mt-2">신년운세·이달의 운세 상세 풀이는 결제 후 다시 볼 수 있도록 주문 정보(입력한 이름·생년월일·성별)와 풀이 내용을 비공개로 보관하며, 전자상거래법에 따른 거래 기록 보존 기간(5년)이 지나면 삭제합니다.</p>
           </section>
           <section>
             <h2 className="text-base font-bold text-white mb-2">제5조 (제3자 제공)</h2>
