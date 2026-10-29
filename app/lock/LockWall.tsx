@@ -185,6 +185,9 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
   const [fitScale, setFitScale] = useState(0.5);
   const detailRef = useRef<HTMLDivElement>(null);
 
+  const loadRetryRef = useRef(0);
+  const loadLocksRef = useRef<(() => Promise<void>) | null>(null);
+
   /** 실제로 걸린 자물쇠를 읽어온다. 아직 하나도 없으면 예시로 벽을 채운다 */
   const loadLocks = useCallback(async () => {
     const { data, error } = await supabase
@@ -193,7 +196,21 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
       .order("created_at", { ascending: false })
       .limit(500);
 
-    if (error || !data || data.length === 0) {
+    // 불러오기 실패는 예시로 덮지 않는다 — 돈 내고 건 자물쇠가 사라진 것처럼 보인다(2026-10-29 DB 장애 때 확인).
+    // 안내를 띄우고 10초 뒤 다시 시도한다(최대 3번)
+    if (error || !data) {
+      setNotice("자물쇠를 불러오지 못했어요. 잠시 후 자동으로 다시 불러올게요. 걸어 둔 자물쇠는 안전하게 보관돼 있어요.");
+      if (loadRetryRef.current < 3) {
+        loadRetryRef.current += 1;
+        window.setTimeout(() => void loadLocksRef.current?.(), 10_000);
+      }
+      return;
+    }
+    if (loadRetryRef.current > 0) {
+      loadRetryRef.current = 0;
+      setNotice(null);
+    }
+    if (data.length === 0) {
       setLocks(createDemoLocks());
       setUsingDemo(true);
       return;
@@ -201,6 +218,9 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
     setLocks(data.map(toWallLock));
     setUsingDemo(false);
   }, []);
+  useEffect(() => {
+    loadLocksRef.current = loadLocks;
+  }, [loadLocks]);
 
   useEffect(() => {
     setIsApp(typeof navigator !== "undefined" && navigator.userAgent.includes("MyeongunApp"));

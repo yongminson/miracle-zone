@@ -53,8 +53,9 @@ export async function POST(req: Request) {
         ? requestedColor
         : SILVER;
 
-    const platformRaw = typeof body.platform === "string" ? body.platform.trim() : "web";
-    const platform = platformRaw === "app" || platformRaw === "toss" ? platformRaw : "web";
+    // 결제 종류는 보내온 값이 아니라 서버가 정한다: 구글 영수증이 있으면 앱, 없으면 웹(포트원).
+    // 보내온 값을 쓰면 같은 결제로 표시만 바꿔 자물쇠를 두 번 받을 수 있었다(2026-10-29 수정). 토스는 /api/toss/locks/grant 를 쓴다
+    const platform = purchaseToken ? "app" : "web";
 
     const userId = typeof body.userId === "string" && body.userId.trim() ? body.userId.trim() : null;
 
