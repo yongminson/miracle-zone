@@ -198,10 +198,12 @@ export function TaekilClient() {
                 <div className="rounded-2xl border border-emerald-400/30 bg-emerald-950/30 py-3">
                   <p className="text-[11px] text-emerald-200/70">{preview.label}에 좋은 날</p>
                   <p className="text-3xl font-black text-emerald-200">{preview.candidateCount}일</p>
+                  <p className="text-[10px] text-white/40">앞으로 90일 중</p>
                 </div>
                 <div className="rounded-2xl border border-amber-400/30 bg-amber-950/30 py-3">
-                  <p className="text-[11px] text-amber-200/70">가능하면 피할 날</p>
-                  <p className="text-3xl font-black text-amber-200">{preview.avoidCount}일</p>
+                  <p className="text-[11px] text-amber-200/70">꼭 피할 날</p>
+                  <p className="text-3xl font-black text-amber-200">{Math.min(3, preview.avoidCount)}일</p>
+                  <p className="text-[10px] text-white/40">날짜는 결과에서</p>
                 </div>
               </div>
             </section>

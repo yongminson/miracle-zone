@@ -5526,6 +5526,11 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
                 )}
               </div>
 
+              {/* 궁합 심층 풀이는 카드 아래에 있어 공유 버튼에서 끝난 줄 알기 쉬움 — 여기서 바로 내려가게 */}
+              <button onClick={() => document.getElementById("match-deep")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="mb-3 w-full rounded-2xl border border-pink-400/40 bg-gradient-to-r from-pink-500/15 to-violet-500/15 px-4 py-4 text-sm font-bold text-pink-200 transition-colors hover:from-pink-500/25 hover:to-violet-500/25">
+                💞 더 깊이 보기 — 어디서 맞고 어디서 부딪힐까? ↓
+              </button>
+
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                 <button onClick={() => {

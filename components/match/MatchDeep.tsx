@@ -78,7 +78,7 @@ export function MatchDeep({
   const bName = paid?.input.b.name || "상대";
 
   return (
-    <div ref={boxRef} className="mt-6 scroll-mt-24">
+    <div ref={boxRef} id="match-deep" className="mx-auto mt-6 w-full max-w-md scroll-mt-24">
       {paid ? (
         <div className="space-y-4 text-left">
           <section className="rounded-3xl border border-pink-400/30 bg-gradient-to-b from-pink-950/40 to-black/40 p-5">
@@ -92,7 +92,7 @@ export function MatchDeep({
             <p className="mt-4 text-sm leading-relaxed text-white/75">{paid.detail.overview}</p>
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-2">
+          <section className="grid gap-3">
             {paid.detail.areas.map((a) => (
               <div key={a.key} className="rounded-2xl border border-white/10 bg-black/40 p-4">
                 <p className="text-sm font-bold text-pink-200">{a.label}</p>
