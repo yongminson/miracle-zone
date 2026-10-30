@@ -28,10 +28,10 @@ export default function Home() {
             </p>
             <h1 className="mt-6 font-serif text-4xl font-bold leading-tight tracking-tight text-amber-50 sm:text-5xl">
               오늘의 나를 돌아보는<br />
-              <span className="text-amber-400">사주와 AI 인사이트</span>
+              <span className="text-amber-400">사주 인사이트</span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-slate-300">
-              AI 명리학 기반 무료 사주 운세 · 관상 분석 · 궁합 · 꿈해몽까지.<br />
+              만세력 계산 기반 무료 사주 운세 · 관상 분석 · 궁합 · 꿈해몽까지.<br />
               입력 정보를 차분히 정리한 사주 인사이트 리포트로 나만의 흐름을 살펴보세요.
             </p>
 
@@ -83,13 +83,13 @@ export default function Home() {
                 { href: "/taekil", emoji: "🗓️", title: "좋은 날 고르기", desc: "이사·계약·고백·결혼… 앞으로 90일 중 좋은 날", badge: "NEW 무료~", badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30" },
                 { href: "/tools?tab=fortune", emoji: "✨", title: "오늘의 운세", desc: "음양오행 기반 금전·직장·애정운 분석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=zodiac", emoji: "🐉", title: "띠별 운세", desc: "12띠 오행 기운 · 재물·연애·직업운 분석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
-                { href: "/tools?tab=saju", emoji: "👁️", title: "관상 / 이름 풀이", desc: "AI 관상 분석 · 성명학 이름풀이", badge: "1,900원", badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
-                { href: "/tools?tab=palmistry", emoji: "✋", title: "손금 분석", desc: "AI 손금 분석 · 재물·결혼·건강·직업운", badge: "1,900원", badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+                { href: "/tools?tab=saju", emoji: "👁️", title: "관상 / 이름 풀이", desc: "얼굴 사진 관상 분석 · 성명학 이름풀이", badge: "1,900원", badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+                { href: "/tools?tab=palmistry", emoji: "✋", title: "손금 분석", desc: "손바닥 사진 손금 분석 · 재물·결혼·건강·직업운", badge: "1,900원", badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
                 { href: "/tools?tab=match", emoji: "❤️", title: "소름 돋는 궁합", desc: "두 사람의 사주로 계산한 궁합 · 심층 풀이", badge: "무료~", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=mbti", emoji: "🧠", title: "MBTI 심층 검사", desc: "사주 × MBTI 맞춤 연애·직업 솔루션", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=dream", emoji: "📖", title: "꿈 해몽", desc: "무의식이 보내는 메시지 해석", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/tools?tab=altar", emoji: "🕯️", title: "기적의 제단", desc: "소원을 우주에 띄우는 에너지 집중", badge: "무료~", badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30" },
-                { href: "/tools?tab=lotto", emoji: "🎰", title: "행운의 로또", desc: "AI 통계 기반 행운 번호 추출", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
+                { href: "/tools?tab=lotto", emoji: "🎰", title: "행운의 로또", desc: "나만의 행운 번호 추출", badge: "무료", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
                 { href: "/vip", emoji: "👑", title: "사주 인사이트", desc: "입력 정보 기반 해설 + PDF 리포트 + 실천 가이드", badge: "4,400원", badgeColor: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
                 { href: "/lock", emoji: "🔐", title: "소원 자물쇠", desc: "소원을 적은 자물쇠를 난간에 겁니다 · 영구 보관", badge: "1,000원~", badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
               ].map((menu) => (
@@ -114,9 +114,9 @@ export default function Home() {
           {/* ④ 하단 신뢰 문구 */}
           <div className="mt-20 border-t border-slate-800/60 pt-12 pb-4">
             <div className="mx-auto max-w-2xl text-center space-y-3">
-              <p className="text-sm font-serif text-amber-200/80">명운(命運) — 동양 명리학과 현대 AI 기술의 만남</p>
+              <p className="text-sm font-serif text-amber-200/80">명운(命運) — 정확한 만세력 계산과 정통 명리 해석</p>
               <p className="text-xs leading-relaxed text-slate-500">
-                명운은 수천 년 전통 해석 체계를 동양 명리학(사주팔자·음양오행·만세력)을 AI로 분석하여
+                명운은 동양 명리학(사주팔자·음양오행)의 전통 해석 체계를 만세력으로 정확히 계산하여
                 사용자가 입력한 정보를 바탕으로 참고용 콘텐츠를 쉽게 살펴볼 수 있도록 설계된 서비스입니다.
               </p>
               <p className="text-xs leading-relaxed text-slate-500">

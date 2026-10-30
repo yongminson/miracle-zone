@@ -1184,7 +1184,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
           </div>
         )}
         {/* 🚀 구글 애드센스 심사 통과를 위한 SEO 전문 텍스트 블록 (봇 먹이용) */}
-        <SeoAccordion title="명운(命運) - 정통 명리학과 현대 AI 기술의 만남 ▾" items={[
+        <SeoAccordion title="명운(命運) - 정통 명리학과 정확한 만세력 계산 ▾" items={[
           { q: "명운(命運) 서비스란?", a: "명운(命運)은 수천 년간 전해져 내려온 동양 철학의 정수인 사주명리학(四柱命理學)을 바탕으로, 현대인의 삶에 필요한 지혜와 통찰을 제공하는 전문 운세 분석 플랫폼입니다. 인간이 태어난 연, 월, 일, 시의 네 기둥(四柱)과 여덟 글자(八字)를 분석하여 선천적인 기운과 후천적인 운의 흐름을 과학적이고 통계적인 접근으로 해석합니다." },
           { q: "오늘의 운세는 어떻게 분석되나요?", a: "당사의 서비스는 단순한 흥미 위주의 운세가 아닌, 음양오행(陰陽五行)의 상생상극(相生相剋) 원리를 정밀하게 스캐닝하는 고도화된 알고리즘을 채택하고 있습니다. 매일 업데이트되는 오늘의 운세부터, 심층적인 성격 분석, 재물운, 애정운, 그리고 대인관계의 궁합에 이르기까지 다각적인 인생의 길잡이를 제시합니다." },
           { q: "명운이 제공하는 서비스 범위", a: "관상학과 성명학 데이터를 융합한 이름 풀이 서비스를 통해 개인의 고유한 특성을 파악하고, 다가올 미래의 불확실성을 긍정적인 방향으로 개척할 수 있도록 돕습니다. 사용자가 스스로의 운명을 이해하고 더 나은 선택을 할 수 있도록, 신뢰할 수 있는 데이터 기반의 라이프 카운슬링을 제공하는 것을 목표로 합니다." },
@@ -1250,7 +1250,7 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
       const text = await res.text();
       let data;
       try { data = JSON.parse(text); } 
-      catch (e) { throw new Error("꿈 해몽 AI 서버가 혼잡합니다. 1분 뒤 다시 시도해주세요!"); }
+      catch (e) { throw new Error("꿈 해몽 서버가 혼잡합니다. 1분 뒤 다시 시도해주세요!"); }
       
       if (data.error) throw new Error(data.error);
       setResultData(data);
@@ -3664,7 +3664,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
 
                     <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
                       <h4 className="text-sm font-bold text-emerald-400 mb-3 flex items-center gap-2">
-                        <span>👁️</span> AI 스캐닝 관찰 결과
+                        <span>👁️</span> 관상 관찰 결과
                       </h4>
                       <div className="space-y-2 text-xs">
                         <p className="text-white/80">
@@ -5893,7 +5893,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
               <span className="absolute inset-0 flex items-center justify-center text-3xl">✋</span>
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold text-yellow-400">손금 AI 분석 중</p>
+              <p className="text-lg font-bold text-yellow-400">손금 분석 중</p>
               <p className="mt-1 text-sm text-white/60">손금선을 정밀 분석하고 있습니다</p>
               <p className="text-sm text-white/60">10~20초 정도 소요됩니다</p>
             </div>
@@ -5908,7 +5908,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
 
       <div className="relative z-10 pt-8 pb-4 text-center">
         <h2 className="text-2xl font-bold text-yellow-400 mb-1">✋ 손금 분석</h2>
-        <p className="text-xs text-white/70">손바닥 사진을 업로드하면 AI가 손금을 분석합니다</p>
+        <p className="text-xs text-white/70">손바닥 사진을 올리면 손금을 분석해 드립니다</p>
       </div>
 
       <div className="relative z-10 mx-auto max-w-md px-4 pb-8 space-y-5">
@@ -6115,7 +6115,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
                   {isLoading ? (
                     <span className="flex items-center justify-center gap-2">
                       <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-                      AI 분석 중... (10~20초 소요)
+                      분석 중... (10~20초 소요)
                     </span>
                   ) : isApp ? "📺 광고 보고 무료로 분석하기" : "✨ 상세 손금 분석 보기 (1,900원)"}
                   </button>
@@ -6185,7 +6185,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-                  AI 분석 중... (10~20초 소요)
+                  분석 중... (10~20초 소요)
                 </span>
               ) : "결제하고 손금 분석받기 (1,900원)"}
             </button>

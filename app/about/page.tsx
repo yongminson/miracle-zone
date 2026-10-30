@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "명운(命運) 소개 | 정통 명리학 기반 사주 풀이 서비스",
   description:
-    "명운은 수천 년의 역사를 가진 정통 명리학을 바탕으로, 사주팔자·관상·이름풀이·궁합 등 다양한 운세 분석을 제공하는 AI 기반 사주 서비스입니다.",
+    "명운은 수천 년의 역사를 가진 정통 명리학을 바탕으로, 사주팔자·관상·이름풀이·궁합 등 다양한 운세 분석을 제공하는 사주 서비스입니다.",
   keywords: [
     "사주풀이",
     "명리학",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "명운(命運) 소개 | 정통 명리학 기반 사주 풀이 서비스",
     description:
-      "수천 년의 역사를 가진 정통 명리학을 바탕으로 한 AI 사주 서비스, 명운을 소개합니다.",
+      "수천 년의 역사를 가진 정통 명리학을 바탕으로 한 사주 서비스, 명운을 소개합니다.",
     url: "https://saju.ymstudio.co.kr/about",
   },
 };
@@ -43,7 +43,7 @@ export default function AboutPage() {
           <p className="mx-auto max-w-2xl text-lg leading-relaxed text-white/60">
             명운(命運)은 동양 철학의 정수인 명리학을 현대적으로 재해석하여,
             누구나 쉽고 깊이 있게 자신의 운명을 탐구할 수 있도록 돕는
-            AI 기반 사주 풀이 서비스입니다.
+            사주 풀이 서비스입니다.
           </p>
         </div>
       </section>
@@ -117,7 +117,7 @@ export default function AboutPage() {
             </h2>
             <div className="mx-auto h-1 w-16 rounded-full bg-yellow-400" />
             <p className="mt-4 text-white/60">
-              정통 명리학의 깊이와 현대 AI 기술의 정확성을 결합했습니다
+              정통 명리학의 깊이와 정확한 만세력 계산을 결합했습니다
             </p>
           </div>
           <div className="space-y-4">
@@ -185,14 +185,14 @@ export default function AboutPage() {
                 desc: "수천 년간 검증된 정통 명리학 이론을 바탕으로, 단순한 흥미 위주가 아닌 학술적 근거를 갖춘 풀이를 제공합니다.",
               },
               {
-                icon: "🤖",
-                title: "AI 기술의 정확성",
-                desc: "최신 AI 기술을 활용하여 방대한 명리학 데이터를 학습하고, 개인화된 정확한 분석 결과를 제공합니다.",
+                icon: "🧮",
+                title: "정확한 만세력 계산",
+                desc: "점수와 좋은 날·조심할 날은 만세력으로 계산하고, 같은 정보면 언제나 같은 결과가 나옵니다. 풀이 문장은 계산 결과를 바탕으로 AI가 읽기 쉽게 다듬습니다.",
               },
               {
                 icon: "🔒",
                 title: "개인정보 완전 보호",
-                desc: "입력하신 생년월일, 이름 등 모든 개인 정보는 분석 즉시 폐기되며, 서버에 영구 저장되지 않습니다.",
+                desc: "무료 풀이에 입력한 생년월일·이름은 서버에 저장하지 않습니다. 결제한 풀이만 다시 보기를 위해 보관하며, 자세한 내용은 개인정보처리방침에 있습니다.",
               },
               {
                 icon: "📱",

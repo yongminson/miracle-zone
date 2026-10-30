@@ -127,6 +127,8 @@ export function GlobalSiteFooter() {
         <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
           <p className="text-center text-[10px] leading-relaxed text-white/45">
             본 서비스는 정통 명리학에 기반한 통계적 해석으로, 절대적인 미래를 보장하지 않습니다.
+            <br />
+            점수·날짜는 만세력으로 계산하고, 풀이 문장은 계산 결과를 바탕으로 AI가 다듬습니다.
           </p>
 
           <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-2 text-[11px] font-medium text-white/55">

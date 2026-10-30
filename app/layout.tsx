@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "명운(命運) - 무료 사주 운세 | 오늘의 운세 관상 궁합 꿈해몽",
-  description: "AI 명리학 기반 무료 사주 운세 서비스. 오늘의 운세, 관상 분석, 이름풀이, 소름돋는 궁합, MBTI 사주, 꿈해몽까지. 지금 바로 무료로 확인하세요.",
+  description: "만세력 계산 기반 무료 사주 운세 서비스. 오늘의 운세, 관상 분석, 이름풀이, 소름돋는 궁합, MBTI 사주, 꿈해몽까지. 지금 바로 무료로 확인하세요.",
 
   keywords: [
     "무료사주", "오늘의운세", "사주팔자", "관상분석", "이름풀이", "궁합",
@@ -36,13 +36,13 @@ export const metadata: Metadata = {
     url: "https://saju.ymstudio.co.kr",
     siteName: "명운(命運)",
     title: "명운(命運) - 무료 사주 운세 | 오늘의 운세 관상 궁합",
-    description: "AI 명리학 기반 무료 사주 운세. 오늘의 운세, 관상, 이름풀이, 궁합, 꿈해몽까지 무료로 확인하세요.",
+    description: "만세력 계산 기반 무료 사주 운세. 오늘의 운세, 관상, 이름풀이, 궁합, 꿈해몽까지 무료로 확인하세요.",
     images: [
       {
         url: "https://saju.ymstudio.co.kr/og-image.png",
         width: 1200,
         height: 630,
-        alt: "명운 - AI 사주 운세 서비스",
+        alt: "명운 - 사주 운세 서비스",
       },
     ],
   },
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "명운(命運) - 무료 사주 운세",
-    description: "AI 명리학 기반 무료 사주 운세. 오늘의 운세, 관상, 이름풀이, 궁합까지 무료로!",
+    description: "만세력 계산 기반 무료 사주 운세. 오늘의 운세, 관상, 이름풀이, 궁합까지 무료로!",
     images: ["https://saju.ymstudio.co.kr/og-image.png"],
   },
 

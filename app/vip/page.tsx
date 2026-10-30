@@ -1579,7 +1579,7 @@ export default function VipLandingPage() {
             { icon: "🔒", text: "SSL 보안 결제" },
             { icon: "📄", text: "즉시 PDF 발급" },
             { icon: "♻️", text: "7일 환불 보장" },
-            { icon: "🤖", text: "AI 맞춤 분석" },
+            { icon: "🧮", text: "만세력 맞춤 분석" },
           ].map((badge) => (
             <div key={badge.text} className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
               <span className="text-sm">{badge.icon}</span>
