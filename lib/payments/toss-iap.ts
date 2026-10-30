@@ -34,6 +34,23 @@ export const TOSS_IAP_PRODUCTS = {
     amountWon: 3_300,
     skuEnvironmentVariable: "TOSS_IAP_NEWYEAR_DETAIL_SKU",
   },
+  // 이달의 운세는 /api/toss/monthly/grant, 궁합 심층·택일·시즌 운세는 /api/toss/{match,taekil,season}/grant
+  monthly_luck: {
+    amountWon: 1_100,
+    skuEnvironmentVariable: "TOSS_IAP_MONTHLY_SKU",
+  },
+  match_deep: {
+    amountWon: 2_200,
+    skuEnvironmentVariable: "TOSS_IAP_MATCH_DEEP_SKU",
+  },
+  taekil: {
+    amountWon: 2_200,
+    skuEnvironmentVariable: "TOSS_IAP_TAEKIL_SKU",
+  },
+  season_luck: {
+    amountWon: 2_200,
+    skuEnvironmentVariable: "TOSS_IAP_SEASON_SKU",
+  },
 } as const;
 
 export type TossIapProductKey = keyof typeof TOSS_IAP_PRODUCTS;

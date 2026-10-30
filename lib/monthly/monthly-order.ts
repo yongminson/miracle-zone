@@ -11,6 +11,8 @@ import type { MonthlyDetail, MonthlyInput, MonthlyPaid } from "./monthly-types";
  *  3. 확인되면 AI 를 부르기 **전에** 주문을 먼저 저장한다. AI 가 실패해도
  *     "돈은 냈는데 기록이 없는" 상태가 생기지 않고, 같은 결제로 다시 시도할 수 있다.
  *  4. 풀이를 만들어 저장한다. 달력·목적별 날짜는 계산이라 저장하지 않고 매번 다시 만든다.
+ *
+ * 토스는 지급 단계에서 1~3 만 하고(prepareMonthlyOrder) 풀이는 결제가 끝난 뒤 화면이 따로 받는다.
  */
 
 export type MonthlyOrderOutcome = ({ ok: true } & MonthlyPaid) | { ok: false; status: number; message: string };
@@ -67,7 +69,7 @@ async function writeDetail(supabase: SupabaseClient, row: OrderRow): Promise<Mon
   return { ok: true, input, result, days, purposes, detail, reopened: false };
 }
 
-export async function fulfillMonthlyOrder(params: {
+type MonthlyOrderParams = {
   supabase: SupabaseClient;
   paymentRef: string;
   platform: "web" | "app" | "toss" | "admin";
@@ -75,7 +77,12 @@ export async function fulfillMonthlyOrder(params: {
   monthKey: string;
   input: MonthlyInput | null;
   verify: () => Promise<{ ok: true } | { ok: false; message: string; status?: number }>;
-}): Promise<MonthlyOrderOutcome> {
+};
+
+type Failure = { ok: false; status: number; message: string };
+
+/** 1~3: 이미 있는 주문을 찾거나, 결제를 확인하고 새 주문을 저장한다 */
+async function findOrCreateMonthlyOrder(params: MonthlyOrderParams): Promise<{ ok: true; row: OrderRow } | Failure> {
   const { supabase, paymentRef } = params;
 
   const existing = await supabase.from("monthly_orders").select(SELECT).eq("payment_ref", paymentRef).maybeSingle();
@@ -92,7 +99,7 @@ export async function fulfillMonthlyOrder(params: {
     if (row.birth_date !== params.input.birthDate) {
       return { ok: false, status: 409, message: "이 결제는 다른 생년월일의 풀이에 이미 사용되었습니다." };
     }
-    return writeDetail(supabase, row);
+    return { ok: true, row };
   }
 
   // 새 주문은 이번 달·다음 달만 받는다(지난 달 풀이를 새로 팔지 않는다)
@@ -130,7 +137,7 @@ export async function fulfillMonthlyOrder(params: {
     // 동시에 두 번 눌린 경우 — 먼저 들어간 주문으로 이어 간다
     if (inserted.error?.code === "23505") {
       const raced = await supabase.from("monthly_orders").select(SELECT).eq("payment_ref", paymentRef).maybeSingle();
-      if (raced.data) return writeDetail(supabase, raced.data as OrderRow);
+      if (raced.data) return { ok: true, row: raced.data as OrderRow };
     }
     console.error("[monthly-order] insert failed", inserted.error);
     return {
@@ -140,5 +147,20 @@ export async function fulfillMonthlyOrder(params: {
     };
   }
 
-  return writeDetail(supabase, inserted.data as OrderRow);
+  return { ok: true, row: inserted.data as OrderRow };
+}
+
+export async function fulfillMonthlyOrder(params: MonthlyOrderParams): Promise<MonthlyOrderOutcome> {
+  const order = await findOrCreateMonthlyOrder(params);
+  if (!order.ok) return order;
+  return writeDetail(params.supabase, order.row);
+}
+
+/**
+ * 토스 지급 단계 — 결제 확인과 주문 저장(1~3)만 하고 바로 끝낸다.
+ * AI 풀이를 여기서 쓰면 토스가 지급 응답을 기다리다 실패할 수 있어서다.
+ */
+export async function prepareMonthlyOrder(params: MonthlyOrderParams): Promise<{ ok: true } | Failure> {
+  const order = await findOrCreateMonthlyOrder(params);
+  return order.ok ? { ok: true } : order;
 }
