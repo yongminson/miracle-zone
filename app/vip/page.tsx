@@ -486,7 +486,7 @@ export default function VipLandingPage() {
     : "잠시만 기다려 주세요...";
   const isBusy = isFetchingReport || isPdfGenerating;
 
-  const handleIssueReport = useCallback(async (options?: { imp_uid?: string | null; paymentRef?: string | null; attempt?: number }) => {
+  const handleIssueReport = useCallback(async (options?: { imp_uid?: string | null; paymentRef?: string | null; attempt?: number; autoRetried?: boolean }) => {
     setErrorMessage(null);
     // 결제를 마치고 온 경우(웹 포트원 imp_uid 또는 구글 앱 paymentRef) — 결제 직전에 저장한 입력값을 쓴다
     const paid = !!(options?.imp_uid || options?.paymentRef);
@@ -599,7 +599,24 @@ export default function VipLandingPage() {
               }, 10_000);
               return;
             }
+            // 결제한 리포트를 만들다 서버가 실패했으면(AI 글 품질 확인 실패 등) 손님에게 실패를 보이기 전에 한 번 더 만든다.
+            // 서버는 실패하면 지급권을 되돌려 두므로 같은 결제로 다시 만들 수 있다(추가 결제 없음).
+            // 2026-11-02 첫 시도가 실패한 손님이 실패 화면에서 다시 결제했다 — 두 번째 시도는 바로 성공했다.
+            if (paid && res.status >= 500 && !options?.autoRetried) {
+              waitingServer = true;
+              setErrorMessage(null);
+              setProgressMessage("리포트를 한 번 더 다듬고 있어요. 추가 결제 없이 이어서 만들어요. 화면을 닫지 말고 잠시만 기다려 주세요.");
+              void logEvent("vip_report_retry", { kind: options?.paymentRef ? "google" : "web", auto: true, reason: `http_${res.status}` });
+              window.setTimeout(() => {
+                void issueReportRef.current?.({ imp_uid: options?.imp_uid, paymentRef: options?.paymentRef, autoRetried: true });
+              }, 1500);
+              return;
+            }
             const full = `API 응답 오류 (HTTP ${res.status}): ${errMsg}`;
+            if (paid && res.status === 402) {
+              // 기기에 남은 결제 기록 형식이 맞지 않음 — 다시 해도 같으므로 지운다(다음 결제 버튼이 막히지 않게)
+              clearVipPaidPending();
+            }
             if (paid && res.status === 409) {
               // 이미 리포트를 만든 결제 — 다시 받기로는 해결되지 않는다
               clearVipPaidPending();
@@ -878,6 +895,15 @@ export default function VipLandingPage() {
   }, [completeVipAfterPayment, pathname, router]);
 
   const handleOpenPaymentModal = useCallback(() => {
+    // 결제는 됐는데 리포트를 아직 못 받은 결제가 있으면 새로 결제하지 않고 그 결제로 이어서 만든다(추가 결제 없음).
+    // 2026-11-02 구글 앱 손님이 리포트 만들기 실패 직후 결제 버튼을 다시 눌러 4,400원을 두 번 냈다.
+    // 이미 쓴 결제·없는 결제면 서버가 409 로 답하고 그때 기록을 지우므로, 다음 누름부터는 정상 결제로 간다.
+    const unfinished = readVipPaidPending();
+    if (unfinished) {
+      void logEvent("vip_report_retry", { kind: unfinished.paymentRef ? "google" : "web", from: "buy_button" });
+      void handleIssueReport({ paymentRef: unfinished.paymentRef, imp_uid: unfinished.imp_uid });
+      return;
+    }
     const trimmedName = name.trim();
     if (!trimmedName) {
       setErrorMessage("이름을 입력해 주세요.");
@@ -918,7 +944,7 @@ export default function VipLandingPage() {
       return;
     }
     setShowPaymentModal(true);
-  }, [birthDate, birthTime, gender, mbti, name]);
+  }, [birthDate, birthTime, gender, handleIssueReport, mbti, name]);
 
   // 구글 앱이 구글 플레이 결제 결과를 알려 준다(명운-rn app/index.tsx — vip_report 는 서버 확인 후 paymentRef 를 준다)
   useEffect(() => {
