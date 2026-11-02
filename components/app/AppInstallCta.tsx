@@ -14,7 +14,7 @@ const PLAY_PACKAGE = "kr.co.ymstudio.myeongun";
 const DISMISS_KEY = "mu_app_cta_dismissed_at";
 const HIDE_DAYS = 7;
 
-export type AppCtaPlace = "fortune" | "newyear" | "landing";
+export type AppCtaPlace = "fortune" | "newyear" | "landing" | "zodiac" | "monthly";
 
 function playUrl(place: AppCtaPlace): string {
   const referrer = `utm_source=web&utm_medium=app_cta&utm_campaign=${place}`;

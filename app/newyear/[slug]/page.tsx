@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
+import { AppInstallCta } from "@/components/app/AppInstallCta";
 import { MenuTabs } from "@/components/layout/MenuTabs";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { ZODIAC_2027, findZodiac, zodiacBirthYears, zodiacMonths } from "@/lib/newyear/zodiac-2027";
@@ -126,6 +127,11 @@ export default async function ZodiacNewYearPage({ params }: Props) {
             내 생년월일로 2027년 운세 보기 (무료)
           </Link>
         </section>
+
+        {/* 띠 운세를 읽은 웹 손님에게 앱(매일 아침 알림)을 권한다 — 앱 손님이 훨씬 자주 다시 온다 */}
+        <div className="mt-6">
+          <AppInstallCta place="zodiac" />
+        </div>
 
         <section className="mt-6">
           <h2 className="text-sm font-bold text-white/80">{z.animal}띠 출생 연도 · 2027년 나이</h2>

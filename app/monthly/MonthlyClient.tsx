@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
+import { AppInstallCta } from "@/components/app/AppInstallCta";
 import { MenuTabs } from "@/components/layout/MenuTabs";
 import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
 import { logEvent } from "@/lib/analytics";
@@ -161,6 +162,9 @@ export function MonthlyClient() {
                 alreadyOwned={!!owned}
               />
             )}
+
+            {/* 무료 결과를 본 웹 손님에게 앱(매달 1일·매일 아침 알림)을 권한다 */}
+            <AppInstallCta place="monthly" />
 
             <button
               type="button"

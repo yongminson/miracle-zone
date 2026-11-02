@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 import { BirthdayGiftBanner } from "@/components/birthday/BirthdayGiftBanner";
 import { AppInstallCta } from "@/components/app/AppInstallCta";
+import { QuickFortune } from "@/components/landing/QuickFortune";
 
 export default function Home() {
   return (
@@ -35,14 +36,10 @@ export default function Home() {
               입력 정보를 차분히 정리한 사주 인사이트 리포트로 나만의 흐름을 살펴보세요.
             </p>
 
-            {/* CTA 버튼 2개 */}
-            <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-              <Link
-                href="/tools?tab=fortune"
-                className="inline-block rounded-2xl border border-amber-500/40 bg-amber-500/10 px-7 py-3.5 font-serif text-base font-bold text-amber-300 shadow transition hover:bg-amber-500/20"
-              >
-                ✨ 오늘의 운세 무료로 보기
-              </Link>
+            {/* 들어오자마자 생년월일만 넣고 오늘의 운세 — 소개만 보고 나가던 손님을 붙잡는다 */}
+            <QuickFortune />
+
+            <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
               <Link
                 href="/vip"
                 className="inline-block rounded-2xl bg-gradient-to-r from-amber-700 via-amber-500 to-yellow-500 px-7 py-3.5 font-serif text-base font-bold tracking-wide text-stone-950 shadow-[0_0_30px_-5px_rgba(245,158,11,0.5)] transition hover:brightness-105"

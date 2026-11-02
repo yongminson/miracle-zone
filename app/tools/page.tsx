@@ -518,6 +518,31 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
     }
   };
 
+  // 첫 화면 바로 보기(components/landing/QuickFortune.tsx)에서 넘어온 생년월일 — 채우고 곧바로 결과를 연다
+  const quickCheckedRef = useRef(false);
+  const [quickGo, setQuickGo] = useState(false);
+  useEffect(() => {
+    if (quickCheckedRef.current) return;
+    quickCheckedRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const qb = params.get("qb");
+    if (!qb || !/^\d{4}-\d{2}-\d{2}$/.test(qb)) return;
+    const qg = params.get("qg");
+    setBirthDate(qb);
+    if (qg === "male" || qg === "female") setGender(qg);
+    setCalendarType("solar");
+    // 새로고침·공유 때 다시 조회하지 않게 주소에서 뺀다
+    params.delete("qb");
+    params.delete("qg");
+    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+    setQuickGo(true);
+  }, []);
+  useEffect(() => {
+    if (!quickGo || !birthDate) return;
+    setQuickGo(false);
+    void handleSubmit({ preventDefault() {} } as React.FormEvent);
+  }, [quickGo, birthDate]);
+
   const handleReset = () => {
     setShowResult(false);
     setFortuneData(null);
