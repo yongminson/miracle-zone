@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { buildFortuneProfile, FortuneEngineProfile } from "./fortune-engine";
+import { buildFortuneProfile, elementLabel, FortuneEngineProfile } from "./fortune-engine";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",
@@ -101,40 +101,54 @@ function buildDisplayBaziChart(profile: FortuneEngineProfile) {
   };
 }
 
-function buildFallbackPremiumReport(
-  profile: FortuneEngineProfile,
-  dayKey: string,
-  ageGroup: { code: string; label: string; age: number }
-): PremiumReport {
-  const dominant = profile.dominantElement;
-  const weakest = profile.weakestElement;
-  const dayMaster = profile.dayMasterElement;
+function buildFallbackPremiumReport(profile: FortuneEngineProfile): PremiumReport {
+  const t = profile.freeTexts;
+  const luck = profile.luck;
+  return {
+    daeun: t.total,
+    monthlyAdvice: `${profile.dailyGuide?.strategy ?? ""} ${profile.dailyGuide?.action ?? ""}`.trim(),
+    wealth: t.money,
+    love: t.love,
+    career: t.work,
+    health: t.health,
+    luckyColor: luck ? `${luck.color} — ${luck.reason}.` : "",
+    luckyDirection: luck ? `${luck.direction} — ${elementLabel(luck.element)} 기운의 방향이에요.` : "",
+    caution: luck?.caution ?? "",
+  };
+}
 
-  const daeun = `일간 오행은 ${dayMaster}이고, 전체적으로 ${dominant} 기운이 강하게 드러나는 구조입니다. ${weakest} 기운이 상대적으로 약하므로 한 번에 크게 밀어붙이기보다 부족한 축을 보완하는 방식이 더 안정적입니다.`;
-  const monthlyAdvice = `오늘 기준 사주 흐름에서는 강한 기운을 과소비하지 않고 약한 기운을 보완하는 방향이 더 좋습니다. 감정 반응보다 순서 정리가 실제 체감 차이를 만들 수 있습니다.`;
-  const wealth = "오늘의 재물운은 큰 수익 기대보다 기준 관리와 지출 통제가 더 중요하게 작용합니다. 무리한 확장보다 현실적인 범위 안에서 안정적인 흐름을 만드는 쪽이 실제 만족도가 높습니다.";
-  const love = "오늘의 연애운은 감정의 강도보다 표현 방식과 타이밍이 더 중요합니다. 관계에서는 서두른 해석보다 상대 반응을 한 번 더 확인한 뒤 움직이는 편이 안정적입니다.";
-  const career = "오늘의 직장운은 속도보다 완성도와 협업 순서 관리에서 차이가 날 가능성이 높습니다. 혼자 밀어붙이기보다 설명과 조율을 한 번 더 거치는 방식이 실제 성과에 유리합니다.";
-  const health = "오늘의 건강운은 큰 이상보다 누적 피로와 생활 리듬 불균형을 먼저 관리해야 하는 흐름입니다. 몸이 보내는 작은 신호를 초기에 잡는 것이 전체 흐름을 안정시키는 데 더 유리합니다.";
-  
-  const luckyColor = `오늘은 ${dayMaster} 일간의 기운을 보강하는 색깔을 활용하시면 좋습니다. 주변 환경이나 의상에 해당 색을 가미하면 긍정적인 에너지 흐름에 도움이 됩니다.`;
-  const luckyDirection = `오늘의 행운 방향은 일간 오행과 상생 관계에 있는 방향입니다. 중요한 미팅이나 이동 시 이 방향을 활용하면 기운의 흐름이 더 원활해집니다.`;
-  const caution = `오늘은 ${weakest} 기운이 약한 날이므로 해당 영역에서 무리한 결정을 피하는 것이 좋습니다. 감정적인 충동보다는 신중한 판단을 우선하고, 새로운 시작보다는 기존 계획을 점검하는 데 에너지를 쓰는 것이 현명합니다. 특히 오늘은 서두르는 행동이 예상치 못한 마찰을 만들 수 있으니 한 템포 여유를 두세요.`;
+// AI 가 오행 관계를 거꾸로 쓰는 일이 있었다(예: "물은 금을 녹이는 성질" — 금을 녹이는 건 화, 금과 수는 금생수).
+// 오행표에 없는 관계를 쓴 항목은 계산으로 만든 기본 문장으로 바꾼다.
+const WRONG_ELEMENT_CLAIMS: RegExp[] = [
+  /(물|수\(水\)|수 기운)[이은가는]?[^.。]{0,8}(금|쇠|금속)[을를이가]?[^.。]{0,6}녹/,
+  /(나무|목\(木\)|목 기운)[이은가는]?[^.。]{0,8}(금|쇠|금속)[을를이가]?[^.。]{0,6}(자르|베|이기|극하)/,
+  /(흙|토\(土\)|토 기운)[이은가는]?[^.。]{0,8}(나무|목)[을를이가]?[^.。]{0,6}(살리|돕|생하|키우)/,
+  /(물|수\(水\)|수 기운)[이은가는]?[^.。]{0,8}(불|화)[을를이가]?[^.。]{0,6}(살리|돕|생하|키우)/,
+  /(불|화\(火\)|화 기운)[이은가는]?[^.。]{0,8}(물|수)[을를이가]?[^.。]{0,6}(살리|돕|생하|키우|말리|이기|극하)/,
+  /(쇠|금\(金\)|금 기운)[이은가는]?[^.。]{0,8}(불|화)[을를이가]?[^.。]{0,6}(살리|돕|생하|키우|이기|극하|끄)/,
+];
 
-  return { daeun, monthlyAdvice, wealth, love, career, health, luckyColor, luckyDirection, caution };
+function hasWrongElementClaim(text: string): boolean {
+  return WRONG_ELEMENT_CLAIMS.some((re) => re.test(text));
 }
 
 function sanitizePremiumReport(parsed: Partial<PremiumReport> | undefined, fallback: PremiumReport): PremiumReport {
+  const pick = (key: keyof PremiumReport): string => {
+    const value = parsed?.[key];
+    const text = typeof value === "string" ? value.trim() : "";
+    if (!text || hasWrongElementClaim(text)) return fallback[key];
+    return text;
+  };
   return {
-    daeun: parsed?.daeun?.trim() || fallback.daeun,
-    monthlyAdvice: parsed?.monthlyAdvice?.trim() || fallback.monthlyAdvice,
-    wealth: parsed?.wealth?.trim() || fallback.wealth,
-    love: parsed?.love?.trim() || fallback.love,
-    career: parsed?.career?.trim() || fallback.career,
-    health: parsed?.health?.trim() || fallback.health,
-    luckyColor: parsed?.luckyColor?.trim() || fallback.luckyColor,
-    luckyDirection: parsed?.luckyDirection?.trim() || fallback.luckyDirection,
-    caution: parsed?.caution?.trim() || fallback.caution,
+    daeun: pick("daeun"),
+    monthlyAdvice: pick("monthlyAdvice"),
+    wealth: pick("wealth"),
+    love: pick("love"),
+    career: pick("career"),
+    health: pick("health"),
+    luckyColor: pick("luckyColor"),
+    luckyDirection: pick("luckyDirection"),
+    caution: pick("caution"),
   };
 }
 
@@ -149,10 +163,16 @@ const SYSTEM_PROMPT_PREMIUM = (timeSync: string) => `${timeSync}
   "love": "문자열",
   "career": "문자열",
   "health": "문자열",
-  "luckyColor": "오늘 오행 기운에 맞는 행운 색깔 1~2가지와 그 이유 (예: 붉은색·주황색 — 화(火) 기운을 보강하여...)",
-  "luckyDirection": "오늘 오행 기운에 맞는 행운 방향 1가지와 그 이유 (예: 남쪽 — 오늘 일진의 화(火) 기운과 상생하여...)",
-  "caution": "오늘 오행 충극 관계에서 반드시 조심해야 할 점 2~3가지를 구체적으로 서술"
-}`;
+  "luckyColor": "주어진 행운 색깔과 그 이유",
+  "luckyDirection": "주어진 행운 방향과 그 이유",
+  "caution": "오늘 조심해야 할 점 2~3가지를 구체적으로 서술"
+}
+
+[오행 관계 — 반드시 이 표만 사용하세요]
+- 상생(살려 줌): 목생화(나무는 불을 살린다), 화생토(불은 흙을 만든다), 토생금(흙은 쇠를 품는다), 금생수(쇠는 물을 낸다), 수생목(물은 나무를 키운다)
+- 상극(눌러 줌): 목극토(나무는 흙을 뚫는다), 토극수(흙은 물을 막는다), 수극화(물은 불을 끈다), 화극금(불은 쇠를 녹인다), 금극목(쇠는 나무를 자른다)
+- 이 표에 없는 관계(예: "물이 금을 녹인다", "흙이 나무를 살린다")는 절대 쓰지 마세요. 틀린 오행 설명은 서비스 신뢰를 무너뜨립니다.
+- 주어진 계산 결과(십성·신강/신약·충합·행운 색/방향)와 다른 말을 지어내지 마세요. 계산 결과를 풀어 설명만 하세요.`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -178,41 +198,69 @@ export async function POST(request: NextRequest) {
     });
 
     if (isPremium) {
-      const fallback = buildFallbackPremiumReport(profile, dayKey, ageGroup);
+      const fallback = buildFallbackPremiumReport(profile);
       let premiumReport = fallback;
       if (process.env.OPENAI_API_KEY) {
         const timeSync = getTimeSync();
         
+        const p = profile;
+        const tp = p.todayPillar;
+        const luck = p.luck;
+        const fp = p.fourPillars;
+        const pillarText = [
+          `년주 ${fp.year.stemHanja}${fp.year.branchHanja}`,
+          `월주 ${fp.month.stemHanja}${fp.month.branchHanja}`,
+          `일주 ${fp.day.stemHanja}${fp.day.branchHanja}`,
+          fp.time ? `시주 ${fp.time.stemHanja}${fp.time.branchHanja}` : "시주 모름",
+        ].join(", ");
+        const counts = (Object.entries(p.elementCounts) as [keyof typeof p.elementCounts, number][])
+          .map(([el, n]) => `${elementLabel(el)} ${n}`)
+          .join(", ");
         const userPrompt = `
 [오늘 기준일]: ${dayKey}
 [연령대]: ${ageGroup.age}세 (${ageGroup.label})
+[성별]: ${p.labels.genderLabel}
 
-[내 사주 원국 (만세력)]
-${profile.summaryText}
-일간(나의 본성): ${profile.dayMasterElement}
+[내 사주 원국 (만세력 계산값)]
+${pillarText}
+일간(나): ${fp.day.stemHanja} — ${elementLabel(p.dayMasterElement)}
+오행 분포(월지 가중): ${counts}
+신강/신약: ${p.isStrongDayMaster ? "신강 (내 기운이 강한 편)" : "신약 (내 기운이 약한 편)"}
 
-[🔥 오늘의 운세 핵심 판도 (명리학)]
-오늘의 일진: ${profile.todayPillar?.stemHanja || '미상'}${profile.todayPillar?.branchHanja || '미상'}
-사주 신강/신약: ${profile.isStrongDayMaster ? "신강 (주체성 강함)" : "신약 (주변 기운에 영향받음)"}
-지지 합충파해: ${profile.branchRelation === 'clash' ? "충(부딪힘) 발생 - 흉일" : profile.branchRelation === 'combo' ? "합(기운이 모임) 발생 - 대길일" : "평탄함"}
+[오늘 계산 결과 — 이 내용과 어긋나게 쓰지 마세요]
+오늘 일진: ${tp?.stemHanja}${tp?.branchHanja} (천간 ${tp ? elementLabel(tp.element) : ""})
+오늘 천간의 십성: ${p.todayTenGod} — ${p.todayTenGodMeaning}
+오늘 기운이 나에게 필요한 기운인가: ${p.isFavorableDay ? "예" : "아니오"}
+지지 충·합: ${p.branchNotes?.length ? p.branchNotes.join(", ") : "없음 (지지끼리 부딪히거나 묶이지 않는 평탄한 날)"}
+오늘 총운 점수: ${p.freeScores.total}점 (점수는 본문에 쓰지 마세요)
+오늘의 성격: ${p.dailyGuide?.point}
+행운 색깔: ${luck?.color} (${luck?.reason})
+행운 방향: ${luck?.direction}
 
-[🚨 JSON 항목별 매핑 가이드 (반드시 아래 구분에 맞춰서 내용을 철저히 분리할 것!)]
-- "daeun" (원국 흐름 해석): 사주 원국의 일간(${profile.dayMasterElement})과 오늘의 일진(${profile.todayPillar?.element}) 간의 오행 생극제화 및 합충파해를 명리학적으로 풀어주세요.
-- "monthlyAdvice" (오늘의 핵심 조언): ${profile.freeTexts.total} -> 오늘 하루의 전반적인 처세술과 마인드셋만 작성하세요.
-- "wealth" (재물운): ${profile.freeTexts.money} -> 오직 금전, 투자, 지출에 대한 내용만 작성하세요.
-- "love" (연애운): ${profile.freeTexts.love}
-- "career" (직장운): ${profile.freeTexts.work}
-- "health" (건강운): ${profile.freeTexts.health}
-- "luckyColor" (행운 색깔): 오늘 일진(${profile.todayPillar?.element}) 오행을 기준으로 상생하는 오행의 색깔 1~2가지와 명리학적 근거를 2~3문장으로 작성하세요.
-- "luckyDirection" (행운 방향): 오늘 일진 오행과 상생하는 방향 1가지와 명리학적 근거를 2~3문장으로 작성하세요.
-- "caution" (오늘 조심할 점): 오늘 일진과 사주 원국의 충극 관계에서 발생하는 주의사항을 실생활 조언 형태로 2~3가지 구체적으로 작성하세요. (최소 3~4문장)
+[무료 풀이 요약 — 이 방향을 깊게 풀어 주세요]
+총운: ${p.freeTexts.total}
+재물: ${p.freeTexts.money}
+연애: ${p.freeTexts.love}
+직장: ${p.freeTexts.work}
+건강: ${p.freeTexts.health}
 
-[🚨 상위 0.1% 최고급 명리학자 프리미엄 리포트 작성 지시]
-1. 항목별 철저한 독립성 (가장 중요): "오늘의 핵심 조언(monthlyAdvice)"과 "재물운(wealth)"의 내용이 단 한 문장도 겹쳐서는 안 됩니다! 완전히 다른 내용으로 철저하게 독립적으로 작성하세요.
-2. 시점 고정: 모든 내용은 "이번 달"이 아닌 반드시 "오늘(하루)"의 운세로 작성하세요. (예: "오늘의 핵심 조언은...", "오늘의 재물운은...")
-3. 톤앤매너 동기화: 위 주어진 결과가 흉운이면 절대 희망고문 하지 말고 단호하게 방어책을 서술하세요.
-4. 명리학 논리 추가: 위 결과가 왜 나왔는지 일간과 오늘 일진의 오행 상호작용(십성, 합충)을 명리 용어로 해설하세요. (점수 언급 금지)
-5. 분량: 각 항목당 최소 4~6문장(400자 이상)으로 전문가답고 길게 작성하세요.
+[JSON 항목별 작성 지시]
+- "daeun" (원국 흐름 해석): 내 일간과 오늘 일진의 십성(${p.todayTenGod}), 신강/신약, 충·합이 왜 오늘의 흐름을 만드는지 위 오행표에 맞게 풀어 주세요.
+- "monthlyAdvice" (오늘의 핵심 조언): 오늘 하루의 처세와 마음가짐만.
+- "wealth" (재물운): 금전·투자·지출만.
+- "love" (연애운): 연애·관계만. (남성은 재성, 여성은 관성이 이성의 별)
+- "career" (직장운): 일·직장만.
+- "health" (건강운): 몸과 컨디션만.
+- "luckyColor": 위에 주어진 행운 색깔을 그대로 쓰고, 왜 그 색인지 위 오행표에 맞게 2~3문장.
+- "luckyDirection": 위에 주어진 행운 방향을 그대로 쓰고, 이유를 2~3문장.
+- "caution" (오늘 조심할 점): 실생활 조언 2~3가지(3~4문장 이상).
+
+[작성 규칙]
+1. 항목끼리 같은 문장을 반복하지 마세요. 특히 monthlyAdvice 와 wealth 는 완전히 다른 내용이어야 합니다.
+2. 모든 내용은 "오늘(하루)" 기준입니다.
+3. 흉한 흐름이면 희망고문하지 말고 구체적인 방어책을 쓰세요.
+4. "반드시 ~한 일이 생긴다" 같은 사건 예언은 하지 말고, 오늘 힘을 쓰면 좋은 일·조심할 일로 쓰세요.
+5. 분량: 각 항목 4~6문장(400자 안팎).
 `;
         try {
           const deterministicSeed = hashString(dayKey + profile.seedKey);
@@ -244,16 +292,8 @@ ${profile.summaryText}
       });
     }
 
-    // 기본 운세용 행운 색깔/방향/조심할 점 (오행 기반 정적 매핑)
-    const ELEMENT_LUCKY: Record<string, { color: string; direction: string; caution: string }> = {
-      "木": { color: "초록색·청색", direction: "동쪽", caution: "감정적 충동을 조심하고, 새로운 시작보다 기존 계획 점검에 집중하세요." },
-      "火": { color: "빨간색·주황색", direction: "남쪽", caution: "과도한 열정으로 인한 실수를 주의하고, 중요한 결정은 오후보다 오전에 하세요." },
-      "土": { color: "노란색·갈색", direction: "중앙(내부)", caution: "우유부단한 태도를 경계하고, 신뢰 관계에서 지나친 의존은 피하세요." },
-      "金": { color: "흰색·금색", direction: "서쪽", caution: "완벽주의로 인한 갈등을 조심하고, 타인의 의견을 열린 마음으로 수용하세요." },
-      "水": { color: "검정색·짙은 파란색", direction: "북쪽", caution: "지나친 걱정과 우유부단함을 경계하고, 결정을 미루지 말고 실행에 옮기세요." },
-    };
-    const todayElement = profile.todayPillar?.element || "土";
-    const lucky = ELEMENT_LUCKY[todayElement] ?? ELEMENT_LUCKY["土"];
+    // 행운 색·방향·조심할 점 — 내 원국에 필요한 기운과 오늘 일진으로 계산(fortune-engine pickLuck)
+    const luck = profile.luck;
 
     return NextResponse.json({
       dayKey,
@@ -264,9 +304,9 @@ ${profile.summaryText}
       luckyItems: null,
       daeunInfo: null,
       premiumReport: null,
-      luckyColor: lucky.color,
-      luckyDirection: lucky.direction,
-      caution: lucky.caution,
+      luckyColor: luck ? `${luck.color} — ${luck.reason}` : null,
+      luckyDirection: luck?.direction ?? null,
+      caution: luck?.caution ?? null,
     });
   } catch (error) {
     console.error("Fortune API Error:", error);
