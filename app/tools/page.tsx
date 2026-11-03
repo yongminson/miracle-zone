@@ -38,6 +38,7 @@ import { captureAttribution, logEvent, withShareUtm } from "@/lib/analytics";
 import { AllMenuButton } from "@/components/layout/AllMenuButton";
 import { readProfiles } from "@/lib/profiles/saved-profiles";
 import { hasWebPushSubscription, isWebPushAvailable, subscribeDailyPush } from "@/lib/push/web-push";
+import { enableAppDailyPush, hasAppDailyPush, isAppDailyPushAvailable } from "@/lib/push/app-push";
 import { clearPendingPaymentData, readPendingPaymentData, savePendingPaymentData } from "@/lib/payments/pending-payment-data";
 import {
   clearPendingPaymentState,
@@ -4383,6 +4384,7 @@ const LOTTO_API_BASE = "";
 // 웹은 광고가 없어 "앱에서 광고 보고 무료로 열기"(설치) 안내만 한다 — 가짜 광고 카운트다운은 쓰지 않는다.
 // 🔔 웹은 "토요일 아침 이번 주 번호 알림"을 켤 수 있다(매일 아침 알림 구독 + 생일 — /api/cron/push 가 토요일엔 로또 알림으로 보낸다).
 //    알림을 눌러 오면(utm_campaign=lotto) 저장된 생일로 번호를 바로 보여 준다. 생일은 로또 입력 → 저장된 프로필(본인) 순으로 채운다.
+//    구글 앱은 1.2.0(userAgent 에 MyeongunLotto/1)부터 앱 아침 알림이 토요일엔 로또 알림이라, 그 앱에서만 같은 버튼을 보여 준다(앱 알림 켜기).
 const SAJU_LOTTO_URL = `${LOTTO_API_BASE}/api/lotto/saju`;
 const SAJU_LOTTO_PREMIUM_URL = `${LOTTO_API_BASE}/api/lotto/premium`;
 const SAJU_LOTTO_BIRTH_KEY = "saju-lotto-birth-v1";
@@ -4397,6 +4399,11 @@ type SajuLottoResult = {
   basis?: { fromRound: number; toRound: number; size: number } | null;
 };
 
+
+/** 토요일 로또 알림을 보내는 구글 앱(1.2.0~)인지 */
+function isAppLottoPush(): boolean {
+  return isAppDailyPushAvailable() && navigator.userAgent.includes("MyeongunLotto/1");
+}
 
 function SajuLottoCard({ adMode, watchAd }: { adMode: "web" | "app" | "toss"; watchAd?: () => Promise<boolean> }) {
   const [birthDate, setBirthDate] = useState("");
@@ -4441,7 +4448,9 @@ function SajuLottoCard({ adMode, watchAd }: { adMode: "web" | "app" | "toss"; wa
     }
     // 토요일 로또 알림을 눌러 왔으면 바로 번호를 보여 준다
     if (known && new URLSearchParams(window.location.search).get("utm_campaign") === "lotto") setAutoRun(true);
-    if (isWebPushAvailable()) {
+    if (isAppLottoPush()) {
+      hasAppDailyPush().then((on) => setPushState(on ? "on" : "off")).catch(() => setPushState("off"));
+    } else if (isWebPushAvailable()) {
       hasWebPushSubscription().then((on) => setPushState(on ? "on" : "off")).catch(() => setPushState("off"));
     }
   }, []);
@@ -4477,7 +4486,9 @@ function SajuLottoCard({ adMode, watchAd }: { adMode: "web" | "app" | "toss"; wa
   const turnOnPush = async () => {
     if (pushState === "busy") return;
     setPushState("busy");
-    const result = await subscribeDailyPush({ birthDate, calendarType });
+    const result = isAppLottoPush()
+      ? await enableAppDailyPush({ birthDate, calendarType })
+      : await subscribeDailyPush({ birthDate, calendarType });
     if (result.ok) {
       setPushState("on");
       void logEvent("push_subscribe", { place: "lotto" });
