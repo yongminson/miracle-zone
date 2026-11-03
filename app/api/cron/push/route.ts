@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import webpush from "web-push";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 import { calculateDayLuck } from "@/lib/calendar/day-luck";
+import { drawRound, upcomingDrawDate } from "@/lib/lotto/saju-lotto";
 
 /**
  * 매일 아침 8시(한국) 웹 알림 — Vercel 크론이 부른다(Bearer CRON_SECRET).
@@ -9,11 +10,21 @@ import { calculateDayLuck } from "@/lib/calendar/day-luck";
  * 생년월일을 함께 구독한 사람에게는 그날의 흐름(운세 캘린더와 같은 계산)을 담아 보낸다.
  * 예) "오늘은 ‘기회에 먼저 손 내미는 날’ 🟢" / "연락이 뜸했던 사람에게 먼저 연락해 보세요."
  * 누르면 오늘의 운세로 바로 간다(utm_source=push 로 알림에서 온 방문을 센다).
+ *
+ * 토요일 아침(로또 추첨일)엔 "이번 주 내 사주 행운 번호" 알림으로 바꿔 보낸다(2026-11-03) — 로또 영상으로 온 손님이
+ * 매주 다시 오게. 누르면 로또 탭이 열리고 저장된 생일로 번호가 바로 나온다(utm_campaign=lotto). 오늘의 흐름 제목은 본문에 같이 넣는다.
  */
 
 const VAPID_SUBJECT = "mailto:support@ymstudio.co.kr";
 const OPEN_URL = "/tools?tab=fortune&utm_source=push&utm_medium=daily";
 const TONE_EMOJI: Record<string, string> = { good: "🟢", normal: "🟡", caution: "🔴" };
+
+const LOTTO_OPEN_URL = "/tools?tab=lotto&utm_source=push&utm_medium=daily&utm_campaign=lotto";
+
+/** 한국 시간으로 오늘이 토요일인지 */
+function isKstSaturday(): boolean {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCDay() === 6;
+}
 
 const DEFAULT_PAYLOAD = JSON.stringify({
   title: "오늘의 운세가 도착했어요 ✨",
@@ -41,6 +52,7 @@ type PushSubscriptionRow = {
 
 /** 그 사람의 오늘 흐름으로 알림 문구를 만든다. 계산이 안 되면 기본 문구 */
 function payloadFor(sub: PushSubscriptionRow): string {
+  if (isKstSaturday()) return lottoPayloadFor(sub);
   if (!sub.birth_date) return DEFAULT_PAYLOAD;
   try {
     const calendarType =
@@ -55,6 +67,33 @@ function payloadFor(sub: PushSubscriptionRow): string {
   } catch {
     return DEFAULT_PAYLOAD;
   }
+}
+
+/** 토요일 알림 — 이번 주 회차와(생일이 있으면) 오늘의 흐름 제목 */
+function lottoPayloadFor(sub: PushSubscriptionRow): string {
+  const round = drawRound(upcomingDrawDate());
+  if (!sub.birth_date) {
+    return JSON.stringify({
+      title: "🍀 토요일, 이번 주 사주 행운 번호 받아 가세요",
+      body: `생년월일만 넣으면 제${round}회 번호 6개를 골라 드려요.`,
+      url: LOTTO_OPEN_URL,
+    });
+  }
+  let todayTitle = "";
+  try {
+    const calendarType =
+      sub.calendar_type === "lunar" || sub.calendar_type === "lunar-leap" ? sub.calendar_type : "solar";
+    todayTitle = calculateDayLuck({ birthDate: sub.birth_date, calendarType, days: 1 }).days[0]?.title ?? "";
+  } catch {
+    // 흐름 계산이 안 돼도 로또 알림은 보낸다
+  }
+  return JSON.stringify({
+    title: "🍀 이번 주 내 사주 행운 번호가 나왔어요",
+    body: todayTitle
+      ? `제${round}회 추첨 전에 번호 6개를 확인해 보세요. 오늘은 ‘${todayTitle}’`
+      : `제${round}회 추첨 전에 번호 6개를 확인해 보세요.`,
+    url: LOTTO_OPEN_URL,
+  });
 }
 
 async function runDailyPush(req: Request): Promise<Response> {

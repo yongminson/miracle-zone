@@ -36,6 +36,8 @@ import HeaderPushBell from "@/components/push/HeaderPushBell";
 import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
 import { captureAttribution, logEvent, withShareUtm } from "@/lib/analytics";
 import { AllMenuButton } from "@/components/layout/AllMenuButton";
+import { readProfiles } from "@/lib/profiles/saved-profiles";
+import { hasWebPushSubscription, isWebPushAvailable, subscribeDailyPush } from "@/lib/push/web-push";
 import { clearPendingPaymentData, readPendingPaymentData, savePendingPaymentData } from "@/lib/payments/pending-payment-data";
 import {
   clearPendingPaymentState,
@@ -4379,6 +4381,8 @@ const LOTTO_API_BASE = "";
 // 🎯 고급 번호 — 사주 × 실제 최근 30회 당첨 통계(/api/lotto/premium), 광고 1회에 1세트, 볼 때마다 새 조합. 광고는 여기에만.
 // 광고: 구글 앱은 앱의 보상형 광고(SHOW_REWARDED_AD → AD_REWARD_GRANTED), 토스는 토스 광고(watchAd).
 // 웹은 광고가 없어 "앱에서 광고 보고 무료로 열기"(설치) 안내만 한다 — 가짜 광고 카운트다운은 쓰지 않는다.
+// 🔔 웹은 "토요일 아침 이번 주 번호 알림"을 켤 수 있다(매일 아침 알림 구독 + 생일 — /api/cron/push 가 토요일엔 로또 알림으로 보낸다).
+//    알림을 눌러 오면(utm_campaign=lotto) 저장된 생일로 번호를 바로 보여 준다. 생일은 로또 입력 → 저장된 프로필(본인) 순으로 채운다.
 const SAJU_LOTTO_URL = `${LOTTO_API_BASE}/api/lotto/saju`;
 const SAJU_LOTTO_PREMIUM_URL = `${LOTTO_API_BASE}/api/lotto/premium`;
 const SAJU_LOTTO_BIRTH_KEY = "saju-lotto-birth-v1";
@@ -4405,6 +4409,8 @@ function SajuLottoCard({ adMode, watchAd }: { adMode: "web" | "app" | "toss"; wa
   const [premiumList, setPremiumList] = useState<SajuLottoResult[]>([]);
   const [adBusy, setAdBusy] = useState<LottoAdFeature | null>(null);
   const [isIphone, setIsIphone] = useState(false);
+  const [pushState, setPushState] = useState<"hidden" | "off" | "on" | "busy">("hidden");
+  const [autoRun, setAutoRun] = useState(false);
   const pendingAdRef = useRef<{ feature: LottoAdFeature; at: number } | null>(null);
   const grantRef = useRef<(feature: LottoAdFeature) => void>(() => {});
 
@@ -4413,15 +4419,31 @@ function SajuLottoCard({ adMode, watchAd }: { adMode: "web" | "app" | "toss"; wa
 
   useEffect(() => {
     setIsIphone(/iPhone|iPad|iPod/i.test(navigator.userAgent));
+    let known = false;
     try {
       const saved = JSON.parse(localStorage.getItem(SAJU_LOTTO_BIRTH_KEY) || "null");
       if (saved?.birthDate) {
         setBirthDate(saved.birthDate);
         if (saved.calendarType) setCalendarType(saved.calendarType);
         if (saved.birthTime) setBirthTime(saved.birthTime);
+        known = true;
       }
-
     } catch {}
+    if (!known) {
+      const profiles = readProfiles();
+      const me = profiles.find((p) => p.relation === "self") ?? profiles[0];
+      if (me) {
+        setBirthDate(me.birthDate);
+        setCalendarType(me.calendar);
+        setBirthTime(me.birthTime || "unknown");
+        known = true;
+      }
+    }
+    // 토요일 로또 알림을 눌러 왔으면 바로 번호를 보여 준다
+    if (known && new URLSearchParams(window.location.search).get("utm_campaign") === "lotto") setAutoRun(true);
+    if (isWebPushAvailable()) {
+      hasWebPushSubscription().then((on) => setPushState(on ? "on" : "off")).catch(() => setPushState("off"));
+    }
   }, []);
 
   const submit = async () => {
@@ -4442,6 +4464,27 @@ function SajuLottoCard({ adMode, watchAd }: { adMode: "web" | "app" | "toss"; wa
       alert(err instanceof Error ? err.message : "오류가 발생했어요.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!autoRun || !birthDate) return;
+    setAutoRun(false);
+    void submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRun, birthDate]);
+
+  const turnOnPush = async () => {
+    if (pushState === "busy") return;
+    setPushState("busy");
+    const result = await subscribeDailyPush({ birthDate, calendarType });
+    if (result.ok) {
+      setPushState("on");
+      void logEvent("push_subscribe", { place: "lotto" });
+      alert("알림을 켰어요! 토요일 아침마다 이번 주 사주 행운 번호를 알려 드릴게요.");
+    } else {
+      setPushState("off");
+      alert(result.message);
     }
   };
 
@@ -4609,6 +4652,19 @@ function SajuLottoCard({ adMode, watchAd }: { adMode: "web" | "app" | "toss"; wa
             <p className="break-keep text-yellow-50/60">· 같은 생일이면 이번 주엔 언제 봐도 같은 번호이고, 다음 주엔 새 번호가 나와요.</p>
           </div>
           <p className="mt-3 text-center text-[11px] text-yellow-50/45 break-keep">{result.notice}</p>
+          {pushState === "on" ? (
+            <p className="mt-3 text-center text-[12px] text-emerald-300/80 break-keep">🔔 알림 받는 중 — 토요일 아침마다 이번 주 번호를 알려 드려요.</p>
+          ) : pushState !== "hidden" ? (
+            <button
+              type="button"
+              onClick={turnOnPush}
+              disabled={pushState === "busy"}
+              className="mt-3 w-full rounded-xl border border-emerald-400/50 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200 transition-all hover:bg-emerald-400/20 disabled:opacity-60"
+            >
+              {pushState === "busy" ? "알림 켜는 중..." : "🔔 토요일 아침마다 이번 주 번호 알림 받기"}
+              <span className="mt-1 block text-[11px] font-normal text-emerald-100/60">다른 날 아침엔 오늘의 운세 알림이 와요</span>
+            </button>
+          ) : null}
         </div>
       )}
 
