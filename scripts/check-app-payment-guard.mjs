@@ -24,7 +24,7 @@ const APP_PURCHASE_PRODUCTS = [
   "lock_color",
   "lock_shine", // 소원 자물쇠
 ];
-const APP_AD_FEATURES = ["altar", "physiognomy", "name", "palmistry", "lotto_saju", "lotto_premium"]; // 앱에서는 결제 대신 광고
+const APP_AD_FEATURES = ["altar", "physiognomy", "name", "palmistry", "lotto_premium"]; // 앱에서는 결제 대신 광고
 const APP_FILE_SAVE = ["SAVE_PDF", "SAVE_IMAGE"]; // 앱에서 PDF·이미지 저장
 
 const ROOTS = ["app", "components", "hooks", "lib"];
