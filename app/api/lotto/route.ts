@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getLottoDraws, recentFrequency } from "@/lib/lotto/winning-data";
+
+// 고급 통계 번호 — 토스 미니앱·예전 화면이 그대로 부르므로 요청·응답({ numbers })은 바꾸지 않는다.
+// 2026-11-03: 예전엔 "최근 30회"를 무작위로 지어내 세었다. 이제 실제 최근 30회 당첨번호(lib/lotto/winning-data.ts)로 센다.
+// 자료를 못 받으면 가중치 없이(모두 같게) 고른다.
 
 /** 홀짝 비율이 허용 구간(3:3, 4:2, 2:4)인지 검증 */
 function isValidOddEvenRatio(nums: number[]): boolean {
@@ -15,40 +20,20 @@ function isValidSum(nums: number[]): boolean {
   return sum >= 100 && sum <= 170;
 }
 
-/** 가상의 최근 N회차 당첨 번호 시뮬레이션 (가중치 계산용) */
-function simulateRecentDraws(count: number): number[][] {
-  const draws: number[][] = [];
-  for (let i = 0; i < count; i++) {
-    const set: number[] = [];
-    while (set.length < 6) {
-      const n = Math.floor(Math.random() * 45) + 1;
-      if (!set.includes(n)) set.push(n);
-    }
-    draws.push(set.sort((a, b) => a - b));
-  }
-  return draws;
-}
-
-/** 번호별 출현 빈도 계산 → 미출현(콜드) / 핫 번호 가중치 */
-function getNumberWeights(): number[] {
-  const draws = simulateRecentDraws(30);
-  const freq: number[] = Array(46).fill(0);
-  for (const draw of draws) {
-    for (const n of draw) freq[n]++;
-  }
+/** 실제 최근 30회 번호별 당첨 횟수 → 오래 안 나온(콜드) / 자주 나온(핫) 번호 가중치. 30회 평균은 번호당 4번 */
+function getNumberWeights(freq: number[] | null): number[] {
   const weights: number[] = [];
   for (let i = 1; i <= 45; i++) {
-    const f = freq[i];
+    const f = freq ? freq[i] : 4;
     if (f <= 2) weights[i] = 1.4;
-    else if (f >= 8) weights[i] = 1.25;
+    else if (f >= 6) weights[i] = 1.25;
     else weights[i] = 1.0;
   }
   return weights;
 }
 
 /** 가중치 기반 6개 번호 추출 (중복 없음) */
-function pickWeightedNumbers(): number[] {
-  const weights = getNumberWeights();
+function pickWeightedNumbers(weights: number[]): number[] {
   const pool: number[] = [];
   for (let i = 1; i <= 45; i++) {
     const w = weights[i] ?? 1;
@@ -111,16 +96,16 @@ function adjustOddEvenRatio(nums: number[]): number[] {
 }
 
 /** 통계적 필터링을 거친 로또 번호 생성 (필수 3단계: 홀짝, 총합, 가중치) */
-function generateStatisticallyFilteredNumbers(): number[] {
+function generateStatisticallyFilteredNumbers(weights: number[]): number[] {
   const MAX_ATTEMPTS = 1000;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    let numbers = pickWeightedNumbers();
+    let numbers = pickWeightedNumbers(weights);
     if (isValidOddEvenRatio(numbers) && isValidSum(numbers)) return numbers;
     numbers = adjustOddEvenRatio(numbers);
     numbers = adjustSumToRange(numbers);
     if (isValidOddEvenRatio(numbers) && isValidSum(numbers)) return numbers;
   }
-  let fallback = pickWeightedNumbers();
+  let fallback = pickWeightedNumbers(weights);
   fallback = adjustOddEvenRatio(fallback);
   fallback = adjustSumToRange(fallback);
   return fallback;
@@ -128,7 +113,8 @@ function generateStatisticallyFilteredNumbers(): number[] {
 
 export async function POST(_request: NextRequest) {
   try {
-    const numbers = generateStatisticallyFilteredNumbers();
+    const draws = await getLottoDraws();
+    const numbers = generateStatisticallyFilteredNumbers(getNumberWeights(draws ? recentFrequency(draws, 30).counts : null));
     return NextResponse.json({ numbers });
   } catch (error) {
     console.error("Lotto API Error:", error);

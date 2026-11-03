@@ -4372,26 +4372,55 @@ const LOTTO_DATE_KEY = "miracle-lotto-free-date";
 const MATRIX_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const MATRIX_COLOR = "#0abdc6";
 
-const SAJU_LOTTO_URL = "/api/lotto/saju";
+const LOTTO_API_BASE = "";
 // 🔮 내 사주 행운 번호 (2026-11-03) — 생년월일로 이번 주 번호 6개. 계산은 서버 /api/lotto/saju(lib/lotto/saju-lotto.ts)
-// 같은 생일·같은 주면 언제 봐도 같은 번호라 횟수 제한이 없다. 입력한 생일은 이 기기에만 저장한다.
+// 같은 생일·같은 주면 언제 봐도 같은 번호. 3개는 무료로 보여 주고 나머지 3개는 광고 1회로 연다(그 주·그 생일 동안 열린 채).
+// 🎯 고급 번호 — 사주 × 실제 최근 30회 당첨 통계(/api/lotto/premium), 광고 1회에 1세트, 볼 때마다 새 조합.
+// 광고: 구글 앱은 앱의 보상형 광고(SHOW_REWARDED_AD → AD_REWARD_GRANTED), 토스는 토스 광고(watchAd).
+// 웹은 광고가 없어 "앱에서 광고 보고 무료로 열기"(설치) 안내만 한다 — 가짜 광고 카운트다운은 쓰지 않는다.
+const SAJU_LOTTO_URL = `${LOTTO_API_BASE}/api/lotto/saju`;
+const SAJU_LOTTO_PREMIUM_URL = `${LOTTO_API_BASE}/api/lotto/premium`;
 const SAJU_LOTTO_BIRTH_KEY = "saju-lotto-birth-v1";
+const SAJU_LOTTO_UNLOCK_KEY = "saju-lotto-unlock-v1";
+const LOTTO_PLAY_URL = `https://play.google.com/store/apps/details?id=kr.co.ymstudio.myeongun&referrer=${encodeURIComponent("utm_source=web&utm_medium=app_cta&utm_campaign=lotto")}`;
 
+type LottoAdFeature = "lotto_saju" | "lotto_premium";
 type SajuLottoPick = { number: number; elementLabel: string; source: "need" | "draw"; reason: string };
 type SajuLottoResult = {
   numbers: number[]; picks: SajuLottoPick[]; round: number; drawDate: string; drawDayGanji: string;
   dayMaster: string; isStrong: boolean; favorable: string[]; lines: string[]; notice: string;
+  basis?: { fromRound: number; toRound: number; size: number } | null;
 };
 
-function SajuLottoCard() {
+/** 무료로 보여 줄 3개 — 추첨일 일진 번호 2개 + 필요한 기운 첫 번호. 나머지(필요한 기운) 3개는 광고로 연다 */
+function splitFreePicks(picks: SajuLottoPick[]) {
+  const draw = picks.filter((p) => p.source === "draw");
+  const need = picks.filter((p) => p.source === "need");
+  const free = [...draw, ...need].slice(0, 3).sort((a, b) => a.number - b.number);
+  const locked = picks.filter((p) => !free.includes(p));
+  return { free, locked };
+}
+
+function SajuLottoCard({ adMode, watchAd }: { adMode: "web" | "app" | "toss"; watchAd?: () => Promise<boolean> }) {
   const [birthDate, setBirthDate] = useState("");
   const [calendarType, setCalendarType] = useState<"solar" | "lunar" | "lunar-leap">("solar");
   const [birthTime, setBirthTime] = useState("unknown");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SajuLottoResult | null>(null);
   const [shown, setShown] = useState(0);
+  const [unlockedKey, setUnlockedKey] = useState("");
+  const [premiumList, setPremiumList] = useState<SajuLottoResult[]>([]);
+  const [adBusy, setAdBusy] = useState<LottoAdFeature | null>(null);
+  const [isIphone, setIsIphone] = useState(false);
+  const pendingAdRef = useRef<{ feature: LottoAdFeature; at: number } | null>(null);
+  const grantRef = useRef<(feature: LottoAdFeature) => void>(() => {});
+
+  const birthBody = { birthDate, calendarType, birthTime };
+  const weekKey = result ? `${result.round}|${birthDate}|${calendarType}|${birthTime}` : "";
+  const isUnlocked = !!weekKey && unlockedKey === weekKey;
 
   useEffect(() => {
+    setIsIphone(/iPhone|iPad|iPod/i.test(navigator.userAgent));
     try {
       const saved = JSON.parse(localStorage.getItem(SAJU_LOTTO_BIRTH_KEY) || "null");
       if (saved?.birthDate) {
@@ -4399,6 +4428,7 @@ function SajuLottoCard() {
         if (saved.calendarType) setCalendarType(saved.calendarType);
         if (saved.birthTime) setBirthTime(saved.birthTime);
       }
+      setUnlockedKey(localStorage.getItem(SAJU_LOTTO_UNLOCK_KEY) || "");
     } catch {}
   }, []);
 
@@ -4407,18 +4437,15 @@ function SajuLottoCard() {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return alert("생년월일 8자리를 입력해 주세요. (예: 19700221)");
     setLoading(true);
     try {
-      const res = await fetch(SAJU_LOTTO_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ birthDate, calendarType, birthTime }),
-      });
+      const res = await fetch(SAJU_LOTTO_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(birthBody) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "번호를 만들지 못했어요.");
-      try { localStorage.setItem(SAJU_LOTTO_BIRTH_KEY, JSON.stringify({ birthDate, calendarType, birthTime })); } catch {}
+      try { localStorage.setItem(SAJU_LOTTO_BIRTH_KEY, JSON.stringify(birthBody)); } catch {}
       void logEvent("tool_result", { tool: "lotto_saju" });
       setResult(data);
+      setPremiumList([]);
       setShown(0);
-      (data.numbers as number[]).forEach((_, i) => setTimeout(() => setShown((v) => v + 1), (i + 1) * 350));
+      [0, 1, 2, 3, 4, 5].forEach((i) => setTimeout(() => setShown((v) => v + 1), (i + 1) * 350));
     } catch (err) {
       alert(err instanceof Error ? err.message : "오류가 발생했어요.");
     } finally {
@@ -4426,12 +4453,110 @@ function SajuLottoCard() {
     }
   };
 
+  const fetchPremium = async () => {
+    const res = await fetch(SAJU_LOTTO_PREMIUM_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(birthBody) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "번호를 만들지 못했어요.");
+    setPremiumList((prev) => [data, ...prev].slice(0, 5));
+  };
+
+  // 광고 보상 — 최신 상태를 쓰도록 매 렌더마다 갈아 끼운다
+  grantRef.current = (feature) => {
+    void logEvent("ad_reward", { feature });
+    if (feature === "lotto_saju" && weekKey) {
+      setUnlockedKey(weekKey);
+      try { localStorage.setItem(SAJU_LOTTO_UNLOCK_KEY, weekKey); } catch {}
+    }
+    if (feature === "lotto_premium") {
+      fetchPremium().catch((err) => alert(err instanceof Error ? err.message : "오류가 발생했어요."));
+    }
+  };
+
+  // 구글 앱: 광고를 끝까지 보면 앱이 AD_REWARD_GRANTED 를 보낸다
+  useEffect(() => {
+    if (adMode !== "app") return;
+    const handler = (e: MessageEvent) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === "AD_REWARD_GRANTED" && (msg.feature === "lotto_saju" || msg.feature === "lotto_premium")) {
+          pendingAdRef.current = null;
+          setAdBusy(null);
+          grantRef.current(msg.feature);
+        }
+        if (msg.type === "AD_NOT_READY" && pendingAdRef.current && Date.now() - pendingAdRef.current.at < 10_000) {
+          pendingAdRef.current = null;
+          setAdBusy(null);
+          alert("광고를 불러오는 중이에요. 잠시 후 다시 눌러 주세요.");
+        }
+      } catch {}
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [adMode]);
+
+  const requestAd = async (feature: LottoAdFeature) => {
+    if (adBusy) return;
+    if (!result) return;
+    if (adMode === "app") {
+      pendingAdRef.current = { feature, at: Date.now() };
+      setAdBusy(feature);
+      // 기능 이름을 그대로 적어 둔다 — scripts/check-app-payment-guard.mjs 가 빌드 전에 찾는다
+      const message =
+        feature === "lotto_saju"
+          ? { type: "SHOW_REWARDED_AD", feature: "lotto_saju" }
+          : { type: "SHOW_REWARDED_AD", feature: "lotto_premium" };
+      (window as any).ReactNativeWebView?.postMessage(JSON.stringify(message));
+      setTimeout(() => setAdBusy((cur) => (cur === feature ? null : cur)), 4000);
+      return;
+    }
+    if (adMode === "toss" && watchAd) {
+      setAdBusy(feature);
+      try {
+        if (await watchAd()) grantRef.current(feature);
+      } finally {
+        setAdBusy(null);
+      }
+    }
+  };
+
   const [, dm, dd] = result ? result.drawDate.split("-").map(Number) : [0, 0, 0];
+  const { free, locked } = result ? splitFreePicks(result.picks) : { free: [], locked: [] };
+  const visiblePicks = isUnlocked ? result?.picks ?? [] : free;
+
+  const installCta = (
+    <div className="mt-3 rounded-xl border border-emerald-300/30 bg-emerald-950/40 px-4 py-3 text-center">
+      <p className="text-[13px] text-emerald-50/85 break-keep">
+        {isIphone
+          ? "광고 보고 무료로 여는 기능은 토스 앱에서 '명운'을 검색하면 쓸 수 있어요."
+          : "명운 앱에서 광고 1번 보면 무료로 열 수 있어요."}
+      </p>
+      {!isIphone && (
+        <a
+          href={LOTTO_PLAY_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => { void logEvent("app_cta_click", { place: "lotto" }); }}
+          className="mt-2 inline-block rounded-lg bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-900"
+        >
+          📱 앱 설치하고 무료로 열기
+        </a>
+      )}
+    </div>
+  );
+
+  const ball = (p: SajuLottoPick, i: number, animate: boolean) => (
+    <div key={p.number} className={`flex flex-col items-center gap-1 transition-all duration-300 ${!animate || i < shown ? "opacity-100 scale-100" : "opacity-0 scale-50"}`}>
+      <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold shadow-inner ring-2 ring-black/20 sm:h-12 sm:w-12 sm:text-lg ${getLottoBallStyle(p.number)}`}>
+        {p.number}
+      </div>
+      <span className={`text-[10px] ${p.source === "need" ? "text-amber-300" : "text-sky-300"}`}>{p.elementLabel}</span>
+    </div>
+  );
 
   return (
     <div className="w-full max-w-2xl rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#241a0c]/95 to-[#151515]/90 p-5 shadow-[0_0_30px_rgba(245,158,11,0.15)] backdrop-blur-md sm:p-6">
       <div className="mb-4 text-center">
-        <span className="rounded-full bg-amber-400/15 px-3 py-1 text-[11px] font-bold text-amber-300">NEW · 무료</span>
+        <span className="rounded-full bg-amber-400/15 px-3 py-1 text-[11px] font-bold text-amber-300">NEW</span>
         <h2 className="mt-3 text-xl font-bold text-amber-200 break-keep">🔮 내 사주 행운 번호</h2>
         <p className="mt-2 text-sm text-yellow-50/70 break-keep">생년월일을 넣으면 내 사주에 필요한 기운과 이번 주 추첨일 일진으로 번호 6개를 골라 드려요.</p>
       </div>
@@ -4486,19 +4611,34 @@ function SajuLottoCard() {
             제{result.round}회 · {dm}월 {dd}일(토) 추첨용
           </p>
           <div className="mt-4 flex flex-wrap items-start justify-center gap-1.5 sm:gap-3">
-            {result.picks.map((p, i) => (
-              <div key={p.number} className={`flex flex-col items-center gap-1 transition-all duration-300 ${i < shown ? "opacity-100 scale-100" : "opacity-0 scale-50"}`}>
-                <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold shadow-inner ring-2 ring-black/20 sm:h-12 sm:w-12 sm:text-lg ${getLottoBallStyle(p.number)}`}>
-                  {p.number}
+            {visiblePicks.map((p, i) => ball(p, i, true))}
+            {!isUnlocked &&
+              locked.map((p, i) => (
+                <div key={`lock-${i}`} className={`flex flex-col items-center gap-1 transition-all duration-300 ${i + 3 < shown ? "opacity-100 scale-100" : "opacity-0 scale-50"}`}>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-dashed border-amber-400/50 bg-black/40 text-sm font-bold text-amber-300/80 sm:h-12 sm:w-12 sm:text-lg">?</div>
+                  <span className="text-[10px] text-amber-300">{p.elementLabel}</span>
                 </div>
-                <span className={`text-[10px] ${p.source === "need" ? "text-amber-300" : "text-sky-300"}`}>{p.elementLabel}</span>
-              </div>
-            ))}
+              ))}
           </div>
           <div className="mt-3 flex justify-center gap-3 text-[11px] text-yellow-50/60">
             <span><span className="text-amber-300">●</span> 내 사주에 필요한 기운</span>
             <span><span className="text-sky-300">●</span> 추첨일 일진 기운</span>
           </div>
+
+          {!isUnlocked &&
+            (adMode === "web" ? (
+              installCta
+            ) : (
+              <button
+                type="button"
+                onClick={() => requestAd("lotto_saju")}
+                disabled={!!adBusy}
+                className="mt-4 w-full rounded-xl border border-amber-400/60 bg-amber-400/10 px-6 py-3 text-sm font-bold text-amber-200 transition-all hover:bg-amber-400/20 disabled:opacity-60"
+              >
+                {adBusy === "lotto_saju" ? "광고 준비 중..." : "📺 광고 보고 나머지 3개 번호 열기"}
+              </button>
+            ))}
+
           <div className="mt-4 space-y-1.5 rounded-xl bg-white/5 px-4 py-3 text-[13px] leading-relaxed text-yellow-50/80">
             <p className="font-medium text-amber-200">왜 이 번호일까요?</p>
             {result.lines.map((line) => (
@@ -4509,11 +4649,48 @@ function SajuLottoCard() {
           <p className="mt-3 text-center text-[11px] text-yellow-50/45 break-keep">{result.notice}</p>
         </div>
       )}
+
+      {result && (
+        <div className="mt-5 rounded-2xl border border-sky-700/30 bg-[#0d1218]/80 px-2 py-5 sm:px-4">
+          <p className="text-center text-base font-bold text-sky-200 break-keep">🎯 사주 × 실제 당첨 통계 고급 번호</p>
+          <p className="mt-2 text-center text-[13px] text-yellow-50/70 break-keep">
+            내 사주에 필요한 기운의 번호 중에서, 실제 최근 30회 당첨번호에 자주 나온 번호를 더 많이 골라요. 광고 1번에 1세트, 볼 때마다 새 조합이에요.
+          </p>
+          {adMode === "web" ? (
+            installCta
+          ) : (
+            <button
+              type="button"
+              onClick={() => requestAd("lotto_premium")}
+              disabled={!!adBusy}
+              className="mt-4 w-full rounded-xl bg-gradient-to-r from-sky-400 to-cyan-500 px-6 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-sky-900/30 transition-all hover:from-sky-300 hover:to-cyan-400 disabled:opacity-60"
+            >
+              {adBusy === "lotto_premium" ? "광고 준비 중..." : "📺 광고 보고 고급 번호 받기"}
+            </button>
+          )}
+          {premiumList.map((pr, idx) => (
+            <div key={`${pr.numbers.join("-")}-${idx}`} className="mt-4 rounded-xl border border-sky-800/30 bg-black/30 px-1 py-4 sm:px-3">
+              <div className="flex flex-wrap items-start justify-center gap-1 sm:gap-3">
+                {pr.picks.map((p, i) => ball(p, i, false))}
+              </div>
+              <div className="mt-3 space-y-1 text-[12px] leading-relaxed text-yellow-50/70">
+                {pr.picks.map((p) => (
+                  <p key={p.number} className="break-keep">· {p.number}번: {p.reason}</p>
+                ))}
+                <p className="break-keep text-sky-200/80">· {pr.lines[pr.lines.length - 1]}</p>
+              </div>
+            </div>
+          ))}
+          {premiumList.length > 0 && (
+            <p className="mt-3 text-center text-[11px] text-yellow-50/45 break-keep">{premiumList[0].notice}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function LottoTab({ isVisible }: { isVisible: boolean }) {
+function LottoTab({ isVisible, isApp = false }: { isVisible: boolean; isApp?: boolean }) {
   const [lottoHistory, setLottoHistory] = useState<number[][]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [freeCount, setFreeCount] = useState(3);
@@ -4927,12 +5104,12 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
           {user && premiumCount > 0 && <span className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-[11px] text-emerald-300 font-bold backdrop-blur-sm">이용권 {premiumCount}회 보유</span>}
         </div>
 
-        <SajuLottoCard />
+        <SajuLottoCard adMode={isApp ? "app" : "web"} />
 
         <div className="w-full max-w-2xl rounded-3xl border border-yellow-700/35 bg-[#151515]/85 p-6 shadow-[0_0_30px_rgba(245,158,11,0.08)] backdrop-blur-md">
           <div className="mb-5 text-center">
             <h2 onClick={() => pushSecret("L", handleAdminReset)} className="text-xl font-bold text-yellow-300 select-none cursor-pointer">행운의 로또 번호 추출기</h2>
-            <p className="mt-2 text-sm text-yellow-50/70">가볍게 번호를 뽑고, 필요하면 고급 통계 필터 추천까지 받아볼 수 있습니다.</p>
+            <p className="mt-2 text-sm text-yellow-50/70">가볍게 무작위 번호를 뽑아요. 하루 3번 무료예요.</p>
           </div>
 
           <div className="rounded-2xl border border-yellow-800/20 bg-[#0f0f0f]/70 px-4 py-6">
@@ -4963,35 +5140,7 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
                 : "오늘 무료 횟수를 모두 사용했습니다"}
             </button>
 
-            {/* 광고 보고 고급 통계 뽑기 */}
-            <button
-              type="button"
-              onClick={handleWatchAdForPremium}
-              disabled={isWatchingAd || showLottoProgressModal}
-              className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 px-6 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-yellow-900/25 transition-all hover:from-yellow-400 hover:to-amber-500 disabled:opacity-50 relative overflow-hidden"
-            >
-              {isWatchingAd ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-900 border-t-transparent" />
-                  광고 시청 중... ({adCountdown}초)
-                </span>
-              ) : (
-                <span>📺 광고 보고 고급 통계 번호 추출</span>
-              )}
-              {/* 카운트다운 진행바 */}
-              {isWatchingAd && (
-                <div
-                  className="absolute bottom-0 left-0 h-1 bg-slate-900/40 transition-all"
-                  style={{ width: `${((5 - adCountdown) / 5) * 100}%` }}
-                />
-              )}
-            </button>
-
-            {adWatchCount > 0 && (
-              <p className="text-center text-xs text-yellow-300/60">
-                오늘 광고 시청 {adWatchCount}회 완료 ✓
-              </p>
-            )}
+            {/* 고급 번호(광고 1회 = 1세트)는 위 사주 카드로 옮겼다 — 2026-11-03 */}
           </div>
         </div>
 
@@ -7347,7 +7496,7 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
           if (tab.id === "dream") return <DreamTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
           if (tab.id === "saju") return <SajuTab key={tab.id} isVisible={isVisible} isApp={isApp} />;
           if (tab.id === "altar") return <AltarTab key={tab.id} isVisible={isVisible} isApp={isApp} />;
-          if (tab.id === "lotto") return <LottoTab key={tab.id} isVisible={isVisible} />;
+          if (tab.id === "lotto") return <LottoTab key={tab.id} isVisible={isVisible} isApp={isApp} />;
           if (tab.id === "mbti") return <MbtiTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
           if (tab.id === "match") return <MatchTab key={tab.id} isVisible={isVisible} onNavigate={setActiveTab} />;
           if (tab.id === "zodiac") return <ZodiacTab key={tab.id} isVisible={isVisible} />;
