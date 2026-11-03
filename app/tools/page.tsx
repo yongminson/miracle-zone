@@ -4372,6 +4372,147 @@ const LOTTO_DATE_KEY = "miracle-lotto-free-date";
 const MATRIX_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const MATRIX_COLOR = "#0abdc6";
 
+const SAJU_LOTTO_URL = "/api/lotto/saju";
+// 🔮 내 사주 행운 번호 (2026-11-03) — 생년월일로 이번 주 번호 6개. 계산은 서버 /api/lotto/saju(lib/lotto/saju-lotto.ts)
+// 같은 생일·같은 주면 언제 봐도 같은 번호라 횟수 제한이 없다. 입력한 생일은 이 기기에만 저장한다.
+const SAJU_LOTTO_BIRTH_KEY = "saju-lotto-birth-v1";
+
+type SajuLottoPick = { number: number; elementLabel: string; source: "need" | "draw"; reason: string };
+type SajuLottoResult = {
+  numbers: number[]; picks: SajuLottoPick[]; round: number; drawDate: string; drawDayGanji: string;
+  dayMaster: string; isStrong: boolean; favorable: string[]; lines: string[]; notice: string;
+};
+
+function SajuLottoCard() {
+  const [birthDate, setBirthDate] = useState("");
+  const [calendarType, setCalendarType] = useState<"solar" | "lunar" | "lunar-leap">("solar");
+  const [birthTime, setBirthTime] = useState("unknown");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<SajuLottoResult | null>(null);
+  const [shown, setShown] = useState(0);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(SAJU_LOTTO_BIRTH_KEY) || "null");
+      if (saved?.birthDate) {
+        setBirthDate(saved.birthDate);
+        if (saved.calendarType) setCalendarType(saved.calendarType);
+        if (saved.birthTime) setBirthTime(saved.birthTime);
+      }
+    } catch {}
+  }, []);
+
+  const submit = async () => {
+    if (loading) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return alert("생년월일 8자리를 입력해 주세요. (예: 19700221)");
+    setLoading(true);
+    try {
+      const res = await fetch(SAJU_LOTTO_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ birthDate, calendarType, birthTime }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "번호를 만들지 못했어요.");
+      try { localStorage.setItem(SAJU_LOTTO_BIRTH_KEY, JSON.stringify({ birthDate, calendarType, birthTime })); } catch {}
+      void logEvent("tool_result", { tool: "lotto_saju" });
+      setResult(data);
+      setShown(0);
+      (data.numbers as number[]).forEach((_, i) => setTimeout(() => setShown((v) => v + 1), (i + 1) * 350));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "오류가 발생했어요.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [, dm, dd] = result ? result.drawDate.split("-").map(Number) : [0, 0, 0];
+
+  return (
+    <div className="w-full max-w-2xl rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#241a0c]/95 to-[#151515]/90 p-5 shadow-[0_0_30px_rgba(245,158,11,0.15)] backdrop-blur-md sm:p-6">
+      <div className="mb-4 text-center">
+        <span className="rounded-full bg-amber-400/15 px-3 py-1 text-[11px] font-bold text-amber-300">NEW · 무료</span>
+        <h2 className="mt-3 text-xl font-bold text-amber-200 break-keep">🔮 내 사주 행운 번호</h2>
+        <p className="mt-2 text-sm text-yellow-50/70 break-keep">생년월일을 넣으면 내 사주에 필요한 기운과 이번 주 추첨일 일진으로 번호 6개를 골라 드려요.</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <input
+          type="tel"
+          inputMode="numeric"
+          maxLength={10}
+          placeholder="생년월일 예: 19700221"
+          value={birthDate}
+          onChange={(e) => {
+            let val = e.target.value.replace(/[^0-9]/g, "");
+            if (val.length > 6) val = val.slice(0, 4) + "-" + val.slice(4, 6) + "-" + val.slice(6, 8);
+            else if (val.length > 4) val = val.slice(0, 4) + "-" + val.slice(4);
+            setBirthDate(val);
+          }}
+          className="w-full rounded-xl border border-white/20 bg-slate-800/80 px-4 py-3 text-white placeholder-white/30 focus:border-yellow-500/50 focus:outline-none"
+        />
+        <select
+          value={calendarType}
+          onChange={(e) => setCalendarType(e.target.value as "solar" | "lunar" | "lunar-leap")}
+          className="w-full rounded-xl border border-white/20 bg-slate-800/80 px-4 py-3 text-white focus:border-yellow-500/50 focus:outline-none"
+        >
+          <option value="solar">양력</option>
+          <option value="lunar">음력 평달</option>
+          <option value="lunar-leap">음력 윤달</option>
+        </select>
+        <select
+          value={birthTime}
+          onChange={(e) => setBirthTime(e.target.value)}
+          className="w-full rounded-xl border border-white/20 bg-slate-800/80 px-4 py-3 text-white focus:border-yellow-500/50 focus:outline-none"
+        >
+          {BIRTH_TIME_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.value === "unknown" ? "태어난 시간 모름" : o.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <button
+        type="button"
+        onClick={submit}
+        disabled={loading}
+        className="mt-4 w-full rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-6 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-amber-900/30 transition-all hover:from-amber-300 hover:to-yellow-400 disabled:opacity-60"
+      >
+        {loading ? "사주 계산 중..." : result ? "다시 계산하기" : "내 사주 행운 번호 받기"}
+      </button>
+
+      {result && (
+        <div className="mt-5 rounded-2xl border border-amber-700/30 bg-[#0f0f0f]/70 px-4 py-5">
+          <p className="text-center text-sm font-medium text-amber-200/90 break-keep">
+            제{result.round}회 · {dm}월 {dd}일(토) 추첨용
+          </p>
+          <div className="mt-4 flex flex-wrap items-start justify-center gap-1.5 sm:gap-3">
+            {result.picks.map((p, i) => (
+              <div key={p.number} className={`flex flex-col items-center gap-1 transition-all duration-300 ${i < shown ? "opacity-100 scale-100" : "opacity-0 scale-50"}`}>
+                <div className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold shadow-inner ring-2 ring-black/20 sm:h-12 sm:w-12 sm:text-lg ${getLottoBallStyle(p.number)}`}>
+                  {p.number}
+                </div>
+                <span className={`text-[10px] ${p.source === "need" ? "text-amber-300" : "text-sky-300"}`}>{p.elementLabel}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex justify-center gap-3 text-[11px] text-yellow-50/60">
+            <span><span className="text-amber-300">●</span> 내 사주에 필요한 기운</span>
+            <span><span className="text-sky-300">●</span> 추첨일 일진 기운</span>
+          </div>
+          <div className="mt-4 space-y-1.5 rounded-xl bg-white/5 px-4 py-3 text-[13px] leading-relaxed text-yellow-50/80">
+            <p className="font-medium text-amber-200">왜 이 번호일까요?</p>
+            {result.lines.map((line) => (
+              <p key={line} className="break-keep">· {line}</p>
+            ))}
+            <p className="break-keep text-yellow-50/60">· 같은 생일이면 이번 주엔 언제 봐도 같은 번호이고, 다음 주엔 새 번호가 나와요.</p>
+          </div>
+          <p className="mt-3 text-center text-[11px] text-yellow-50/45 break-keep">{result.notice}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LottoTab({ isVisible }: { isVisible: boolean }) {
   const [lottoHistory, setLottoHistory] = useState<number[][]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -4785,6 +4926,8 @@ function LottoTab({ isVisible }: { isVisible: boolean }) {
 
           {user && premiumCount > 0 && <span className="rounded-full border border-emerald-500/40 bg-emerald-500/20 px-3 py-1 text-[11px] text-emerald-300 font-bold backdrop-blur-sm">이용권 {premiumCount}회 보유</span>}
         </div>
+
+        <SajuLottoCard />
 
         <div className="w-full max-w-2xl rounded-3xl border border-yellow-700/35 bg-[#151515]/85 p-6 shadow-[0_0_30px_rgba(245,158,11,0.08)] backdrop-blur-md">
           <div className="mb-5 text-center">
