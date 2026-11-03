@@ -23,7 +23,7 @@ function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 864e5);
 }
 
-function luckRange(person: SeasonPerson, start: string, count: number): DayLuck[] {
+function luckRange(person: SeasonPerson, start: string, count: number, strength: boolean): DayLuck[] {
   const out: DayLuck[] = [];
   for (let offset = 0; offset < count; offset += 31) {
     out.push(
@@ -32,24 +32,27 @@ function luckRange(person: SeasonPerson, start: string, count: number): DayLuck[
         calendarType: person.calendarType,
         start: addDays(start, offset),
         days: Math.min(31, count - offset),
+        strength,
       }).days,
     );
   }
   return out;
 }
 
-export function calculateSeason(input: SeasonInput, start = kstToday()) {
+/** strength: 날마다 흐름에 신강·신약 반영(기본). 2026-11-03 전에 결제한 풀이를 다시 열 때만 false */
+export function calculateSeason(input: SeasonInput, start = kstToday(), strength = true) {
   const dDay = daysBetween(start, input.eventDate);
   const eventDay = calculateDayLuck({
     birthDate: input.person.birthDate,
     calendarType: input.person.calendarType,
     start: input.eventDate,
     days: 1,
+    strength,
   }).days[0];
 
   // 오늘부터 시험 전날까지
   const span = Math.max(0, Math.min(MAX_DAYS, dDay));
-  const before = span > 0 ? luckRange(input.person, start, span) : [];
+  const before = span > 0 ? luckRange(input.person, start, span, strength) : [];
   const focusAll = before.filter((d) => d.tone !== "caution" && FOCUS_GODS.includes(d.tenGod));
   const focusDays = [...focusAll]
     .sort((a, b) => b.score - a.score || a.date.localeCompare(b.date))

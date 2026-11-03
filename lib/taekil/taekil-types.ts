@@ -76,6 +76,8 @@ export type TaekilDetail = {
    * 다시 볼 때도 예전 방식으로 계산해야 날짜와 조언이 어긋나지 않는다.
    */
   sonRule?: boolean;
+  /** 2 = 날마다 흐름에 신강·신약을 반영해 고른 풀이(2026-11-03~). 없으면 예전 계산으로 다시 연다 */
+  dayLuckV?: 2;
 };
 
 export type TaekilPaid = {

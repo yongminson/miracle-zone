@@ -83,11 +83,12 @@ ${avoid.map((d) => line(d)).join("\n") || "없음"}
     prepare: prepare.length ? prepare : ["필요한 서류와 일정을 하루 전에 한 번 더 확인해 두세요."],
     motto: text(raw.motto, "준비된 날이 가장 좋은 날").slice(0, 60),
     sonRule: true,
+    dayLuckV: 2,
   };
 }
 
 export function buildTaekil(input: TaekilInput, detail: TaekilDetail): Omit<TaekilPaid, "reopened"> {
   // 손 없는 날 규칙 전에 결제한 풀이는 그때 방식대로 다시 계산해야 날짜와 조언이 맞는다
-  const { preview, ranked, avoid } = calculateTaekil(input, detail.start, detail.sonRule === true);
+  const { preview, ranked, avoid } = calculateTaekil(input, detail.start, detail.sonRule === true, detail.dayLuckV === 2);
   return { input, preview, ranked, avoid, detail };
 }

@@ -71,6 +71,8 @@ export type MonthlyDetail = {
   weeks: MonthlyWeek[];
   areas: MonthlyArea[];
   motto: string;
+  /** 2 = 날마다 흐름에 신강·신약을 반영해 만든 풀이(2026-11-03~). 없으면 예전 계산으로 다시 연다 */
+  dayLuckV?: 2;
 };
 
 /** 결제 후 화면에 주는 전부 — 달력·목적별 날짜는 계산으로 매번 다시 만든다 */

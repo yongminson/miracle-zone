@@ -1,6 +1,7 @@
 import KoreanLunarCalendar from "korean-lunar-calendar";
 import { Solar } from "lunar-javascript";
 import { calculateDayLuck } from "@/lib/calendar/day-luck";
+import { sajuStrength } from "@/lib/saju/strength";
 import { CLASH, isHarmony, tenGodForStem } from "@/lib/newyear/newyear-engine";
 
 export type FortuneGender = "male" | "female";
@@ -147,22 +148,9 @@ function getSajuRelation(me: SajuElement, target: SajuElement): string {
   return "producedBy";
 }
 
-/** 신강·신약과 필요한 기운(용신 쪽) — 이름풀이(lib/name/name-engine.ts)도 같은 판정을 쓴다 */
+/** 신강·신약과 필요한 기운(용신 쪽) — 판정은 lib/saju/strength.ts 하나(운세 캘린더·이름풀이와 같음) */
 export function getSajuStrength(dayMaster: SajuElement, counts: ElementCountMap) {
-  const elements: SajuElement[] = ["wood", "fire", "earth", "metal", "water"];
-  const idx = elements.indexOf(dayMaster);
-  const produces = elements[(idx + 1) % 5];
-  const conquers = elements[(idx + 2) % 5];
-  const conqueredBy = elements[(idx + 3) % 5];
-  const producedBy = elements[(idx + 4) % 5];
-
-  const support = counts[dayMaster] + counts[producedBy];
-  const drain = counts[produces] + counts[conquers] + counts[conqueredBy];
-
-  const isStrong = support > drain;
-  const favorable = isStrong ? [produces, conquers, conqueredBy] : [dayMaster, producedBy];
-
-  return { isStrong, favorable, support, drain };
+  return sajuStrength(dayMaster, counts);
 }
 
 // ───────────── 오늘의 운세 (2026-11-03 다시 짬) ─────────────
@@ -405,12 +393,17 @@ export function buildFortuneProfile(input: FortuneEngineInput): FortuneEnginePro
   const summaryText = `년주: ${yearPillar.stemHanja}${yearPillar.branchHanja}, 월주: ${monthPillar.stemHanja}${monthPillar.branchHanja}, 일주: ${dayPillar.stemHanja}${dayPillar.branchHanja}`;
 
   const { isStrong, favorable } = getSajuStrength(dayMasterElement, elementCounts);
-  const todayBranchElement = EARTHLY_BRANCHES.find((b) => b.hanja === todayPillar.branchHanja)!.element;
   const isFavorableDay = favorable.includes(todayPillar.element);
-  const branchFavorable = favorable.includes(todayBranchElement);
 
   // 운세 캘린더·아침 알림과 같은 계산 — 오늘의 성격(제목·행동)과 기본 점수가 서로 어긋나지 않게 한 곳에서 가져온다
-  const dayLuck = calculateDayLuck({ birthDate: actualDate, calendarType: "solar", start: todayDateStr, days: 1 }).days[0];
+  // 신강·신약(필요한 기운)도 캘린더 계산 안에서 본다. 태어난 시를 알면 그 기둥까지 넣어 판정한다
+  const dayLuck = calculateDayLuck({
+    birthDate: actualDate,
+    calendarType: "solar",
+    start: todayDateStr,
+    days: 1,
+    timePillar: timePillar ? { stem: timePillar.stemHanja, branch: timePillar.branchHanja } : null,
+  }).days[0];
   const tenGod = tenGodForStem(dayPillar.stemHanja, todayPillar.stemHanja);
   const info = TEN_GOD_INFO[tenGod] ?? TEN_GOD_INFO.비견;
 
@@ -422,14 +415,8 @@ export function buildFortuneProfile(input: FortuneEngineInput): FortuneEnginePro
   const yearClash = CLASH[yearPillar.branchHanja] === tb;
   const branchRelation = dayClash ? "clash" : dayHarmony ? "combo" : "normal";
 
-  // 총운: 캘린더 점수 + 내 원국에 오늘 기운이 필요한지. 캘린더의 "좋은 날/보통/조심할 날" 구간은 넘지 않는다.
-  const personal = (isFavorableDay ? 4 : -3) + (branchFavorable ? 2 : -2);
-  const raw = dayLuck.score + personal;
-  const total =
-    dayLuck.tone === "good" ? Math.min(96, Math.max(78, raw))
-    : dayLuck.tone === "normal" ? Math.min(77, Math.max(61, raw))
-    : dayClash ? Math.max(40, Math.min(dayLuck.score, raw))
-    : Math.max(40, Math.min(60, raw));
+  // 총운 = 운세 캘린더·아침 알림과 같은 점수 (2026-11-03 부터 신강·신약도 캘린더 계산에 들어가 따로 더하지 않는다)
+  const total = dayLuck.score;
 
   const d = info.delta;
   const loveDelta = gender === "male" ? d.loveMale ?? d.love : d.loveFemale ?? d.love;

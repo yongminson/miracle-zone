@@ -139,17 +139,19 @@ function birthPillars(input: MonthlyInput): { dayStem: string; dayBranch: string
   return { dayStem: eightChar.getDayGan(), dayBranch: eightChar.getDayZhi() };
 }
 
-function monthDays(input: MonthlyInput, year: number, month: number): DayLuck[] {
+function monthDays(input: MonthlyInput, year: number, month: number, strength: boolean): DayLuck[] {
   const length = new Date(Date.UTC(year, month, 0)).getUTCDate();
   return calculateDayLuck({
     birthDate: input.birthDate,
     calendarType: input.calendarType,
     start: `${keyOf(year, month)}-01`,
     days: length,
+    strength,
   }).days;
 }
 
-export function calculateMonthly(input: MonthlyInput, monthKey: string): MonthlyResult {
+/** strength: 날마다 흐름에 신강·신약 반영(기본). 2026-11-03 전에 결제한 풀이를 다시 열 때만 false */
+export function calculateMonthly(input: MonthlyInput, monthKey: string, strength = true): MonthlyResult {
   const parsed = parseKey(monthKey);
   if (!parsed) throw new Error("달을 확인해 주세요.");
   const { dayStem, dayBranch } = birthPillars(input);
@@ -170,7 +172,7 @@ export function calculateMonthly(input: MonthlyInput, monthKey: string): Monthly
     note = "사람 운이 따르는 달이에요. 만남과 협력이 잘 풀리기 쉬워요.";
   }
 
-  const days = monthDays(input, parsed.year, parsed.month);
+  const days = monthDays(input, parsed.year, parsed.month, strength);
   return {
     monthKey,
     year: parsed.year,
@@ -192,10 +194,11 @@ export function calculateMonthly(input: MonthlyInput, monthKey: string): Monthly
 export function calculateMonthlyCalendar(
   input: MonthlyInput,
   monthKey: string,
+  strength = true,
 ): { days: DayLuck[]; purposes: MonthlyPurpose[] } {
   const parsed = parseKey(monthKey);
   if (!parsed) throw new Error("달을 확인해 주세요.");
-  const days = monthDays(input, parsed.year, parsed.month);
+  const days = monthDays(input, parsed.year, parsed.month, strength);
 
   // 이번 달을 중간에 샀으면 지난 날은 고르지 않는다
   const today = kstToday();

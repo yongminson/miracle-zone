@@ -81,9 +81,11 @@ export async function generateSeasonDetail(input: SeasonInput): Promise<SeasonDe
     eventDayTips: tips.length ? tips : [eventDay.action],
     plan: plan.length ? plan : [{ label: `D-${preview.dDay}~D-1`, text: "집중하기 좋은 날에 실전 모의고사를 풀고, 쉬어 갈 날엔 오답만 가볍게 보세요." }],
     cheer: text(raw.cheer, "지금까지 한 만큼 충분히 해낼 거예요").slice(0, 80),
+    dayLuckV: 2,
   };
 }
 
 export function buildSeason(input: SeasonInput, detail: SeasonDetail): Omit<SeasonPaid, "reopened"> {
-  return { input, ...calculateSeason(input, detail.start), detail };
+  // 신강·신약 반영(2026-11-03) 전에 만든 풀이는 그때 계산으로 — 날짜와 AI 조언이 어긋나지 않게
+  return { input, ...calculateSeason(input, detail.start, detail.dayLuckV === 2), detail };
 }

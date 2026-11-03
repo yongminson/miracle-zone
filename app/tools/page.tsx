@@ -5241,7 +5241,9 @@ function MatchTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
     const partnerKey = `${partnerInfo.name}_${partnerInfo.gender}_${partnerInfo.calendar}_${partnerInfo.birthDate}_${partnerInfo.birthTime}`;
     
     const sortedKeys = [myKey, partnerKey].sort(); // 알파벳 순으로 정렬해버림 (위치 무관)
-    const cacheKey = `match_${sortedKeys[0]}_${sortedKeys[1]}_${relationshipType}`;
+    // v3: 2026-11-03 무료 궁합을 유료 심층 풀이와 같은 계산·같은 말로 맞췄다. 예전 키는 날짜·버전이 없어
+    // 10/29 전 결과(옛 점수, AI 가 지어낸 좋은 날)가 계속 나와 유료 풀이와 어긋났다
+    const cacheKey = `match_v3_${sortedKeys[0]}_${sortedKeys[1]}_${relationshipType}`;
     if (typeof window !== "undefined") {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {

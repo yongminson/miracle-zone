@@ -51,7 +51,7 @@ function addDays(ymd: string, n: number): string {
 }
 
 /** 90일을 31일씩 나눠 계산한다(운세 캘린더는 한 번에 31일까지) */
-function rangeDays(person: TaekilPerson, start: string): DayLuck[] {
+function rangeDays(person: TaekilPerson, start: string, strength: boolean): DayLuck[] {
   const out: DayLuck[] = [];
   for (let offset = 0; offset < TAEKIL_RANGE_DAYS; offset += 31) {
     out.push(
@@ -60,6 +60,7 @@ function rangeDays(person: TaekilPerson, start: string): DayLuck[] {
         calendarType: person.calendarType,
         start: addDays(start, offset),
         days: Math.min(31, TAEKIL_RANGE_DAYS - offset),
+        strength,
       }).days,
     );
   }
@@ -68,11 +69,11 @@ function rangeDays(person: TaekilPerson, start: string): DayLuck[] {
 
 type Scored = { a: DayLuck; b: DayLuck | null; total: number; fit: boolean; noSon: boolean };
 
-function score(input: TaekilInput, start: string, sonRule: boolean): Scored[] {
+function score(input: TaekilInput, start: string, sonRule: boolean, strength: boolean): Scored[] {
   const fit = PURPOSE_FIT[input.purpose];
   const useSon = sonRule && input.purpose === "move";
-  const a = rangeDays(input.a, start);
-  const b = input.b ? rangeDays(input.b, start) : null;
+  const a = rangeDays(input.a, start, strength);
+  const b = input.b ? rangeDays(input.b, start, strength) : null;
   return a.map((day, i) => {
     const other = b ? b[i] : null;
     const bonus = (d: DayLuck) => (fit.gods.includes(d.tenGod) ? 12 : 0) + (d.note?.includes("사람 운") ? 4 : 0);
@@ -101,12 +102,12 @@ export function taekilLabel(purpose: TaekilPurpose): string {
 
 /** 계산 전부 — 무료는 preview 만, 유료는 순위·피할 날까지 */
 /**
- * sonRule: 이사 '손 없는 날' 우선 (기본 켬). 예전에 결제한 택일을 다시 열 때만 false 로 넘겨
- * 그때 고른 날짜와 조언이 그대로 나오게 한다.
+ * sonRule: 이사 '손 없는 날' 우선 (기본 켬). strength: 날마다 흐름에 신강·신약 반영 (기본 켬).
+ * 예전에 결제한 택일을 다시 열 때만 false 로 넘겨 그때 고른 날짜와 조언이 그대로 나오게 한다.
  */
-export function calculateTaekil(input: TaekilInput, start = kstToday(), sonRule = true) {
+export function calculateTaekil(input: TaekilInput, start = kstToday(), sonRule = true, strength = true) {
   const together = !!input.b;
-  const scored = score(input, start, sonRule);
+  const scored = score(input, start, sonRule, strength);
   const safe = scored.filter((s) => s.a.tone !== "caution" && (!s.b || s.b.tone !== "caution"));
   const useSon = sonRule && input.purpose === "move";
   const safeSon = safe.filter((s) => s.noSon);

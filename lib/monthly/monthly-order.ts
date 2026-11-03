@@ -40,15 +40,19 @@ function rowToInput(row: OrderRow): MonthlyInput {
 
 async function writeDetail(supabase: SupabaseClient, row: OrderRow): Promise<MonthlyOrderOutcome> {
   const input = rowToInput(row);
-  const result = calculateMonthly(input, row.month_key);
-  const { days, purposes } = calculateMonthlyCalendar(input, row.month_key);
   if (row.detail) {
+    // 신강·신약 반영(2026-11-03) 전에 만든 풀이는 그때 계산으로 — 날짜와 AI 조언이 어긋나지 않게
+    const strength = row.detail.dayLuckV === 2;
+    const result = calculateMonthly(input, row.month_key, strength);
+    const { days, purposes } = calculateMonthlyCalendar(input, row.month_key, strength);
     return { ok: true, input, result, days, purposes, detail: row.detail, reopened: true };
   }
+  const result = calculateMonthly(input, row.month_key);
+  const { days, purposes } = calculateMonthlyCalendar(input, row.month_key);
 
   let detail: MonthlyDetail;
   try {
-    detail = await generateMonthlyDetail(input, result, days, purposes);
+    detail = { ...(await generateMonthlyDetail(input, result, days, purposes)), dayLuckV: 2 };
   } catch (error) {
     console.error("[monthly-order] detail generation failed", error);
     return {

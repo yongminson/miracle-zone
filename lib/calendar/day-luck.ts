@@ -7,6 +7,7 @@ import {
   toSolar,
   type NewYearCalendarType,
 } from "@/lib/newyear/newyear-engine";
+import { BRANCH_ELEMENT, STEM_ELEMENT, countPillarElements, sajuStrength } from "@/lib/saju/strength";
 import type { DayLuck, DayLuckRange, DayLuckTone } from "./day-luck-types";
 
 /**
@@ -17,6 +18,10 @@ import type { DayLuck, DayLuckRange, DayLuckTone } from "./day-luck-types";
  *
  * 사건을 예언하지 않는다. "이런 일이 생긴다"가 아니라 "이런 일에 힘을 쓰면 좋다"로
  * 쓴다. 아무 일도 없었을 때 믿음이 깨지지 않게, 그날 해 볼 행동을 권하는 방식이다.
+ *
+ * 2026-11-03 (strength): 신강·신약도 본다. 그날 천간·지지 오행이 내게 필요한 기운이면 더하고(+4·+2),
+ * 아니면 뺀다(-4·-2). 전엔 일간·일지만 봐서 일간이 같은 사람(열에 하나)은 같은 날 결과가 거의 같았다.
+ * 예전에 결제한 이달의 운세·택일·시험운은 다시 열 때 strength: false 로 그때 날짜를 그대로 보여 준다.
  */
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -50,6 +55,10 @@ export function calculateDayLuck(input: {
   calendarType: NewYearCalendarType;
   start?: string;
   days?: number;
+  /** 신강·신약 반영 (기본 켬). 2026-11-03 전에 결제한 풀이를 다시 열 때만 false */
+  strength?: boolean;
+  /** 태어난 시의 기둥(천간·지지 한자) — 알면 신강·신약 판정에 넣는다(오늘의 운세) */
+  timePillar?: { stem: string; branch: string } | null;
 }): DayLuckRange {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.birthDate.trim());
   if (!match) throw new Error("생년월일을 YYYY-MM-DD 형식으로 입력해 주세요.");
@@ -60,6 +69,18 @@ export function calculateDayLuck(input: {
   birth.setSect(2);
   const dayStem = birth.getDayGan();
   const dayBranch = birth.getDayZhi();
+  const useStrength = input.strength !== false;
+  const favorable = useStrength
+    ? sajuStrength(
+        STEM_ELEMENT[dayStem],
+        countPillarElements([
+          { stem: birth.getYearGan(), branch: birth.getYearZhi() },
+          { stem: birth.getMonthGan(), branch: birth.getMonthZhi() },
+          { stem: dayStem, branch: dayBranch },
+          ...(input.timePillar ? [input.timePillar] : []),
+        ]),
+      ).favorable
+    : [];
 
   const start = input.start && /^\d{4}-\d{2}-\d{2}$/.test(input.start) ? input.start : kstToday();
   const count = Math.min(Math.max(input.days ?? 7, 1), 31);
@@ -84,6 +105,10 @@ export function calculateDayLuck(input: {
     } else if (isHarmony(dayBranch, ganji[1])) {
       score += 8;
       note = "사람 운이 따라요. 만남·협력이 잘 풀리기 쉬워요.";
+    }
+    if (useStrength) {
+      score += favorable.includes(STEM_ELEMENT[ganji[0]]) ? 4 : -4;
+      score += favorable.includes(BRANCH_ELEMENT[ganji[1]]) ? 2 : -2;
     }
     score = Math.max(40, Math.min(95, score));
 

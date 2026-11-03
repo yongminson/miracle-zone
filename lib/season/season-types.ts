@@ -53,6 +53,8 @@ export type SeasonDetail = {
   /** D-day 구간별 준비(예: D-30~D-8, D-7~D-1) */
   plan: { label: string; text: string }[];
   cheer: string;
+  /** 2 = 날마다 흐름에 신강·신약을 반영해 만든 풀이(2026-11-03~). 없으면 예전 계산으로 다시 연다 */
+  dayLuckV?: 2;
 };
 
 export type SeasonPaid = {

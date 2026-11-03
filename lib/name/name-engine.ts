@@ -21,7 +21,6 @@ const ELEMENT_HANJA: Record<Element, string> = { 목: "木", 화: "火", 토: "�
 const label = (e: Element) => `${e}(${ELEMENT_HANJA[e]})`;
 const FROM_SAJU: Record<SajuElement, Element> = { wood: "목", fire: "화", earth: "토", metal: "금", water: "수" };
 const GENERATES: Record<Element, Element> = { 목: "화", 화: "토", 토: "금", 금: "수", 수: "목" };
-const CONTROLS: Record<Element, Element> = { 목: "토", 토: "수", 수: "화", 화: "금", 금: "목" };
 
 const STROKES = HANJA_STROKES as unknown as Record<string, [number, number]>;
 

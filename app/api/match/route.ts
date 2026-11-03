@@ -12,20 +12,6 @@ import {
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
-// 🚀 1. 이름 초성 오행 완벽 계산기 (절대 안 바뀜)
-function getNameElement(name: string) {
-  if (!name) return "흙의 기운(土)";
-  const firstChar = name.charCodeAt(0);
-  if (firstChar < 44032 || firstChar > 55203) return "흙의 기운(土)"; 
-  const cho = Math.floor((firstChar - 44032) / 588);
-  // ㄱ,ㄲ,ㅋ / ㄴ,ㄷ,ㄸ,ㄹ,ㅌ / ㅇ,ㅎ / ㅅ,ㅆ,ㅈ,ㅉ,ㅊ / ㅁ,ㅂ,ㅃ,ㅍ
-  if ([0, 1, 15].includes(cho)) return "나무의 기운(木)";
-  if ([2, 3, 4, 5, 16].includes(cho)) return "불의 기운(火)";
-  if ([11, 18].includes(cho)) return "흙의 기운(土)";
-  if ([9, 10, 12, 13, 14].includes(cho)) return "쇠의 기운(金)";
-  if ([6, 7, 8, 17].includes(cho)) return "물의 기운(水)";
-  return "나무의 기운(木)";
-}
 
 // 사주 오행·궁합 점수는 2026-10-29 부터 진짜 사주 계산(lib/match/match-engine.ts)으로 낸다.
 // 예전엔 (년+월+일)÷5 나머지와 이름·생일 문자열을 섞은 숫자였다 — 무료 점수와 유료 궁합 심층 풀이가 같은 계산이어야 한다.
@@ -80,8 +66,6 @@ export async function POST(request: NextRequest) {
     const relLabel = relationshipLabel[relationshipType] || "연인";
 
     // 🚀 서버에서 모든 것을 통제! AI의 헛소리 원천 차단
-    const myNameElem = getNameElement(myInfo.name);
-    const partnerNameElem = getNameElement(partnerInfo.name);
     const toPerson = (info: Record<string, unknown>): MatchPerson => ({
       name: String(info.name ?? "").slice(0, 20),
       birthDate: String(info.birthDate ?? "").trim(),
@@ -97,14 +81,19 @@ export async function POST(request: NextRequest) {
     const mySajuElem = ELEMENT_LABEL[calc.a.dayMaster.element as MatchElement] ?? calc.a.dayMaster.element;
     const partnerSajuElem = ELEMENT_LABEL[calc.b.dayMaster.element as MatchElement] ?? calc.b.dayMaster.element;
     const fixedScore = calc.score;
+    const elementRelation = describeElementRelation(calc, myInfo.name, partnerInfo.name);
 
+    // 예전엔 이름 초성 오행(김=나무 등)도 같이 줘서 제목이 "나무와 쇠, 물과 불"처럼 사주와 다른 기운을 섞어 말했다.
+    // 유료 심층 풀이와 같은 말을 하도록 사주 기운(일간)만 준다.
     const prompt = `
-    [사람 A] 이름: ${myInfo.name} (초성 기운: ${myNameElem}), 사주 기운: ${mySajuElem}
-    [사람 B] 이름: ${partnerInfo.name} (초성 기운: ${partnerNameElem}), 사주 기운: ${partnerSajuElem}
+    [사람 A] 이름: ${myInfo.name}, 사주 기운(일간): ${mySajuElem}
+    [사람 B] 이름: ${partnerInfo.name}, 사주 기운(일간): ${partnerSajuElem}
     [관계 유형]: ${relLabel}
 
     [사주 계산 근거 — 이 내용과 어긋나는 말을 하지 마세요]
     ${describeMatchFacts(calc, myInfo.name, partnerInfo.name)}
+    두 사람 오행 관계 한 줄: ${elementRelation}
+    (title·summary·details 에서 오행을 말할 땐 위 두 사람의 사주 기운만 쓰고, 상생/상극도 위 관계 그대로 쓰세요)
     
     🚨 [긴급 명령] 이 두 사람의 궁합 점수는 **${fixedScore}점**으로 이미 확정되었습니다!
     이 점수(${fixedScore}점)와 확정된 오행 기운, 그리고 [${relLabel}] 관계에 맞는 톤으로 JSON 답변을 만들어줘.
@@ -133,7 +122,7 @@ export async function POST(request: NextRequest) {
     parsedData.grade = calc.grade;
     parsedData.categoryScores = calc.categoryScores;
     // 오행 관계·좋은 날·조심할 날은 AI 가 아니라 계산으로 (예전엔 AI 가 "수요일, 매월 7일"을 지어냈다)
-    parsedData.elementRelation = describeElementRelation(calc, myInfo.name, partnerInfo.name);
+    parsedData.elementRelation = elementRelation;
     const days = describeMatchDays(calc, myInfo.name, partnerInfo.name);
     parsedData.luckyDay = days.luckyDay;
     parsedData.carefulDay = days.carefulDay;
