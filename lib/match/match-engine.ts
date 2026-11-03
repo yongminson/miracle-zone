@@ -48,6 +48,9 @@ export type MatchCalc = {
   complements: { to: "a" | "b"; element: MatchElement }[];
   a: MatchSide;
   b: MatchSide;
+  /** 두 사람의 일간·일지 한자 (좋은 날·조심할 날, 오행 관계 문장 계산용) */
+  dayStems?: { a: string; b: string };
+  dayBranches?: { a: string; b: string };
 };
 
 const ELEMENTS: MatchElement[] = ["목", "화", "토", "금", "수"];
@@ -153,7 +156,98 @@ export function calculateMatch(a: MatchPerson, b: MatchPerson): MatchCalc {
     complements,
     a: A.side,
     b: B.side,
+    dayStems: { a: A.dayStem, b: B.dayStem },
+    dayBranches: { a: A.dayBranch, b: B.dayBranch },
   };
+}
+
+const ELEMENT_NOUN: Record<MatchElement, string> = { 목: "나무", 화: "불", 토: "흙", 금: "쇠", 수: "물" };
+/** 상생 — 앞 기운이 뒤 기운을 살린다 */
+const GENERATE_PHRASE: Record<MatchElement, string> = {
+  목: "나무가 불을 지펴 주는",
+  화: "불이 흙을 단단하게 굳혀 주는",
+  토: "흙이 쇠를 품어 길러 주는",
+  금: "쇠가 물을 맑게 모아 주는",
+  수: "물이 나무를 키워 주는",
+};
+/** 상극 — 앞 기운이 뒤 기운을 누른다 */
+const CONTROL_PHRASE: Record<MatchElement, string> = {
+  목: "나무가 흙을 파고드는",
+  토: "흙이 물을 막아서는",
+  수: "물이 불을 끄는",
+  화: "불이 쇠를 녹이는",
+  금: "쇠가 나무를 베는",
+};
+const BRANCH_ANIMAL: Record<string, string> = {
+  子: "쥐", 丑: "소", 寅: "범", 卯: "토끼", 辰: "용", 巳: "뱀", 午: "말", 未: "양", 申: "원숭이", 酉: "닭", 戌: "개", 亥: "돼지",
+};
+/** 받침 있으면 a, 없으면 b (과/와, 이/가) */
+function josa(word: string, withFinal: string, without: string): string {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  return code >= 0 && code <= 11171 && code % 28 !== 0 ? withFinal : without;
+}
+const BRANCH_ORDER = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
+
+/**
+ * 오행 관계 한 줄 — 예전엔 AI 가 써서 "물이 금을 녹인다" 같은 틀린 문장이 나올 수 있었다.
+ * 두 사람 일간의 실제 관계(합·상생·같은 기운·상극)와 방향으로 서버가 쓴다.
+ */
+export function describeElementRelation(calc: MatchCalc, aName: string, bName: string): string {
+  const ea = (calc.a.dayMaster.element as MatchElement) || "토";
+  const eb = (calc.b.dayMaster.element as MatchElement) || "토";
+  const a = aName || "나";
+  const b = bName || "상대";
+  if (calc.stemRelation === "합") {
+    return `${a}님의 ${calc.a.dayMaster.korean}(${calc.a.dayMaster.hanja})${josa(calc.a.dayMaster.korean, "과", "와")} ${b}님의 ${calc.b.dayMaster.korean}(${calc.b.dayMaster.hanja})${josa(calc.b.dayMaster.korean, "이", "가")} 천간합을 이뤄요 — 기운은 달라도 서로 끌어당기는 인연이에요.`;
+  }
+  if (calc.stemRelation === "상생") {
+    const [giver, taker, el] = GENERATES[ea] === eb ? [a, b, ea] : [b, a, eb];
+    return `${GENERATE_PHRASE[el]} 상생 관계 — ${giver}님이 ${taker}님을 밀어주고, ${taker}님은 그 힘으로 꽃피우는 조합이에요.`;
+  }
+  if (calc.stemRelation === "같은 기운") {
+    return `둘 다 ${ELEMENT_NOUN[ea]}의 기운 — 말이 잘 통하지만, 고집이 부딪히면 둘 다 물러서지 않아요.`;
+  }
+  const [ctrl, target, el] = CONTROLS[ea] === eb ? [a, b, ea] : [b, a, eb];
+  return `${CONTROL_PHRASE[el]} 상극 관계 — ${ctrl}님 기운이 ${target}님을 누르기 쉬워, 말투와 주도권 조절이 관계의 열쇠예요.`;
+}
+
+/**
+ * 함께하면 좋은 날·조심할 날 — 예전엔 AI 가 "수요일, 매월 7일"처럼 지어냈다.
+ * 일진(그날의 지지)이 두 사람 일지(배우자 자리)와 합이 드는 날 / 충이 드는 날로 정한다.
+ * 결과가 저장돼 오래 보여도 틀리지 않게 특정 날짜 대신 "○○날"(12일마다 돌아옴)로 쓴다.
+ */
+export function describeMatchDays(calc: MatchCalc, aName: string, bName: string): { luckyDay: string; carefulDay: string } {
+  const a = aName || "나";
+  const b = bName || "상대";
+  const da = calc.dayBranches?.a;
+  const db = calc.dayBranches?.b;
+  if (!da || !db) return { luckyDay: "", carefulDay: "" };
+  const label = (x: string) => `${BRANCH_ANIMAL[x]}(${x})날`;
+
+  const clashA = CLASH[da];
+  const clashB = CLASH[db];
+  const candidates = BRANCH_ORDER.filter((x) => x !== clashA && x !== clashB);
+  const both = candidates.filter((x) => isHarmony(x, da) && isHarmony(x, db));
+  const one = candidates.filter((x) => isHarmony(x, da) !== isHarmony(x, db));
+  let luckyDay: string;
+  if (both.length) {
+    luckyDay = `${both.slice(0, 2).map(label).join("·")} — 두 사람 배우자 자리에 모두 합이 드는 날이에요. 일진은 12일마다 돌아와요.`;
+  } else if (one.length) {
+    const picked = one.slice(0, 2);
+    const whoOf = (x: string) => (isHarmony(x, da) ? a : b);
+    luckyDay =
+      picked.length === 2 && whoOf(picked[0]) !== whoOf(picked[1])
+        ? `${label(picked[0])}은 ${whoOf(picked[0])}님, ${label(picked[1])}은 ${whoOf(picked[1])}님 배우자 자리에 합이 드는 날이에요. 둘 다 부딪히지 않고, 12일마다 돌아와요.`
+        : `${picked.map(label).join("·")} — ${whoOf(picked[0])}님 배우자 자리에 합이 들고 둘 다 부딪히지 않는 날이에요. 12일마다 돌아와요.`;
+  } else {
+    luckyDay = `${candidates.slice(0, 2).map(label).join("·")} — 두 사람 모두 부딪히지 않는 편안한 날이에요.`;
+  }
+
+  const carefulDay =
+    clashA === clashB
+      ? `${label(clashA)} — 두 사람 배우자 자리와 모두 부딪히는 날이라, 예민한 대화·큰 결정은 피하세요.`
+      : `${label(clashA)}·${label(clashB)} — 각각 ${a}님·${b}님 배우자 자리와 부딪히는 날이라 예민해지기 쉬워요.`;
+  return { luckyDay, carefulDay };
 }
 
 /** AI 에게 넘기는 계산 근거(무료·유료 공통) */

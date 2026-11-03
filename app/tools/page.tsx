@@ -404,8 +404,9 @@ type DaeunInfo = {
 };
 
 // v2: 2026-10-11 만세력(일주 이틀 밀림·음력 가짜 변환) 수정 — 그날 저장된 틀린 결과를 버리고 다시 계산하게 한다
-const FORTUNE_CACHE_PREFIX = "fortune-cache-v2-";
-const PREMIUM_CACHE_PREFIX = "fortune-premium-cache-";
+// v3: 2026-11-03 오늘의 운세 계산을 바꿨다 — 그날 먼저 본 예전 결과가 브라우저에 남아 새 결과를 가리지 않게 이름을 바꾼다
+const FORTUNE_CACHE_PREFIX = "fortune-cache-v3-";
+const PREMIUM_CACHE_PREFIX = "fortune-premium-cache-v3-";
 const NAME_CACHE_PREFIX = "name-cache-";
 
 function getKstDateKey() {
@@ -439,7 +440,7 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
   const [premiumLoadingStep, setPremiumLoadingStep] = useState(0);
 
   const getCacheKey = () => {
-    const today = new Date().toDateString();
+    const today = getKstDateKey();
     return `${FORTUNE_CACHE_PREFIX}${today}-${name}-${gender}-${birthDate}-${calendarType}-${birthTime}`;
   };
 
@@ -6236,80 +6237,111 @@ function getZodiacYears(baseYear: number): string {
   return years.join("·");
 }
 
-// ===== 오늘의 띠별 운세 (날짜 기반 결정적 생성) =====
-// 같은 날 + 같은 띠 = 같은 결과, 날짜 바뀌면 자동 변동
-function seededRandom(seed: number): number {
-  const x = Math.sin(seed) * 10000;
-  return x - Math.floor(x);
-}
-
-function getTodaySeed(zodiacId: string): number {
-  const today = new Date();
-  const dateStr = `${today.getFullYear()}${today.getMonth() + 1}${today.getDate()}`;
-  let hash = 0;
-  const combined = dateStr + zodiacId;
-  for (let i = 0; i < combined.length; i++) {
-    hash = (hash << 5) - hash + combined.charCodeAt(i);
-    hash = hash & hash;
-  }
-  return Math.abs(hash);
-}
-
-const LUCKY_COLORS = ["황금색", "은백색", "진홍색", "비취색", "칠흑색", "순백색", "하늘색", "자수정색"];
-const LUCKY_DIRECTIONS = ["정동쪽", "정서쪽", "정남쪽", "정북쪽", "남동쪽", "북서쪽", "남서쪽", "북동쪽"];
-const LUCKY_TIMES = ["새벽 5시~7시", "오전 9시~11시", "낮 12시~1시", "오후 3시~5시", "저녁 7시~9시", "밤 11시~새벽 1시"];
-const FORTUNE_MESSAGES = {
-  high: [
-    "오늘은 막혔던 혈이 뚫리듯 기운이 활짝 열리는 날입니다. 망설이던 도전을 시작하기에 완벽한 타이밍입니다.",
-    "주변에서 뜻밖의 귀인이 손을 내미는 형국입니다. 독단적인 결정보다 협력을 통해 거대한 결실을 맺게 됩니다.",
-    "자신감이 곧 재물이 되는 하루입니다. 당신의 직감과 능력이 빛을 발하니 과감하게 판을 주도해 보십시오.",
-  ],
-  mid: [
-    "잔잔한 호수처럼 무난하게 흘러가는 하루입니다. 무리한 확장보다는 현재의 페이스를 유지하는 것이 이롭습니다.",
-    "서두르면 일을 그르치기 쉬우니 한 박자 쉬어가십시오. 오후 늦게 뜻밖의 작은 횡재수가 기다리고 있습니다.",
-    "오늘은 내실을 다지고 에너지를 비축하는 날입니다. 자극적인 변화보다 일상의 평온함 속에서 지혜를 찾으십시오.",
-  ],
-  low: [
-    "기운이 잠시 정체되는 흐름이니 무리한 지출이나 투자는 절대 금물입니다. 매사에 돌다리도 두드려보고 건너십시오.",
-    "예상치 못한 변수가 발생할 수 있으나 유연하게 대처하면 액땜할 수 있습니다. 언행을 무겁게 유지하는 것이 좋습니다.",
-    "컨디션 조절이 최우선인 하루입니다. 스트레스는 멀리하고, 나를 돌보는 온전한 휴식의 시간으로 삼으십시오.",
-  ],
+// ===== 오늘의 띠별 운세 — 오늘 일진(日辰)과 띠의 합·충·오행으로 계산 =====
+// 2026-11-03 전엔 날짜로 돌린 무작위였다(점수·문장·행운·잘 맞는 띠가 매일 제멋대로 바뀜).
+// 이제 오늘 일진의 천간 오행이 내 띠 오행을 살리는지·누르는지, 일진 지지가 내 띠와 합인지·충인지로 정한다.
+// 같은 일진(60일마다)이면 같은 결과, 잘 맞는 띠(육합)·부딪히는 띠(충)는 전통대로 고정.
+const Z_STEMS = "甲乙丙丁戊己庚辛壬癸";
+const Z_STEMS_KO = "갑을병정무기경신임계";
+const Z_BRANCHES = "子丑寅卯辰巳午未申酉戌亥";
+const Z_BRANCHES_KO = "자축인묘진사오미신유술해";
+const Z_ANIMALS = ["쥐", "소", "범", "토끼", "용", "뱀", "말", "양", "원숭이", "닭", "개", "돼지"];
+const Z_STEM_EL = ["목", "목", "화", "화", "토", "토", "금", "금", "수", "수"];
+const Z_BRANCH_EL = ["수", "토", "목", "목", "토", "화", "화", "토", "금", "금", "토", "수"];
+const Z_EL_LABEL = { 목: "목(木)", 화: "화(火)", 토: "토(土)", 금: "금(金)", 수: "수(水)" };
+const Z_GEN = { 목: "화", 화: "토", 토: "금", 금: "수", 수: "목" };
+const Z_CTRL = { 목: "토", 토: "수", 수: "화", 화: "금", 금: "목" };
+/** 육합 짝: 자축·인해·묘술·진유·사신·오미 */
+const Z_SIX = [1, 0, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2];
+/** 낮 시간대(진시~술시)만 행운의 시간으로 쓴다 */
+const Z_HOUR_LABEL = { 4: "오전 7시~9시", 5: "오전 9시~11시", 6: "오전 11시~오후 1시", 7: "오후 1시~3시", 8: "오후 3시~5시", 9: "오후 5시~7시", 10: "저녁 7시~9시" };
+const Z_LUCK = {
+  목: { color: "초록색·청색", direction: "동쪽", number: "3·8" },
+  화: { color: "빨간색·보라색", direction: "남쪽", number: "2·7" },
+  토: { color: "노란색·갈색", direction: "중앙(가까운 곳)", number: "5·10" },
+  금: { color: "흰색·은색", direction: "서쪽", number: "4·9" },
+  수: { color: "검은색·남색", direction: "북쪽", number: "1·6" },
 };
 
-function getDailyFortune(zodiacId: string) {
-  const seed = getTodaySeed(zodiacId);
-  const score = (offset: number) => Math.floor(seededRandom(seed + offset) * 35) + 65; // 65~100점 스케일링
-
-  const total = score(1);
-  const love = score(2);
-  const wealth = score(3);
-  const work = score(4);
-
-  const avg = (total + love + wealth + work) / 4;
-  const msgPool = avg >= 85 ? FORTUNE_MESSAGES.high : avg >= 73 ? FORTUNE_MESSAGES.mid : FORTUNE_MESSAGES.low;
-  const message = msgPool[Math.floor(seededRandom(seed + 5) * msgPool.length)];
-
-  const color = LUCKY_COLORS[Math.floor(seededRandom(seed + 6) * LUCKY_COLORS.length)];
-  const direction = LUCKY_DIRECTIONS[Math.floor(seededRandom(seed + 7) * LUCKY_DIRECTIONS.length)];
-  const time = LUCKY_TIMES[Math.floor(seededRandom(seed + 8) * LUCKY_TIMES.length)];
-  const number = Math.floor(seededRandom(seed + 9) * 45) + 1;
-
-  return { total, love, wealth, work, message, color, direction, time, number };
+/** 한국 시간 오늘의 일진 (율리우스 일수로 계산 — 2000-01-01 = 무오일) */
+function getTodayIljin() {
+  const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const [y, m, d] = ymd.split("-").map(Number);
+  const jdn = Math.floor(Date.UTC(y, m - 1, d) / 86400000) + 2440588;
+  const idx = (((jdn + 49) % 60) + 60) % 60;
+  const stem = idx % 10;
+  const branch = idx % 12;
+  return {
+    y, m, d, stem, branch,
+    hanja: Z_STEMS[stem] + Z_BRANCHES[branch],
+    korean: Z_STEMS_KO[stem] + Z_BRANCHES_KO[branch],
+  };
 }
 
-// 🚀 베스트/워스트 궁합 띠 (날짜 시드 기반)
-function getZodiacMatches(zodiacId: string, zodiacList: typeof ZODIAC_LIST) {
-  const seed = getTodaySeed(zodiacId);
-  const others = zodiacList.filter(z => z.id !== zodiacId);
-  
-  const bestIdx = Math.floor(seededRandom(seed + 10) * others.length);
-  let worstIdx = Math.floor(seededRandom(seed + 20) * others.length);
-  if (bestIdx === worstIdx) {
-    worstIdx = (worstIdx + 1) % others.length;
-  }
+function getDailyFortune(zodiacId: string) {
+  const zi = Math.max(0, ZODIAC_LIST.findIndex((z) => z.id === zodiacId));
+  const zLabel = ZODIAC_LIST[zi].label;
+  const iljin = getTodayIljin();
+  const ze = Z_BRANCH_EL[zi];
+  const se = Z_STEM_EL[iljin.stem];
+  const b = iljin.branch;
+  const dayAnimal = `${Z_ANIMALS[b]}날`;
+
+  // 천간: 오늘 기운이 내 띠를 살림(help) / 같음(same) / 내가 내보냄(express) / 내가 다스림(wealth) / 나를 누름(pressure)
+  const rel = Z_GEN[se] === ze ? "help" : se === ze ? "same" : Z_GEN[ze] === se ? "express" : Z_CTRL[ze] === se ? "wealth" : "pressure";
+  // 지지: 육합 / 삼합 / 같은 띠 / 충 / 없음
+  const br = Z_SIX[zi] === b ? "six" : b === zi ? "self" : (b + 6) % 12 === zi ? "clash" : b % 4 === zi % 4 ? "tri" : "none";
+
+  const base = { help: 77, same: 72, express: 70, wealth: 74, pressure: 63 }[rel];
+  const branchDelta = { six: 10, tri: 7, self: 3, clash: -15, none: 0 }[br];
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(v)));
+  const total = clamp(base + branchDelta, 40, 95);
+  const love = clamp(total + (br === "six" ? 6 : br === "tri" ? 3 : br === "clash" ? -6 : 0) + (rel === "express" ? 4 : rel === "pressure" ? -2 : 0), 40, 97);
+  const wealth = clamp(total + (rel === "wealth" ? 9 : rel === "same" ? -5 : rel === "express" ? 3 : 0), 40, 97);
+  const work = clamp(total + (rel === "pressure" || rel === "help" ? 5 : rel === "express" ? 2 : 0) + (br === "clash" ? -4 : 0), 40, 97);
+
+  const seLabel = Z_EL_LABEL[se];
+  const stemMsg = {
+    help: `오늘 일진의 ${seLabel} 기운이 ${zLabel}의 ${Z_EL_LABEL[ze]} 기운을 살려 주는 날입니다. 도움을 청하면 손을 내미는 사람이 있고, 공부·문서 일이 잘 풀립니다.`,
+    same: `오늘은 ${zLabel}와 같은 ${seLabel} 기운이 들어오는 날입니다. 뜻 맞는 사람과 힘을 합치기 좋지만, 경쟁과 지출도 함께 늘어납니다.`,
+    express: `${zLabel}의 기운이 오늘 일진의 ${seLabel} 쪽으로 흘러나가는 날입니다. 말과 아이디어가 잘 통하니 먼저 제안하되, 체력 소모는 조심하십시오.`,
+    wealth: `${zLabel}가 오늘 일진의 ${seLabel} 기운을 다스리는 형국이라 재물 흐름이 손에 잡히는 날입니다. 계산이 빨라지니 정리·거래에 유리합니다.`,
+    pressure: `오늘 일진의 ${seLabel} 기운이 ${zLabel}를 누르는 날입니다. 책임과 눈치가 늘어나니 앞에 나서기보다 맡은 일을 꼼꼼히 마무리하십시오.`,
+  }[rel];
+  const branchMsg = {
+    six: `${dayAnimal}은 ${zLabel}와 육합(六合)을 이루어 사람 사이의 일이 술술 풀립니다.`,
+    tri: `${dayAnimal}은 ${zLabel}와 삼합(三合)으로 손발이 맞아, 함께하는 일에 힘이 실립니다.`,
+    self: `${zLabel} 자신의 날이라 존재감이 커지니, 고집만 조금 내려놓으면 좋습니다.`,
+    clash: `${rel === "pressure" ? "" : "다만 "}${dayAnimal}은 ${zLabel}와 정면으로 부딪히는 충(沖)의 날이니, 이동·계약·큰 결정은 한 번 더 확인하십시오.`,
+    none: `일진과 띠 사이에 걸리는 것이 없어 흐름은 평탄합니다.`,
+  }[br];
+
+  // 행운의 기운: 나를 살리는 기운을 채우고, 누르는 날엔 사이를 이어 주는 기운(통관)으로
+  const generatorOf = (el: string) => Object.keys(Z_GEN).find((k) => Z_GEN[k] === el) as string;
+  const luckyEl = { help: se, same: Z_GEN[ze], express: generatorOf(ze), wealth: ze, pressure: Z_GEN[se] }[rel];
+  const luck = Z_LUCK[luckyEl];
+  // 행운의 시간: 내 띠와 합이 드는 낮 시간 중 오늘 일진과 부딪히지 않는 때
+  const hourCands = [Z_SIX[zi], ...[0, 4, 8].map((k) => (zi % 4) + k).filter((x) => x !== zi)];
+  const hour = hourCands.find((h) => Z_HOUR_LABEL[h] && (h + 6) % 12 !== b) ?? hourCands.find((h) => Z_HOUR_LABEL[h]);
+
   return {
-    best: others[bestIdx].label,
-    worst: others[worstIdx].label
+    total, love, wealth, work,
+    message: `${stemMsg} ${branchMsg}`,
+    color: luck.color,
+    direction: luck.direction,
+    time: hour !== undefined ? Z_HOUR_LABEL[hour] : "오후 1시~3시",
+    number: luck.number,
+    luckyEl: Z_EL_LABEL[luckyEl],
+    iljin,
+  };
+}
+
+// 잘 맞는 띠 = 육합, 부딪히는 띠 = 충 (전통 궁합, 날마다 바뀌지 않음)
+function getZodiacMatches(zodiacId: string, zodiacList: typeof ZODIAC_LIST) {
+  const zi = Math.max(0, zodiacList.findIndex((z) => z.id === zodiacId));
+  return {
+    best: `${zodiacList[Z_SIX[zi]].label} (육합)`,
+    worst: `${zodiacList[(zi + 6) % 12].label} (충)`,
   };
 }
 
@@ -6403,8 +6435,7 @@ const ZODIAC_LIST = [
 function DailyZodiacCard({ zodiacId, zodiacLabel }: { zodiacId: string; zodiacLabel: string }) {
   const f = getDailyFortune(zodiacId);
   const matches = getZodiacMatches(zodiacId, ZODIAC_LIST);
-  const today = new Date();
-  const dateLabel = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
+  const dateLabel = `${f.iljin.m}/${f.iljin.d} ${f.iljin.korean}일`;
 
   return (
     <div className="rounded-2xl border-2 border-[#C9A84C]/40 bg-gradient-to-b from-[#2D1B69]/40 via-slate-950/80 to-slate-950 p-6 space-y-6 shadow-[0_0_30px_rgba(201,168,76,0.15)] backdrop-blur-md">
@@ -6414,7 +6445,7 @@ function DailyZodiacCard({ zodiacId, zodiacLabel }: { zodiacId: string; zodiacLa
           <span className="text-xl animate-pulse">✨</span>
           <h4 className="text-base font-extrabold text-[#C9A84C] tracking-wide">오늘의 {zodiacLabel} 한줄 천기누설</h4>
         </div>
-        <span className="text-xs font-medium text-white/40 bg-white/5 px-2.5 py-1 rounded-full">{dateLabel}</span>
+        <span className="shrink-0 whitespace-nowrap text-xs font-medium text-white/40 bg-white/5 px-2.5 py-1 rounded-full">{dateLabel}</span>
       </div>
 
       <div className="p-4 rounded-xl bg-white/5 border border-white/5 shadow-inner">
@@ -6445,19 +6476,19 @@ function DailyZodiacCard({ zodiacId, zodiacLabel }: { zodiacId: string; zodiacLa
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-bold text-[#C9A84C]/80 tracking-widest uppercase px-1">🍀 대운을 이끄는 행운의 이정표</p>
+        <p className="text-xs font-bold text-[#C9A84C]/80 tracking-widest uppercase px-1">🍀 오늘 채우면 좋은 기운 · {f.luckyEl}</p>
         <div className="grid grid-cols-2 gap-2.5">
           {[
             { label: "🎨 행운의 색상", value: f.color, icon: "🎨" },
             { label: "🧭 향할 방향", value: f.direction, icon: "🧭" },
             { label: "⏰ 기운찬 시간", value: f.time, icon: "⏰" },
-            { label: "🔢 행운의 숫자", value: `${f.number}번`, icon: "🔢" },
+            { label: "🔢 행운의 숫자", value: f.number, icon: "🔢" },
           ].map((item) => (
             <div key={item.label} className="rounded-xl border border-white/5 bg-white/5 p-3 flex items-center gap-3 transition-all hover:bg-white/10 hover:border-white/10">
               <span className="text-xl bg-black/40 h-9 w-9 rounded-lg flex items-center justify-center shadow-md">{item.icon}</span>
               <div>
                 <p className="text-[10px] text-white/40 font-medium">{item.label}</p>
-                <p className="text-xs font-bold text-slate-200 mt-0.5">{item.value}</p>
+                <p className="text-xs font-bold text-slate-200 mt-0.5 break-keep">{item.value}</p>
               </div>
             </div>
           ))}
@@ -6466,17 +6497,17 @@ function DailyZodiacCard({ zodiacId, zodiacLabel }: { zodiacId: string; zodiacLa
 
       <div className="grid grid-cols-2 gap-3 pt-1">
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-center transition-all hover:bg-emerald-500/10">
-          <p className="text-[10px] font-bold text-emerald-400 tracking-wider mb-1">😍 최고의 시너지 띠</p>
+          <p className="text-[10px] font-bold text-emerald-400 tracking-wider mb-1">😍 잘 맞는 띠</p>
           <p className="text-sm font-black text-white drop-shadow-sm">{matches.best}</p>
         </div>
         <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 text-center transition-all hover:bg-rose-500/10">
-          <p className="text-[10px] font-bold text-rose-400 tracking-wider mb-1">⚠️ 충돌 주의 워스트 띠</p>
+          <p className="text-[10px] font-bold text-rose-400 tracking-wider mb-1">⚠️ 부딪히기 쉬운 띠</p>
           <p className="text-sm font-black text-white drop-shadow-sm">{matches.worst}</p>
         </div>
       </div>
 
       <p className="text-center text-[10px] text-white/20 tracking-wider">
-        ※ 본 천기는 매일 자정(00:00)에 우주의 흐름에 맞춰 자동으로 초기화됩니다.
+        ※ 오늘 일진({f.iljin.korean}일)과 띠의 합·충·오행으로 계산합니다. 매일 자정(한국 시간)에 바뀝니다.
       </p>
     </div>
   );

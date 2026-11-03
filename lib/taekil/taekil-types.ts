@@ -71,6 +71,11 @@ export type TaekilDetail = {
   tips: { date: string; tip: string }[];
   prepare: string[];
   motto: string;
+  /**
+   * 이사 '손 없는 날'을 보고 고른 풀이인지 (2026-11-03 추가). 이 표시가 없는 예전 결제는
+   * 다시 볼 때도 예전 방식으로 계산해야 날짜와 조언이 어긋나지 않는다.
+   */
+  sonRule?: boolean;
 };
 
 export type TaekilPaid = {

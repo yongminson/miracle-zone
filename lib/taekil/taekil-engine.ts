@@ -1,3 +1,4 @@
+import { Solar } from "lunar-javascript";
 import { calculateDayLuck, kstToday } from "@/lib/calendar/day-luck";
 import type { DayLuck } from "@/lib/calendar/day-luck-types";
 import {
@@ -17,7 +18,20 @@ import {
  * 그날 기운(십성)이 목적에 맞으면 점수를 더한다. 함께하는 사람이 있으면 두 사람 모두
  * 조심할 날이 아닌 날만 고르고 두 사람 점수를 더해 순위를 매긴다.
  * 이달의 운세의 "목적별 좋은 날"은 이번 달·혼자·두 날짜, 택일은 3개월·두 사람·순위 다섯 날이다.
+ *
+ * 이사·입주는 한국에서 가장 먼저 보는 '손 없는 날'(음력 9·10·19·20·29·30일)을 우선한다.
+ * 손 없는 날 가운데 두 사람 모두 조심할 날이 아닌 날을 먼저 고르고, 모자랄 때만 다른 날로 채운다.
  */
+
+/** 음력 날짜 끝자리가 9·0 이면 손(귀신)이 하늘로 올라가 없는 날 */
+function lunarDayOf(ymd: string): number {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return Solar.fromYmdHms(y, m, d, 12, 0, 0).getLunar().getDay();
+}
+function isNoSonDay(ymd: string): boolean {
+  const d = lunarDayOf(ymd);
+  return d % 10 === 9 || d % 10 === 0;
+}
 
 /** 목적마다 힘이 실리는 기운(십성)과 이유 */
 const PURPOSE_FIT: Record<TaekilPurpose, { gods: string[]; why: string }> = {
@@ -52,29 +66,32 @@ function rangeDays(person: TaekilPerson, start: string): DayLuck[] {
   return out;
 }
 
-type Scored = { a: DayLuck; b: DayLuck | null; total: number; fit: boolean };
+type Scored = { a: DayLuck; b: DayLuck | null; total: number; fit: boolean; noSon: boolean };
 
-function score(input: TaekilInput, start: string): Scored[] {
+function score(input: TaekilInput, start: string, sonRule: boolean): Scored[] {
   const fit = PURPOSE_FIT[input.purpose];
+  const useSon = sonRule && input.purpose === "move";
   const a = rangeDays(input.a, start);
   const b = input.b ? rangeDays(input.b, start) : null;
   return a.map((day, i) => {
     const other = b ? b[i] : null;
     const bonus = (d: DayLuck) => (fit.gods.includes(d.tenGod) ? 12 : 0) + (d.note?.includes("사람 운") ? 4 : 0);
     const total = day.score + bonus(day) + (other ? other.score + bonus(other) : 0);
-    return { a: day, b: other, total, fit: fit.gods.includes(day.tenGod) || (!!other && fit.gods.includes(other.tenGod)) };
+    const noSon = useSon && isNoSonDay(day.date);
+    return { a: day, b: other, total, fit: fit.gods.includes(day.tenGod) || (!!other && fit.gods.includes(other.tenGod)), noSon };
   });
 }
 
 function toDay(s: Scored, purpose: TaekilPurpose, together: boolean): TaekilDay {
   const n = together ? 2 : 1;
+  const why = s.fit ? PURPOSE_FIT[purpose].why : s.a.note ?? "큰 흔들림 없이 무난하게 흘러가는 날이에요.";
   return {
     date: s.a.date,
     weekday: s.a.weekday,
     // 목적에 맞는 날은 점수를 더해 고르므로 100을 넘을 수 있다 — 화면에는 99점까지만
     score: Math.min(99, Math.round(s.total / n)),
     title: s.a.title,
-    why: s.fit ? PURPOSE_FIT[purpose].why : s.a.note ?? "큰 흔들림 없이 무난하게 흘러가는 날이에요.",
+    why: s.noSon ? `손 없는 날(음력 ${lunarDayOf(s.a.date)}일)이에요. ${why}` : why,
   };
 }
 
@@ -83,15 +100,26 @@ export function taekilLabel(purpose: TaekilPurpose): string {
 }
 
 /** 계산 전부 — 무료는 preview 만, 유료는 순위·피할 날까지 */
-export function calculateTaekil(input: TaekilInput, start = kstToday()) {
+/**
+ * sonRule: 이사 '손 없는 날' 우선 (기본 켬). 예전에 결제한 택일을 다시 열 때만 false 로 넘겨
+ * 그때 고른 날짜와 조언이 그대로 나오게 한다.
+ */
+export function calculateTaekil(input: TaekilInput, start = kstToday(), sonRule = true) {
   const together = !!input.b;
-  const scored = score(input, start);
+  const scored = score(input, start, sonRule);
   const safe = scored.filter((s) => s.a.tone !== "caution" && (!s.b || s.b.tone !== "caution"));
-  const candidates = safe.filter((s) => s.fit && (s.a.tone === "good" || s.b?.tone === "good"));
+  const useSon = sonRule && input.purpose === "move";
+  const safeSon = safe.filter((s) => s.noSon);
+  const candidates = useSon
+    ? safeSon
+    : safe.filter((s) => s.fit && (s.a.tone === "good" || s.b?.tone === "good"));
   const pool = candidates.length >= 5 ? candidates : safe;
   // 오늘·내일은 준비할 시간이 없어 빼고, 같은 주에 몰리지 않게 사흘 이상 떨어뜨려 고른다
+  // 이사는 손 없는 날을 먼저 채우고, 다섯 날이 안 되면 나머지 무난한 날로 채운다
   const ranked: Scored[] = [];
-  for (const s of [...pool].sort((x, y) => y.total - x.total || x.a.date.localeCompare(y.a.date))) {
+  const order = (x: Scored, y: Scored) =>
+    (useSon ? Number(y.noSon) - Number(x.noSon) : 0) || y.total - x.total || x.a.date.localeCompare(y.a.date);
+  for (const s of [...(useSon ? safe : pool)].sort(order)) {
     if (s.a.date <= addDays(start, 1)) continue;
     if (ranked.some((r) => Math.abs(Date.parse(r.a.date) - Date.parse(s.a.date)) < 3 * 864e5)) continue;
     ranked.push(s);

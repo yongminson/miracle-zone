@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { ELEMENT_LABEL, calculateMatch, describeMatchFacts, type MatchElement, type MatchPerson } from "@/lib/match/match-engine";
+import {
+  ELEMENT_LABEL,
+  calculateMatch,
+  describeElementRelation,
+  describeMatchDays,
+  describeMatchFacts,
+  type MatchElement,
+  type MatchPerson,
+} from "@/lib/match/match-engine";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
@@ -29,7 +37,6 @@ const RESPONSE_FORMAT = `
   "title": "티키타카 폼 미친 '불'과 '쇠'의 만남",
   "summary": "서로의 부족한 기운을 찰떡같이 채워주는 환상의 짝꿍입니다.",
   "details": "서버가 확정한 오행 데이터를 바탕으로 한 MZ세대 맞춤 심층 풀이 (3~4문장)",
-  "elementRelation": "오행 상생/상극 관계 한줄 해석 (예: 물이 나무를 키우는 상생 관계 — 서로를 성장시키는 이상적인 조합)",
   "categoryScores": {
     "personality": 88,
     "values": 82,
@@ -39,9 +46,7 @@ const RESPONSE_FORMAT = `
   },
   "goodPoint": "환상의 케미 포인트 (가장 잘 맞는 점)",
   "badPoint": "마라맛 팩폭 주의구간 (싸우기 쉬운 포인트)",
-  "actionGuide": "오래가기 위한 꿀팁 1줄",
-  "luckyDay": "함께하면 좋은 날 (예: 수요일, 매월 7일)",
-  "carefulDay": "조심할 날 (예: 토요일, 숫자 4가 겹치는 날)"
+  "actionGuide": "오래가기 위한 꿀팁 1줄"
 }
 🚨 grade는 반드시 score 기준으로: 90이상=천생연분, 80이상=좋음, 70이상=보통, 69이하=주의 중 하나만 사용하세요.
 🚨 categoryScores의 모든 값은 0~100 숫자여야 합니다.
@@ -53,7 +58,9 @@ const SYSTEM_PROMPT = `당신은 MZ세대의 언어(티키타카, 팩폭, 케미
 - 오행 기운은 무조건 "나무의 기운(木)" 처럼 한글과 한자를 병기해서 사용하세요. (다른 기운을 지어내면 절대 안 됨)
 - 점수가 낮으면(50~60점대) 아주 맵고 뼈 때리는 '마라맛 팩폭'을 날리세요.
 - 점수가 높으면(80~90점대) 달달하고 부러운 느낌으로 작성하세요.
-- 사주 용어를 너무 어렵게 쓰지 말고, 친구가 옆에서 카톡으로 연애 상담해주듯 재밌고 직관적으로 쓰세요.`;
+- 사주 용어를 너무 어렵게 쓰지 말고, 친구가 옆에서 카톡으로 연애 상담해주듯 재밌고 직관적으로 쓰세요.
+- 오행 관계를 말할 땐 이 표만 따르세요. 상생: 나무→불→흙→쇠→물→나무 (물이 나무를 키움, 쇠가 물을 모음 등). 상극: 나무→흙, 흙→물, 물→불, 불→쇠, 쇠→나무 (물이 불을 끔, 불이 쇠를 녹임 등). "물이 쇠를 녹인다"처럼 표에 없는 관계는 절대 쓰지 마세요.
+- 좋은 날·조심할 날은 서버가 계산하니 글에 요일·날짜를 지어내지 마세요.`;
 
 export async function POST(request: NextRequest) {
   if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: "API 키가 없습니다." }, { status: 500 });
@@ -116,7 +123,8 @@ export async function POST(request: NextRequest) {
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.7, // 말투를 다채롭게 만들기 위한 창의성 허용 (오행과 점수는 프롬프트로 강제 고정함)
+      // 같은 두 사람을 다시 넣었을 때 풀이가 딴소리를 하지 않게 낮춘다(예전 0.7)
+      temperature: 0.4,
     });
 
     // 강제로 점수를 서버에서 계산한 fixedScore로 덮어씌움 (AI가 혹시라도 실수할까봐 이중 잠금)
@@ -124,6 +132,11 @@ export async function POST(request: NextRequest) {
     parsedData.score = fixedScore;
     parsedData.grade = calc.grade;
     parsedData.categoryScores = calc.categoryScores;
+    // 오행 관계·좋은 날·조심할 날은 AI 가 아니라 계산으로 (예전엔 AI 가 "수요일, 매월 7일"을 지어냈다)
+    parsedData.elementRelation = describeElementRelation(calc, myInfo.name, partnerInfo.name);
+    const days = describeMatchDays(calc, myInfo.name, partnerInfo.name);
+    parsedData.luckyDay = days.luckyDay;
+    parsedData.carefulDay = days.carefulDay;
 
     return NextResponse.json(parsedData);
   } catch (error: any) {
