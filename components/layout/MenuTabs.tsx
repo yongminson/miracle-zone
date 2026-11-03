@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { logEvent } from "@/lib/analytics";
+import { AllMenuButton } from "@/components/layout/AllMenuButton";
 import { APP_GATED_MENU_IDS, useHiddenInApp, type AppGatedProduct } from "@/lib/app-product-gate";
 
 /**
@@ -70,8 +71,10 @@ export function MenuTabs({ active }: { active: MenuId }) {
   }, [active]);
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b border-slate-700/50 bg-slate-900/95 shadow-md backdrop-blur-sm">
-      <div className="pointer-events-none absolute bottom-0 right-0 top-0 z-10 w-10 bg-gradient-to-l from-slate-900 via-slate-900/80 to-transparent sm:hidden" />
+    <nav className="sticky top-0 z-50 flex w-full items-stretch border-b border-slate-700/50 bg-slate-900/95 shadow-md backdrop-blur-sm">
+      {/* 메뉴가 더 있다는 걸 알 수 있게 오른쪽 끝을 흐리게 하고, "전체" 버튼을 고정해 둔다 */}
+      <div className="relative min-w-0 flex-1">
+      <div className="pointer-events-none absolute bottom-0 right-0 top-0 z-10 w-10 bg-gradient-to-l from-slate-900 via-slate-900/80 to-transparent" />
       <div
         ref={navRef}
         className="no-scrollbar relative z-0 mx-auto flex max-w-screen-lg items-center justify-start gap-6 overflow-x-auto px-4 py-2 sm:justify-between sm:gap-0 sm:px-6"
@@ -102,6 +105,8 @@ export function MenuTabs({ active }: { active: MenuId }) {
           );
         })}
       </div>
+      </div>
+      <AllMenuButton items={menu} activeId={active} from={active} />
     </nav>
   );
 }

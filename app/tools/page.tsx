@@ -35,6 +35,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import HeaderPushBell from "@/components/push/HeaderPushBell";
 import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
 import { captureAttribution, logEvent, withShareUtm } from "@/lib/analytics";
+import { AllMenuButton } from "@/components/layout/AllMenuButton";
 import { clearPendingPaymentData, readPendingPaymentData, savePendingPaymentData } from "@/lib/payments/pending-payment-data";
 import {
   clearPendingPaymentState,
@@ -7411,8 +7412,10 @@ export default function Home() {
       )}
 
       {/* 🚀 메뉴 클릭 시 자동 중앙 정렬 기능이 탑재된 네비게이션 */}
-      <nav className="sticky top-[52px] z-50 w-full border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-sm shadow-md relative">
-        <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-slate-900 via-slate-900/80 to-transparent z-10 pointer-events-none sm:hidden" />
+      <nav className="sticky top-[52px] z-50 flex w-full items-stretch border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-sm shadow-md">
+        {/* 메뉴가 더 있다는 걸 알 수 있게 오른쪽 끝을 흐리게 하고, "전체" 버튼을 고정해 둔다 */}
+        <div className="relative min-w-0 flex-1">
+        <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-slate-900 via-slate-900/80 to-transparent z-10 pointer-events-none" />
         
         <div 
           ref={navRef}
@@ -7477,6 +7480,14 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
             );
           })}
         </div>
+        </div>
+        {/* 전체 메뉴에서 고르면 위 탭 버튼을 그대로 눌러 같은 동작(이동·기록·가운데 맞춤)을 한다 */}
+        <AllMenuButton
+          items={TABS.filter((tab) => !APP_GATED_MENU_IDS.includes(tab.id) || !hiddenInApp(tab.id))}
+          activeId={activeTab}
+          from="tools"
+          onPick={(id) => navRef.current?.querySelector<HTMLButtonElement>(`[data-tab-id="${id}"]`)?.click()}
+        />
       </nav>
 
       {/* 출석 상태 — 평소엔 조용하고, 받을 보상이 생기면 눈에 띈다 */}
