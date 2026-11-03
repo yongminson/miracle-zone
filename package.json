@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/check-app-payment-guard.mjs && npm run check:manseryeok",
+    "prebuild": "node scripts/check-app-payment-guard.mjs && npm run check:manseryeok && node scripts/check-hanja-strokes.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

@@ -3225,8 +3225,9 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
   };
 
   const getNameCacheKey = () => {
-    const today = new Date().toDateString();
-    return `${NAME_CACHE_PREFIX}v5-${today}-${nameInput}-${nameBirthDate}-${nameBirthTime}-${nameGender}`;
+    // v6: 2026-11-03 획수·4격을 계산으로 바꿈. 예전 키엔 한자가 없어 한자를 바꿔도 같은 날 예전 결과가 나왔다
+    const today = getKstDateKey();
+    return `${NAME_CACHE_PREFIX}v6-${today}-${nameInput}-${nameHanja}-${hanjaSelections.join("|")}-${nameBirthDate}-${nameBirthTime}-${nameGender}`;
   };
 
   const handleNameAnalyze = async (e: React.FormEvent) => {
@@ -3276,6 +3277,11 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
         body: JSON.stringify({
           name: nameInput,
           hanja: nameHanja || undefined,
+          // 글자마다 고른 한자(빈 칸 포함) — 일부만 골라도 자리가 어긋나지 않게
+          hanjaSelections: nameInput
+            .split("")
+            .map((c, i) => (/[가-힣]/.test(c) ? hanjaSelections[i] || "" : null))
+            .filter((s) => s !== null),
           birthDate: nameBirthDate,
           birthTime: nameBirthTime,
           gender: nameGender,

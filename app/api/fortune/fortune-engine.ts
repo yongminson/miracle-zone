@@ -147,7 +147,8 @@ function getSajuRelation(me: SajuElement, target: SajuElement): string {
   return "producedBy";
 }
 
-function getSajuStrength(dayMaster: SajuElement, counts: ElementCountMap) {
+/** 신강·신약과 필요한 기운(용신 쪽) — 이름풀이(lib/name/name-engine.ts)도 같은 판정을 쓴다 */
+export function getSajuStrength(dayMaster: SajuElement, counts: ElementCountMap) {
   const elements: SajuElement[] = ["wood", "fire", "earth", "metal", "water"];
   const idx = elements.indexOf(dayMaster);
   const produces = elements[(idx + 1) % 5];
