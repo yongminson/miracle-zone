@@ -69,7 +69,8 @@ export function RoomClient({ code }: { code: string }) {
       setData(json);
       setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "방을 불러오지 못했어요.");
+      // 연결이 끊긴 경우(TypeError: Failed to fetch)는 영어 오류 대신 안내 문구로
+      setError(err instanceof Error && !(err instanceof TypeError) ? err.message : "방을 불러오지 못했어요. 인터넷 연결을 확인하고 다시 열어 주세요.");
     } finally {
       setRefreshing(false);
     }
