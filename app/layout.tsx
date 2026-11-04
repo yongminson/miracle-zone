@@ -28,6 +28,8 @@ export const metadata: Metadata = {
 
   alternates: {
     canonical: "https://saju.ymstudio.co.kr",
+    // 블로그 RSS — 네이버 서치어드바이저 RSS 제출용(app/rss.xml/route.ts)
+    types: { "application/rss+xml": "https://saju.ymstudio.co.kr/rss.xml" },
   },
 
   openGraph: {
