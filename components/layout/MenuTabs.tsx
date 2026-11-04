@@ -18,6 +18,7 @@ import {
   Sparkles,
   Star,
   Trophy,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { logEvent } from "@/lib/analytics";
@@ -34,7 +35,7 @@ import { APP_GATED_MENU_IDS, useHiddenInApp, type AppGatedProduct } from "@/lib/
 type MenuId =
   | "fortune" | "newyear" | "vip" | "zodiac" | "saju" | "palmistry"
   | "match" | "mbti" | "dream" | "lotto" | "altar" | "lock"
-  | "monthly" | "taekil" | "season";
+  | "monthly" | "taekil" | "season" | "together";
 
 const MENU: { id: MenuId; label: string; icon: LucideIcon; href: string }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, href: "/tools?tab=fortune" },
@@ -47,6 +48,7 @@ const MENU: { id: MenuId; label: string; icon: LucideIcon; href: string }[] = [
   { id: "saju", label: "관상/이름 풀이", icon: FileText, href: "/tools?tab=saju" },
   { id: "palmistry", label: "손금 분석", icon: Hand, href: "/tools?tab=palmistry" },
   { id: "match", label: "소름돋는 궁합", icon: Heart, href: "/tools?tab=match" },
+  { id: "together", label: "단톡방 궁합", icon: Users, href: "/together" },
   { id: "mbti", label: "MBTI 검사", icon: Activity, href: "/tools?tab=mbti" },
   { id: "dream", label: "꿈 해몽", icon: BookOpen, href: "/tools?tab=dream" },
   { id: "lotto", label: "행운의 로또", icon: Trophy, href: "/tools?tab=lotto" },
