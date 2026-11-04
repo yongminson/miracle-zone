@@ -9,6 +9,7 @@ import { PaymentMethodCheckoutModal } from "@/components/payments/PaymentMethodC
 import { BrainCircuit, Calendar, Clock, Gem, Sparkles } from "lucide-react";
 import { DynamicLoader } from "@/components/ui/DynamicLoader";
 import { VipPdfTemplate } from "@/components/vip/VipPdfTemplate";
+import { VipSampleButton } from "@/components/vip/VipSampleModal";
 import type { VipPdfUserInfo } from "@/components/vip/VipPdfTemplate";
 import { usePdfDownload, VIP_PDF_FILENAME } from "@/hooks/usePdfDownload";
 import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
@@ -1509,6 +1510,9 @@ export default function VipLandingPage() {
                 {errorMessage}
               </p>
             ) : null}
+
+            {/* 결제 전 견본 미리보기 — 무엇을 받는지 보고 결제하게(2026-11-04) */}
+            {!isAdminMode ? <VipSampleButton /> : null}
 
             <div className="pt-2">
               <button
