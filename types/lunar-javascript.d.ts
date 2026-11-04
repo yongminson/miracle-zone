@@ -69,6 +69,8 @@ declare module "lunar-javascript" {
     getEightChar(): EightChar;
     /** 음력 날짜(1~30) */
     getDay(): number;
+    /** 음력 월(1~12). 윤달이면 음수(예: 윤6월 = -6) */
+    getMonth(): number;
   };
 
   export type SolarInstance = {

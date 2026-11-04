@@ -56,7 +56,8 @@ const MENU: { id: MenuId; label: string; icon: LucideIcon; href: string }[] = [
   { id: "lock", label: "소원 자물쇠", icon: KeyRound, href: "/lock" },
 ];
 
-export function MenuTabs({ active }: { active: MenuId }) {
+/** active 를 비우면(만세력처럼 메뉴에 없는 화면) 아무 메뉴도 강조하지 않는다 */
+export function MenuTabs({ active }: { active?: MenuId }) {
   const navRef = useRef<HTMLDivElement>(null);
   const hiddenInApp = useHiddenInApp();
   // 옛 앱(1.1.9 전)에서는 새 유료 메뉴를 숨긴다 — 지금 보고 있는 화면이면 그대로 둔다
@@ -108,7 +109,7 @@ export function MenuTabs({ active }: { active: MenuId }) {
         })}
       </div>
       </div>
-      <AllMenuButton items={menu} activeId={active} from={active} />
+      <AllMenuButton items={menu} activeId={active ?? ""} from={active ?? "page"} />
     </nav>
   );
 }
