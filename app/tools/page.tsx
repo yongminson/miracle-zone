@@ -30,6 +30,8 @@ import {
   CalendarDays, // 이달의 운세(별도 페이지 /monthly)
   CalendarCheck, // 좋은 날 고르기(별도 페이지 /taekil)
   Users, // 단톡방 궁합(별도 페이지 /together)
+  House, // 손없는날(별도 페이지 /sonday)
+  ScrollText, // 무료 만세력(별도 페이지 /manse)
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/layout/SiteHeader";
@@ -180,7 +182,7 @@ function AdminDashboard() {
 }
 
 // 🚀 mbti와 match(궁합) 탭 추가
-type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match" | "zodiac" | "palmistry" | "vip" | "lock" | "monthly" | "taekil" | "season" | "together";
+type TabId = "fortune" | "dream" | "lotto" | "altar" | "saju" | "mbti" | "match" | "zodiac" | "palmistry" | "vip" | "lock" | "monthly" | "taekil" | "season" | "together" | "manse" | "sonday";
 
 async function captureAndShareElement(
   target: HTMLElement | null,
@@ -311,6 +313,8 @@ const TABS: { id: TabId; label: string; icon: LucideIcon; isReady: boolean; href
   { id: "vip",     label: "사주 인사이트", icon: Crown,  isReady: true, href: "/vip" },
   { id: "season",  label: "시험 합격운", icon: GraduationCap, isReady: true, href: "/season" },
   { id: "taekil",  label: "좋은 날 고르기", icon: CalendarCheck, isReady: true, href: "/taekil" },
+  { id: "sonday",  label: "손없는날",     icon: House,      isReady: true, href: "/sonday" },
+  { id: "manse",   label: "무료 만세력",  icon: ScrollText, isReady: true, href: "/manse" },
   { id: "zodiac",     label: "띠별 운세",    icon: Star,     isReady: true },
   { id: "saju",       label: "관상/이름 풀이", icon: FileText, isReady: true },
   { id: "palmistry",  label: "손금 분석",    icon: Hand,     isReady: true },
@@ -7462,7 +7466,7 @@ export default function Home() {
                 onClick={(e) => {
                   if (!tab.isReady) return;
                   if (tab.href) {
-                    if (APP_GATED_MENU_IDS.includes(tab.id) || tab.id === "together") {
+                    if (APP_GATED_MENU_IDS.includes(tab.id) || ["together", "manse", "sonday"].includes(tab.id)) {
                       logEvent("menu_click", { to: tab.id, from: "tools" });
                     } else {
                       logEvent(tab.id === "lock" ? "lock_link_click" : "vip_link_click", {

@@ -19,6 +19,8 @@ import {
   Star,
   Trophy,
   Users,
+  ScrollText,
+  House,
   type LucideIcon,
 } from "lucide-react";
 import { logEvent } from "@/lib/analytics";
@@ -35,7 +37,7 @@ import { APP_GATED_MENU_IDS, useHiddenInApp, type AppGatedProduct } from "@/lib/
 type MenuId =
   | "fortune" | "newyear" | "vip" | "zodiac" | "saju" | "palmistry"
   | "match" | "mbti" | "dream" | "lotto" | "altar" | "lock"
-  | "monthly" | "taekil" | "season" | "together";
+  | "monthly" | "taekil" | "season" | "together" | "manse" | "sonday";
 
 const MENU: { id: MenuId; label: string; icon: LucideIcon; href: string }[] = [
   { id: "fortune", label: "오늘의 운세", icon: Sparkles, href: "/tools?tab=fortune" },
@@ -44,6 +46,8 @@ const MENU: { id: MenuId; label: string; icon: LucideIcon; href: string }[] = [
   { id: "vip", label: "사주 인사이트", icon: Crown, href: "/vip" },
   { id: "season", label: "시험 합격운", icon: GraduationCap, href: "/season" },
   { id: "taekil", label: "좋은 날 고르기", icon: CalendarCheck, href: "/taekil" },
+  { id: "sonday", label: "손없는날", icon: House, href: "/sonday" },
+  { id: "manse", label: "무료 만세력", icon: ScrollText, href: "/manse" },
   { id: "zodiac", label: "띠별 운세", icon: Star, href: "/tools?tab=zodiac" },
   { id: "saju", label: "관상/이름 풀이", icon: FileText, href: "/tools?tab=saju" },
   { id: "palmistry", label: "손금 분석", icon: Hand, href: "/tools?tab=palmistry" },

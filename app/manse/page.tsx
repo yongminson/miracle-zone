@@ -27,7 +27,7 @@ export default function MansePage() {
     <div className="min-h-screen bg-[#080608] text-slate-100">
       <PageViewTracker page="manse" />
       <SiteHeader variant="marketing" />
-      <MenuTabs />
+      <MenuTabs active="manse" />
 
       <main className="mx-auto max-w-2xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">
         <header className="text-center">

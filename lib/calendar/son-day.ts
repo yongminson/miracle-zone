@@ -59,6 +59,24 @@ export function monthSonDays(year: number, month: number): SonDay[] {
   return out;
 }
 
+/** 손없는날 달력 화면 데이터 — 웹 /sonday 페이지와 토스(/api/sonday)가 같이 쓴다 */
+export function buildSondayData(monthCount = 14) {
+  const today = kstToday();
+  const todayLunar = lunarOf(today);
+  const months = upcomingMonths(monthCount, today).map((m) => ({ ...m, days: monthSonDays(m.year, m.month) }));
+  const upcoming = months.flatMap((m) => m.days).filter((d) => d.date >= today);
+  return {
+    today,
+    todayLunar,
+    todayDir: sonDirection(todayLunar.day),
+    nextDay: upcoming[0] ?? null,
+    nextWeekend: upcoming.find((d) => d.isWeekend) ?? null,
+    months,
+  };
+}
+
+export type SondayData = ReturnType<typeof buildSondayData>;
+
 /** 이번 달부터 count 개월 */
 export function upcomingMonths(count: number, from = kstToday()): { year: number; month: number }[] {
   const [y, m] = from.split("-").map(Number);

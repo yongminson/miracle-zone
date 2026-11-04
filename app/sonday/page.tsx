@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { MenuTabs } from "@/components/layout/MenuTabs";
-import { kstToday, lunarOf, monthSonDays, sonDirection, upcomingMonths } from "@/lib/calendar/son-day";
+import { buildSondayData } from "@/lib/calendar/son-day";
 
 // 손없는날 달력 (2026-11-04) — 무료·검색 유입용. 이번 달부터 14개월, 오늘 손 방향. 날짜는 한국 시간, 한 시간마다 다시 만든다.
 export const revalidate = 3600;
@@ -49,20 +49,14 @@ function lunarLabel(month: number, leap: boolean, day: number) {
 }
 
 export default function SondayPage() {
-  const today = kstToday();
-  const todayLunar = lunarOf(today);
-  const todayDir = sonDirection(todayLunar.day);
+  const { today, todayLunar, todayDir, months, nextDay, nextWeekend } = buildSondayData(14);
   const [, tm, td] = today.split("-").map(Number);
-  const months = upcomingMonths(14).map((m) => ({ ...m, days: monthSonDays(m.year, m.month) }));
-  const upcoming = months.flatMap((m) => m.days).filter((d) => d.date >= today);
-  const nextDay = upcoming[0];
-  const nextWeekend = upcoming.find((d) => d.isWeekend);
 
   return (
     <div className="min-h-screen bg-[#05090a] text-slate-100">
       <PageViewTracker page="sonday" />
       <SiteHeader variant="marketing" />
-      <MenuTabs active="taekil" />
+      <MenuTabs active="sonday" />
 
       <main className="mx-auto max-w-2xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">
         <header className="text-center">

@@ -26,7 +26,8 @@ function addAppCorsHeaders(req: NextRequest, response: NextResponse) {
   if (!origin || !ALLOWED_APP_ORIGINS.has(origin)) return response;
 
   response.headers.set("Access-Control-Allow-Origin", origin);
-  response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  // DELETE: 단톡방 궁합에서 내 정보 빼기(/api/group/rooms/{code}/members) — 토스에서도 쓴다
+  response.headers.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   response.headers.set("Access-Control-Allow-Headers", "Content-Type");
   response.headers.set("Access-Control-Max-Age", "86400");
   appendVaryOrigin(response.headers);
