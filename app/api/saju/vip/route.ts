@@ -2,8 +2,7 @@
 export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
-// ✨ 안전 필터 해제를 위해 HarmCategory, HarmBlockThreshold 추가
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import OpenAI from "openai";
 import type { VipCalendarType, VipGender } from "@/lib/saju/vip-types";
 import { extractVipSajuData } from "@/lib/saju/vip-saju-data";
 import { appendVipSymbolicAmulet } from "@/lib/saju/vip-symbolic-amulet";
@@ -26,8 +25,10 @@ import { TOSS_IAP_PRODUCTS } from "@/lib/payments/toss-iap";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 import { hasValidAdminSession } from "@/lib/auth/admin-session";
 
-// 구글 제미나이 초기화
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+// 2026-11-04: 제미나이 → OpenAI 로 통일(다른 기능은 모두 OpenAI라 키·요금 관리를 한 곳으로). 프롬프트·품질 검사·응답 형식은 그대로.
+// 모델은 VIP_REPORT_OPENAI_MODEL 로 바꿀 수 있다. 기본 gpt-4.1-mini — 긴 한국어 글(장당 수천 자)을 빠르게 쓰고 요금이 제미나이 flash 와 비슷하다.
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
+const VIP_REPORT_MODEL = process.env.VIP_REPORT_OPENAI_MODEL || "gpt-4.1-mini";
 
 type VipRequestBody = {
   name?: string;
@@ -136,28 +137,21 @@ function normalizeMbti(raw: string | null | undefined): string | null {
   return s;
 }
 
-// ✨ 제미나이 Flash 리포트 생성기
+// ✨ 사주 인사이트 리포트 생성기 (OpenAI)
 async function generateVipMarkdownReport(
   sajuData: ReturnType<typeof extractVipSajuData>,
   opts: { clientName: string; currentYear: number; mbti: string | null }
 ): Promise<string> {
   
-  // 🚨 사주/운세 용어로 인한 구글 AI의 강제 차단을 막기 위해 안전 필터 최하향 조정
-  const safetySettings = [
-    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  ];
-
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    safetySettings,
-    generationConfig: {
+  const generateText = async (content: string): Promise<string> => {
+    const completion = await openai.chat.completions.create({
+      model: VIP_REPORT_MODEL,
+      messages: [{ role: "user", content }],
       temperature: 0.65,
-      maxOutputTokens: 10000,
-    },
-  });
+      max_tokens: 10000,
+    });
+    return completion.choices[0]?.message?.content ?? "";
+  };
 
   const mbtiInstruction = opts.mbti
     ? `사용자가 참고 정보로 입력한 MBTI는 ${opts.mbti}입니다. 진단처럼 단정하지 말고 자기이해 질문을 만드는 보조 정보로만 사용하세요.`
@@ -304,7 +298,9 @@ const sectionHasAllChapters = (value: string, chapters: number[]) =>
 
 async function generateSection(spec: SectionSpec): Promise<string> {
   const marker = `SECTION_${spec.id}_COMPLETE`;
-  const sectionPrompt = `${prompt}\n\n[분할 생성 최우선 지침]\n${spec.instruction}\n이 응답의 공백 제외 분량은 ${spec.minLength}–${spec.maxLength}자로 맞추고, 지정하지 않은 장은 출력하지 마세요. 각 장 제목은 반드시 '# 제 N장' 형식으로 쓰세요. 마지막 줄에는 정확히 '${marker}'를 출력하세요.`;
+  // OpenAI 모델은 요청한 분량보다 짧게 쓰는 편이라(2026-11-04 시험: B·C 섹션이 기준의 80% 안팎) 목표를 기준보다 30% 높여 부탁한다. 검사 기준은 그대로.
+  const targetMin = Math.round(spec.minLength * 1.3);
+  const sectionPrompt = `${prompt}\n\n[분할 생성 최우선 지침]\n${spec.instruction}\n이 응답의 공백 제외 분량은 ${targetMin}–${spec.maxLength}자로 맞추고(짧으면 다시 쓰게 됩니다 — 장마다 소제목과 구체적인 예시·질문·행동을 충분히 쓰세요), 지정하지 않은 장은 출력하지 마세요. 각 장 제목은 반드시 '# 제 N장' 형식으로 쓰세요. 마지막 줄에는 정확히 '${marker}'를 출력하세요.`;
 
   const isValid = (value: string) => {
     const length = value.replace(/\s/g, "").length;
@@ -334,13 +330,13 @@ async function generateSection(spec: SectionSpec): Promise<string> {
   ];
   for (const p of prompts) {
     try {
-      const raw = (await model.generateContent(p)).response.text();
+      const raw = await generateText(p);
       const fixed = fixHeadings(raw);
       attempts.push(fixed);
       if (isValid(fixed)) return fixed;
     } catch (e) {
       // 한 번 실패해도 다음 시도로 — 결제한 손님 리포트는 끝까지 만들어야 한다
-      console.error(`Gemini 섹션 ${spec.id} 호출 실패:`, e instanceof Error ? e.message : e);
+      console.error(`VIP AI 섹션 ${spec.id} 호출 실패:`, e instanceof Error ? e.message : e);
     }
   }
 
@@ -349,7 +345,7 @@ async function generateSection(spec: SectionSpec): Promise<string> {
     const length = value.replace(/\s/g, "").length;
     return length >= spec.minLength * 0.8 && length <= spec.maxLength * 1.3 && sectionHasAllChapters(value, spec.chapters);
   });
-  console.error("Gemini 프리미엄 섹션 품질 게이트 실패:", {
+  console.error("VIP AI 프리미엄 섹션 품질 게이트 실패:", {
     section: spec.id,
     lengths: attempts.map((value) => value.replace(/\s/g, "").length),
     acceptedLoosely: !!acceptable,
@@ -393,11 +389,11 @@ const safeHealthChapter = `# 제 10장 건강운: 생활 리듬과 스트레스 
 **이 장의 한 문장 결론:** 건강은 사주로 단정할 영역이 아니며, 관찰 가능한 생활 기록과 필요한 검진·전문가 상담을 기준으로 관리해야 합니다.`;
 const sections = [generatedSections[0], generatedSections[1], safeHealthChapter, generatedSections[2]];
 const text = sections.join("\n\n---\n\n");
-console.log("Gemini premium section lengths:", generatedSections.map((section) => section.length));
+console.log("VIP AI premium section lengths:", generatedSections.map((section) => section.length));
 
 if (!meetsPremiumContract(text)) {
   const normalized = text.replace(/\s/g, "");
-  console.error("Gemini 프리미엄 품질 게이트 실패:", {
+  console.error("VIP AI 프리미엄 품질 게이트 실패:", {
     length: normalized.length,
     chapters: requiredChapterNumbers.filter((chapter) =>
       new RegExp(`^\\s*(?:#{1,6}\\s*)?(?:\\*{1,2})?(?:제\\s*)?${chapter}(?:\\s*장|[.、:])`, "m").test(text),
@@ -445,7 +441,7 @@ export async function POST(request: NextRequest) {
     const mbti = normalizeMbti(body.mbti);
 
     if (!birthDate) return NextResponse.json({ success: false, error: "생년월일은 필수입니다." }, { status: 400 });
-    if (!process.env.GEMINI_API_KEY) return NextResponse.json({ success: false, error: "Gemini API 키가 없습니다." }, { status: 500 });
+    if (!process.env.OPENAI_API_KEY) return NextResponse.json({ success: false, error: "AI API 키가 없습니다." }, { status: 500 });
 
     const parts = parseBirthParts(birthDate);
     if (!parts) return NextResponse.json({ success: false, error: "잘못된 날짜 형식입니다." }, { status: 400 });
@@ -526,10 +522,10 @@ export async function POST(request: NextRequest) {
       if (payment && supabaseAdmin) {
         await releaseVipReportEntitlement(supabaseAdmin, payment.paymentRef);
       }
-      console.error("Gemini API 처리 에러 원문:", err);
+      console.error("VIP AI 처리 에러 원문:", err);
       const errorMessage = err instanceof Error ? err.message : "알 수 없는 오류";
       return NextResponse.json(
-        { success: false, error: `제미나이 서버 에러: ${errorMessage}` },
+        { success: false, error: `리포트 생성 서버 에러: ${errorMessage}` },
         { status: 500 },
       );
     }
