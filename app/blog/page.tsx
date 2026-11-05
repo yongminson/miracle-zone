@@ -2,6 +2,10 @@
 import Link from "next/link";
 import { supabase } from "@/app/lib/supabase"; // 👈 방금 만든 파이프(연결 통로)를 불러옵니다!
 
+export const metadata = {
+  alternates: { canonical: "https://saju.ymstudio.co.kr/blog" },
+};
+
 // 🚀 Next.js 최신 규격 (서버에서 페이지를 만들 때마다 매번 최신 데이터를 가져옵니다)
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

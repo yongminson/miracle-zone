@@ -1,3 +1,8 @@
+export const metadata = {
+  title: "이용약관 | 명운(命運)",
+  alternates: { canonical: "https://saju.ymstudio.co.kr/terms" },
+};
+
 export default function TermsPage() {
     return (
       <div className="min-h-screen bg-[#030712] text-slate-100 px-6 py-12 max-w-2xl mx-auto">

@@ -13,12 +13,14 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const resolvedParams = await props.params; // Next.js 15 호환 비동기 추출!
   const { data } = await supabase.from("dreams").select("*").eq("id", resolvedParams.id).single();
   
-  if (!data) return { title: "명운(命運) - 꿈 해몽" };
+  if (!data) return { title: "명운(命運) - 꿈 해몽", robots: { index: false, follow: true } };
   
   const type = data.dream_type || "꿈 해몽";
   const summary = data.summary || "소름돋는 꿈 해몽 결과를 확인하세요.";
 
   return {
+    // 손님의 꿈 내용 — 공유 링크로만 보고 검색에는 내보내지 않는다
+    robots: { index: false, follow: true },
     title: `[${type}] ${summary} | 명운`,
     description: data.details?.substring(0, 60) + "...",
     openGraph: {

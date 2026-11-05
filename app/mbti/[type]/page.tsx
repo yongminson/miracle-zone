@@ -29,6 +29,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   const res = MBTI_RESULTS[type] || { title: "심층 성격 분석", desc: "나의 진짜 성격은?" };
 
   return {
+    alternates: { canonical: `https://saju.ymstudio.co.kr/mbti/${type}` },
     title: `[MBTI] 당신은 ${type} (${res.title}) 입니다!`,
     description: res.desc,
     openGraph: {

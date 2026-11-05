@@ -1,17 +1,43 @@
+import type { Metadata } from "next";
+import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { supabase } from "@/app/lib/supabase"; // 🚀 수파베이스 파이프 연결!
+
+const loadPost = cache(async (slug: string) =>
+  supabase.from("blog_posts").select("*").eq("slug", slug).single(),
+);
+
+// 글마다 자기 제목·설명·원본 주소 (2026-11-05 전에는 전부 같은 제목에 원본이 홈이었다)
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> | { id: string } }): Promise<Metadata> {
+  const { id: slug } = await params;
+  const { data: post } = await loadPost(slug);
+  if (!post) return { robots: { index: false, follow: true } };
+  const url = `https://saju.ymstudio.co.kr/blog/${slug}`;
+  const description = String(post.content ?? "").replace(/\s+/g, " ").trim().slice(0, 120) || post.summary || undefined;
+  return {
+    title: post.title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "article",
+      locale: "ko_KR",
+      url,
+      siteName: "명운(命運)",
+      title: post.title,
+      description,
+      publishedTime: post.created_at,
+      images: [{ url: "https://saju.ymstudio.co.kr/og-image.png", width: 1200, height: 630 }],
+    },
+  };
+}
 
 export default async function BlogPost({ params }: { params: Promise<{ id: string }> | { id: string } }) {
   const resolvedParams = await params;
   const slug = resolvedParams.id; // URL 주소에 있는 값 (예: first-automation)
 
   // 🗄️ DB에서 해당 slug와 일치하는 글 하나만 딱 가져옵니다!
-  const { data: post, error } = await supabase
-    .from('blog_posts')
-    .select('*')
-    .eq('slug', slug)
-    .single();
+  const { data: post, error } = await loadPost(slug);
 
   if (error || !post) {
     notFound(); // 글이 없으면 404 페이지로 보냅니다.

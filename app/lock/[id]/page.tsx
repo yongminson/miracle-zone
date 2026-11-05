@@ -46,6 +46,7 @@ export async function generateMetadata({
     return {
       title: "소원 자물쇠 | 명운",
       description: "소원을 적은 자물쇠를 난간에 겁니다. 한 번 걸면 영원히 남습니다.",
+      robots: { index: false, follow: true },
     };
   }
 
@@ -57,6 +58,8 @@ export async function generateMetadata({
   return {
     title,
     description,
+    // 손님이 쓴 소원 글 — 공유 링크로만 보고 검색에는 내보내지 않는다
+    robots: { index: false, follow: true },
     openGraph: {
       title,
       description,

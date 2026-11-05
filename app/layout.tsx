@@ -26,8 +26,9 @@ export const metadata: Metadata = {
     "무료관상", "사주궁합", "오늘운세", "무료이름풀이"
   ],
 
+  // ⚠ 여기에 canonical 을 두지 말 것 — 하위 페이지가 그대로 물려받아 "이 페이지의 원본은 홈"이 된다.
+  // 2026-11-05 까지 블로그 글 310개·/tools·/vip 등이 전부 홈을 원본으로 표시하고 있었다. 페이지마다 자기 주소를 적는다.
   alternates: {
-    canonical: "https://saju.ymstudio.co.kr",
     // 블로그 RSS — 네이버 서치어드바이저 RSS 제출용(app/rss.xml/route.ts)
     types: { "application/rss+xml": "https://saju.ymstudio.co.kr/rss.xml" },
   },
@@ -35,7 +36,6 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "ko_KR",
-    url: "https://saju.ymstudio.co.kr",
     siteName: "명운(命運)",
     title: "명운(命運) - 무료 사주 운세 | 오늘의 운세 관상 궁합",
     description: "만세력 계산 기반 무료 사주 운세. 오늘의 운세, 관상, 이름풀이, 궁합, 꿈해몽까지 무료로 확인하세요.",

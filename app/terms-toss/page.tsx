@@ -1,3 +1,8 @@
+export const metadata = {
+  title: "토스 미니앱 이용약관 | 명운(命運)",
+  alternates: { canonical: "https://saju.ymstudio.co.kr/terms-toss" },
+};
+
 export default function TermsTossPage() {
     return (
       <div className="min-h-screen bg-[#030712] text-slate-100 px-6 py-12 max-w-2xl mx-auto">

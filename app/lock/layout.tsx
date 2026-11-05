@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "https://saju.ymstudio.co.kr/lock" },
   title: "소원 자물쇠 | 명운",
   description:
     "소원을 적은 자물쇠를 난간에 겁니다. 한 번 걸면 사라지지 않고 영구히 보관됩니다.",

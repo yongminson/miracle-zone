@@ -1,3 +1,8 @@
+export const metadata = {
+  title: "환불정책 | 명운(命運)",
+  alternates: { canonical: "https://saju.ymstudio.co.kr/refund" },
+};
+
 export default function RefundPage() {
     return (
       <div className="min-h-screen bg-[#030712] text-slate-100 px-6 py-12 max-w-2xl mx-auto">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "https://saju.ymstudio.co.kr/about" },
   title: "명운(命運) 소개 | 정통 명리학 기반 사주 풀이 서비스",
   description:
     "명운은 수천 년의 역사를 가진 정통 명리학을 바탕으로, 사주팔자·관상·이름풀이·궁합 등 다양한 운세 분석을 제공하는 사주 서비스입니다.",

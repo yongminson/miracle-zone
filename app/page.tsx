@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 import { BirthdayGiftBanner } from "@/components/birthday/BirthdayGiftBanner";
 import { AppInstallCta } from "@/components/app/AppInstallCta";
 import { QuickFortune } from "@/components/landing/QuickFortune";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "https://saju.ymstudio.co.kr" },
+};
 
 export default function Home() {
   return (

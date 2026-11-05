@@ -1,5 +1,10 @@
 import React from 'react';
 
+export const metadata = {
+  title: "운영정책 | 명운(命運)",
+  alternates: { canonical: "https://saju.ymstudio.co.kr/policy" },
+};
+
 export default function PolicyPage() {
   return (
     <div style={{ backgroundColor: '#0F172A', color: '#E2E8F0', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", lineHeight: 1.8, padding: '40px 24px', minHeight: '100vh' }}>
