@@ -1,7 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { logEvent, markTesterDevice } from "@/lib/analytics";
+
+// 기능 안내 페이지로 가는 길 — 사이트 안에서 연결돼야 검색엔진이 찾는다(lib/seo/feature-pages.ts)
+const GUIDE_LINKS = [
+  ["오늘의 운세", "/fortune"],
+  ["띠별 운세", "/zodiac"],
+  ["사주 궁합", "/gunghap"],
+  ["단톡방 궁합", "/together"],
+  ["꿈해몽", "/haemong"],
+  ["관상", "/gwansang"],
+  ["이름풀이", "/ireum"],
+  ["손금", "/songeum"],
+  ["MBTI 검사", "/mbti-test"],
+  ["사주 로또 번호", "/lotto"],
+  ["무료 만세력", "/manse"],
+  ["손없는날", "/sonday"],
+  ["블로그", "/blog"],
+] as const;
 
 const TERMS_TEXT = `제1조 (목적)
 본 약관은 와이엠 스튜디오(이하 "회사")가 운영하는 명운(命運) 서비스(이하 "서비스")의 이용조건 및 절차, 이용자와 회사의 권리·의무·책임사항을 규정함을 목적으로 합니다.
@@ -125,6 +143,13 @@ export function GlobalSiteFooter() {
     <>
       <footer className="border-t border-white/10 bg-slate-950 text-slate-300">
         <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+          <nav aria-label="기능 안내" className="mb-4 flex flex-wrap justify-center gap-x-3 gap-y-1.5 text-[11px] text-white/50">
+            {GUIDE_LINKS.map(([label, href]) => (
+              <Link key={href} href={href} className="transition-colors hover:text-white">
+                {label}
+              </Link>
+            ))}
+          </nav>
           <p className="text-center text-[10px] leading-relaxed text-white/45">
             본 서비스는 정통 명리학에 기반한 통계적 해석으로, 절대적인 미래를 보장하지 않습니다.
             <br />

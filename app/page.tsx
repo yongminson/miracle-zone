@@ -15,6 +15,41 @@ export default function Home() {
     <div className="relative flex-1 bg-[#030712] text-slate-100 pb-20">
       {/* 랜딩 방문·유입 경로 기록 (화면에는 아무것도 그리지 않는다) */}
       <PageViewTracker page="landing" />
+      {/* 검색엔진·AI 용 서비스 설명 (화면에 보이는 내용과 같아야 한다) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "WebSite",
+                name: "명운(命運)",
+                alternateName: ["명운", "Myeongun"],
+                url: "https://saju.ymstudio.co.kr",
+                inLanguage: "ko",
+              },
+              {
+                "@type": "Organization",
+                name: "명운(命運)",
+                url: "https://saju.ymstudio.co.kr",
+                logo: "https://saju.ymstudio.co.kr/logo.png",
+                sameAs: ["https://play.google.com/store/apps/details?id=kr.co.ymstudio.myeongun"],
+              },
+              {
+                "@type": "WebApplication",
+                name: "명운(命運)",
+                url: "https://saju.ymstudio.co.kr",
+                description:
+                  "만세력 계산 기반 사주 운세 서비스. 오늘의 운세, 궁합, 꿈해몽, 관상, 이름풀이, 손금, 만세력, 손없는날, 내 사주 행운 번호를 제공합니다.",
+                applicationCategory: "LifestyleApplication",
+                operatingSystem: "Web, Android",
+                inLanguage: "ko",
+              },
+            ],
+          }).replace(/</g, "\\u003c"),
+        }}
+      />
       <div className="absolute inset-0 z-0 bg-[url('/images/bg-main.jpg')] bg-cover bg-center bg-fixed opacity-30" />
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#030712]/80 via-transparent to-[#030712]" />
 

@@ -1,0 +1,32 @@
+# 명운(命運)
+
+> 만세력 계산을 바탕으로 한 한국어 사주·운세 서비스입니다. 웹(https://saju.ymstudio.co.kr), Google Play 앱, 토스 미니앱으로 제공합니다.
+
+운세 점수와 사주 판정은 생년월일로 계산하고, 풀이 문장 일부는 AI가 씁니다. 결과는 참고용이며 미래를 보장하지 않습니다. 로또 번호 기능은 당첨 확률을 높이지 않습니다.
+
+## 무료 기능
+- [오늘의 운세](https://saju.ymstudio.co.kr/fortune): 내 사주와 오늘 일진의 관계로 계산
+- [띠별 운세와 띠 궁합표](https://saju.ymstudio.co.kr/zodiac): 일진과 띠의 합·충
+- [사주 궁합](https://saju.ymstudio.co.kr/gunghap): 두 사람의 일간·일지·띠·오행 관계
+- [단톡방 궁합 순위](https://saju.ymstudio.co.kr/together): 링크 하나로 최대 30명 궁합 순위
+- [꿈해몽](https://saju.ymstudio.co.kr/haemong): 꿈 내용을 문장으로 적으면 AI가 풀이
+- [무료 만세력](https://saju.ymstudio.co.kr/manse): 사주 여덟 글자·십성·오행·대운
+- [손없는날 달력](https://saju.ymstudio.co.kr/sonday): 이사·입주 날짜와 손 방향
+- [내 사주 행운 번호](https://saju.ymstudio.co.kr/lotto): 생년월일과 추첨일 일진으로 고르는 로또 번호
+- [MBTI 유형 검사](https://saju.ymstudio.co.kr/mbti-test): 32문항 참고용 검사
+
+## 요약은 무료, 심층 풀이는 별도
+- [이름풀이](https://saju.ymstudio.co.kr/ireum): 한자 원획·4격 81수리·자원오행
+- [AI 관상](https://saju.ymstudio.co.kr/gwansang): 얼굴 사진 풀이
+- [AI 손금](https://saju.ymstudio.co.kr/songeum): 손바닥 사진 풀이
+
+## 유료 상품
+- [사주 인사이트 리포트](https://saju.ymstudio.co.kr/vip): 14개 장 사주 풀이 PDF
+- [2027 신년운세](https://saju.ymstudio.co.kr/newyear): 띠별 무료 풀이와 유료 상세 풀이
+- [이달의 운세](https://saju.ymstudio.co.kr/monthly), [좋은 날 고르기](https://saju.ymstudio.co.kr/taekil), [시험 합격운](https://saju.ymstudio.co.kr/season)
+
+## 안내
+- [서비스 소개](https://saju.ymstudio.co.kr/about)
+- [블로그](https://saju.ymstudio.co.kr/blog)
+- [개인정보처리방침](https://saju.ymstudio.co.kr/privacy)
+- [이용약관](https://saju.ymstudio.co.kr/terms)

@@ -47,6 +47,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly" as const,
       priority: 0.8,
     },
+    // 기능별 입구 페이지 (lib/seo/feature-pages.ts). /lotto 는 아래에 따로 있다
+    ...["/fortune", "/zodiac", "/gunghap", "/haemong", "/gwansang", "/ireum", "/songeum", "/mbti-test"].map((path) => ({
+      url: `${baseUrl}${path}`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    })),
     {
       url: `${baseUrl}/manse`,
       lastModified: new Date(),
