@@ -39,6 +39,7 @@ import HeaderPushBell from "@/components/push/HeaderPushBell";
 import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
 import { captureAttribution, logEvent, withShareUtm } from "@/lib/analytics";
 import { AllMenuButton } from "@/components/layout/AllMenuButton";
+import { privacyPlainText } from "@/lib/legal/privacy";
 import { ZODIAC_SIX as Z_SIX, dailyZodiacFortune, todayIljin } from "@/lib/zodiac/daily";
 import { readProfiles } from "@/lib/profiles/saved-profiles";
 import { hasWebPushSubscription, isWebPushAvailable, subscribeDailyPush } from "@/lib/push/web-push";
@@ -1448,8 +1449,7 @@ function DreamTab({ isVisible, onNavigate }: { isVisible: boolean, onNavigate: (
 /** 제단 탭 하단 푸터 — GlobalSiteFooter와 동일 약관/사업자 문구 */
 const ALTAR_FOOTER_TERMS =
   "제1조 (목적)\n본 약관은 서비스의 이용조건 및 절차, 이용자와 회사의 권리, 의무, 책임사항을 규정함을 목적으로 합니다.\n\n제2조 (서비스의 성격)\n본 서비스에서 제공하는 모든 결과는 통계적, 학술적 해석에 기반하며 절대적인 사실이나 미래를 보장하지 않습니다.\n\n제3조 (서비스 제공 시기)\n본 서비스에서 제공하는 모든 유료 서비스(디지털 콘텐츠)는 결제 완료 후 즉시 이용 가능합니다.";
-const ALTAR_FOOTER_PRIVACY =
-  "1. 수집하는 개인정보 항목\n회사는 회원가입 없이 서비스를 제공하며, 사주 분석을 위해 입력하신 생년월일, 성별, 이름 등은 서버에 영구 저장되지 않고 분석 즉시 폐기됩니다.\n\n2. 쿠키의 사용\n서비스 편의를 위해 기기 내부에 일부 설정(예: 프리미엄 해제 상태)이 임시 저장될 수 있습니다.";
+const ALTAR_FOOTER_PRIVACY = privacyPlainText();
 const ALTAR_FOOTER_REFUND =
   "[디지털 콘텐츠 환불 규정 안내]\n\n본 서비스에서 제공되는 모든 유료 서비스는 '디지털 콘텐츠'에 해당하며, 관련 법령에 의거하여 다음과 같이 환불 정책을 운영합니다.\n\n1. 환불 기준 (청약철회)\n- 이용권을 결제하였으나 실제 서비스를 전혀 이용하지 않은 경우(결과 열람 전), 결제일로부터 7일 이내에 고객센터를 통해 100% 환불을 요청하실 수 있습니다.\n\n2. 시스템 오류 및 서비스 장애\n- 결제는 정상적으로 완료되었으나 시스템 오류로 인해 결과 화면을 전혀 열람하지 못한 경우, 고객센터 확인을 거쳐 즉시 100% 환불 또는 서비스 재제공 처리를 해드립니다.\n\n3. 환불 제한 사항\n- 전자상거래법 제17조 제2항 제5호에 따라, 소비자의 사용 또는 일부 소비로 재화 등의 가치가 현저히 감소한 경우(예: 운세/관상/번호 추출 결과를 이미 열람한 경우)에는 청약철회가 제한됩니다.";
 
@@ -3540,6 +3540,7 @@ function SajuTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolean }) 
                         <>
                           <Camera className="h-12 w-12 text-yellow-400/60" />
                           <p className="text-sm text-white/70">클릭하거나 사진을 드래그하세요</p>
+                          <p className="text-[11px] text-white/40 break-keep">사진은 분석을 위해 OpenAI로 전송되고, 명운 저장소에는 보관하지 않아요.</p>
                         </>
                       )}
                       <input
@@ -6311,6 +6312,7 @@ function PalmistryTab({ isVisible, isApp }: { isVisible: boolean; isApp?: boolea
                   <p className="text-4xl mb-3">{hand === "right" ? "🖐️" : "🤚"}</p>
                   <p className="text-sm font-bold text-white/80 mb-1">{hand === "right" ? "오른손" : "왼손"} 손바닥 사진 업로드</p>
                   <p className="text-xs text-white/45">손가락이 펼쳐진 손바닥 사진 · 최대 5MB</p>
+                  <p className="text-[11px] text-white/40 break-keep">사진은 분석을 위해 OpenAI로 전송되고, 명운 저장소에는 보관하지 않아요.</p>
                 </>
               )}
             </div>

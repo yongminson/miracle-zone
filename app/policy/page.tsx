@@ -1,8 +1,10 @@
 import React from 'react';
 
 export const metadata = {
-  title: "운영정책 | 명운(命運)",
+  // 다른 앱(직장인 키우기)의 스토어 등록용 방침이다. 주소·내용을 바꾸지 말 것. 명운 검색에는 내보내지 않는다.
+  title: "직장인 키우기 개인정보처리방침 | YM Studio",
   alternates: { canonical: "https://saju.ymstudio.co.kr/policy" },
+  robots: { index: false, follow: false },
 };
 
 export default function PolicyPage() {

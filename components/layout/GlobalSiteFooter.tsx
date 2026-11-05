@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { logEvent, markTesterDevice } from "@/lib/analytics";
+import { privacyPlainText } from "@/lib/legal/privacy";
 
 // 기능 안내 페이지로 가는 길 — 사이트 안에서 연결돼야 검색엔진이 찾는다(lib/seo/feature-pages.ts)
 const GUIDE_LINKS = [
@@ -59,32 +60,7 @@ const TERMS_TEXT = `제1조 (목적)
 
 시행일: 2026년 1월 1일`;
 
-const PRIVACY_TEXT = `개인정보처리방침
-
-와이엠 스튜디오(이하 "회사")는 개인정보보호법 및 관련 법령을 준수하며, 이용자의 개인정보 보호를 중요하게 생각합니다.
-
-1. 수집하는 개인정보 항목
-- 필수 입력 정보: 이름(또는 닉네임), 생년월일, 출생 시간, 성별
-- 자동 수집 정보: 서비스 이용 기록, 접속 IP, 기기 정보
-
-2. 개인정보의 수집 및 이용 목적
-- 사주, 운세, 관상, 이름 풀이, 궁합 등 서비스 분석 결과 제공
-- 인앱결제 처리 및 이용 내역 관리
-- 서비스 품질 개선 및 통계 분석
-
-3. 개인정보의 보유 및 이용 기간
-- 분석용 입력 정보: 분석 완료 후 즉시 폐기
-- 결제 관련 정보: 전자상거래법에 따라 5년간 보관
-
-4. 개인정보의 제3자 제공
-회사는 원칙적으로 이용자의 개인정보를 외부에 제공하지 않습니다.
-단, 결제 처리를 위해 포트원(PortOne) 및 결제 대행사(한국결제네트웍스, 카카오페이, 토스페이)에 최소한의 정보를 제공합니다.
-
-5. 개인정보 보호책임자
-- 성명: 손용민
-- 연락처: support@ymstudio.co.kr | 0507-1385-9994
-
-시행일: 2026년 1월 1일`;
+const PRIVACY_TEXT = privacyPlainText();
 
 const REFUND_TEXT = `[환불 규정 안내]
 

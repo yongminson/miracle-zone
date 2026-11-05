@@ -1,42 +1,54 @@
+import { PRIVACY_EFFECTIVE_DATE, PRIVACY_SECTIONS } from "@/lib/legal/privacy";
+
 export const metadata = {
   title: "개인정보처리방침 | 명운(命運)",
   alternates: { canonical: "https://saju.ymstudio.co.kr/privacy" },
 };
 
 export default function PrivacyPage() {
-    return (
-      <div className="min-h-screen bg-[#030712] text-slate-100 px-6 py-12 max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold text-yellow-400 mb-8">개인정보처리방침</h1>
-        <div className="space-y-6 text-sm text-white/80 leading-relaxed">
-          <section>
-            <h2 className="text-base font-bold text-white mb-2">제1조 (목적)</h2>
-            <p>와이엠 스튜디오(이하 "회사")는 이용자의 개인정보를 중요시하며, 개인정보보호법 등 관련 법령을 준수합니다.</p>
+  return (
+    <div className="min-h-screen bg-[#030712] text-slate-100 px-6 py-12 max-w-3xl mx-auto">
+      <h1 className="text-2xl font-bold text-yellow-400 mb-8">개인정보처리방침</h1>
+      <div className="space-y-6 text-sm text-white/80 leading-relaxed">
+        {PRIVACY_SECTIONS.map((s) => (
+          <section key={s.title}>
+            <h2 className="text-base font-bold text-white mb-2">{s.title}</h2>
+            {s.paragraphs?.map((p) => (
+              <p key={p} className="mb-2 break-keep">{p}</p>
+            ))}
+            {s.bullets ? (
+              <ul className="list-disc space-y-1 pl-5">
+                {s.bullets.map((b) => (
+                  <li key={b} className="break-keep">{b}</li>
+                ))}
+              </ul>
+            ) : null}
+            {s.table ? (
+              <div className="mt-2 overflow-x-auto">
+                <table className="w-full min-w-[560px] border-collapse text-xs">
+                  <thead>
+                    <tr>
+                      {s.table.head.map((h) => (
+                        <th key={h} className="border border-white/15 bg-white/5 px-2 py-2 text-left font-bold text-white">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {s.table.rows.map((row) => (
+                      <tr key={row[0]}>
+                        {row.map((cell) => (
+                          <td key={cell} className="border border-white/15 px-2 py-2 align-top break-keep">{cell}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
           </section>
-          <section>
-            <h2 className="text-base font-bold text-white mb-2">제2조 (수집하는 개인정보)</h2>
-            <p>서비스 이용 시 이름, 생년월일, 이메일 주소를 수집할 수 있습니다.</p>
-          </section>
-          <section>
-            <h2 className="text-base font-bold text-white mb-2">제3조 (개인정보의 이용목적)</h2>
-            <p>수집된 정보는 서비스 제공, 운세 분석, 고객 지원 목적으로만 사용됩니다.</p>
-          </section>
-          <section>
-            <h2 className="text-base font-bold text-white mb-2">제4조 (개인정보 보유기간)</h2>
-            <p>회원 탈퇴 시 즉시 삭제하며, 관련 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.</p>
-            <p className="mt-2">사주 인사이트 리포트 내용(입력한 이름·생년월일 포함)은 결제 후 화면을 벗어나도 다시 받을 수 있도록 생성일로부터 30일간 비공개로 보관한 뒤 자동 삭제합니다.</p>
-            <p className="mt-2">단톡방 궁합·우리 둘 궁합 카드에 넣은 이름(별명)·생년월일·성별은 같은 방에 궁합 결과를 보여 주는 데만 쓰며(다른 참가자에게는 이름과 결과만 보이고 생년월일은 보이지 않습니다), 방을 만든 날로부터 30일이 지나면 자동 삭제합니다. 그 전에도 넣은 기기에서 직접 뺄 수 있습니다.</p>
-            <p className="mt-2">신년운세·이달의 운세·궁합 심층·택일·시즌 운세 상세 풀이는 결제 후 다시 볼 수 있도록 주문 정보(입력한 이름·생년월일·성별, 궁합·택일은 함께 입력한 상대방 정보 포함)와 풀이 내용을 비공개로 보관하며, 전자상거래법에 따른 거래 기록 보존 기간(5년)이 지나면 삭제합니다.</p>
-          </section>
-          <section>
-            <h2 className="text-base font-bold text-white mb-2">제5조 (제3자 제공)</h2>
-            <p>이용자의 동의 없이 개인정보를 제3자에게 제공하지 않습니다.</p>
-          </section>
-          <section>
-            <h2 className="text-base font-bold text-white mb-2">제6조 (문의)</h2>
-            <p>개인정보 관련 문의: support@ymstudio.co.kr</p>
-          </section>
-          <p className="text-white/40 text-xs mt-8">시행일: 2026년 1월 1일</p>
-        </div>
+        ))}
+        <p className="text-white/40 text-xs mt-8">시행일: {PRIVACY_EFFECTIVE_DATE}</p>
       </div>
-    );
-  }
+    </div>
+  );
+}
