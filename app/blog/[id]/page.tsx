@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { isIndexablePost } from "@/lib/blog/daily-post";
 import { supabase } from "@/app/lib/supabase"; // 🚀 수파베이스 파이프 연결!
 
 const loadPost = cache(async (slug: string) =>
@@ -19,6 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     title: post.title,
     description,
     alternates: { canonical: url },
+    robots: isIndexablePost(post) ? undefined : { index: false, follow: true },
     openGraph: {
       type: "article",
       locale: "ko_KR",

@@ -1,4 +1,5 @@
 import { supabase } from "@/app/lib/supabase";
+import { isIndexablePost } from "@/lib/blog/daily-post";
 
 // 블로그 RSS (2026-11-04) — 네이버 서치어드바이저 "RSS 제출"용. 매일 자동으로 쓰는 블로그 글(blog_posts) 최신 50개.
 // 새 글을 네이버가 빨리 알아채게 한다. 한 시간마다 다시 만든다.
@@ -20,9 +21,11 @@ export async function GET() {
     .from("blog_posts")
     .select("slug, title, category, summary, content, created_at")
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(100);
 
   const items = (posts ?? [])
+    .filter((post) => isIndexablePost(post))
+    .slice(0, 50)
     .map((post) => {
       const link = `${BASE}/blog/${post.slug}`;
       const description = (post.summary || String(post.content ?? "").slice(0, 200)).trim();

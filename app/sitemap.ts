@@ -2,6 +2,7 @@ import { ZODIAC_2027 } from "@/lib/newyear/zodiac-2027";
 // app/sitemap.ts
 import { MetadataRoute } from 'next';
 import { supabase } from '@/app/lib/supabase';
+import { isIndexablePost } from '@/lib/blog/daily-post';
 
 // 🚀 베르첼의 고집불통 캐시를 강제로 부수고 항상 최신 지도를 만들게 하는 마법의 주문!
 export const dynamic = 'force-dynamic';
@@ -13,11 +14,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 🗄️ 수파베이스에서 모든 블로그 글 가져오기
   const { data: posts } = await supabase
     .from('blog_posts')
-    .select('slug, created_at')
+    .select('slug, created_at, content')
     .order('created_at', { ascending: false });
 
   // 가져온 글들을 지도 형식에 맞게 변환
-  const blogUrls = posts?.map((post) => ({
+  const blogUrls = posts?.filter((post) => isIndexablePost(post)).map((post) => ({
     url: `${baseUrl}/blog/${post.slug}`,
     lastModified: new Date(post.created_at),
   })) || [];
