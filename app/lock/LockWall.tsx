@@ -760,6 +760,9 @@ export function LockWall({ initialLockId }: { initialLockId?: string }) {
               >
                 로그아웃
               </button>
+              <a href="/account-delete" className="text-[11px] text-white/35 transition hover:text-white/70">
+                계정 삭제
+              </a>
             </>
           ) : (
             <>

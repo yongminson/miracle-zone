@@ -145,6 +145,10 @@ export function GlobalSiteFooter() {
               환불정책
             </button>
             <span aria-hidden>|</span>
+            <Link href="/account-delete" className="transition-colors hover:text-white">
+              계정 삭제
+            </Link>
+            <span aria-hidden>|</span>
             <button type="button" onClick={() => setShowCompanyInfo(!showCompanyInfo)} className="transition-colors hover:text-white">
               사업자 정보 {showCompanyInfo ? "▲" : "▼"}
             </button>
