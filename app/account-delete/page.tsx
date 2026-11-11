@@ -55,6 +55,7 @@ export default function AccountDeletePage() {
           <ul className={`${ul} mt-2`}>
             <li className="break-keep">꿈해몽 공유 기록: 90일 뒤 자동 삭제</li>
             <li className="break-keep">단톡방 궁합·우리 둘 궁합: 30일 뒤 자동 삭제, 넣은 기기에서 직접 뺄 수 있음</li>
+            <li className="break-keep">구매 후기: 메일로 요청하면 삭제</li>
             <li className="break-keep">소원 자물쇠: 건 기기나 로그인한 계정에서 직접 내릴 수 있음</li>
             <li className="break-keep">알림 정보: 알림을 끄면 삭제</li>
             <li className="break-keep">기기에 저장된 입력값: 앱 데이터 또는 브라우저 저장 정보를 지우면 삭제</li>

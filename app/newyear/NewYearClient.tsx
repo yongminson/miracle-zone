@@ -140,7 +140,16 @@ export function NewYearClient() {
             }}
             detailSlot={
               paid.detail ? (
-                <DetailView detail={paid.detail} result={result} gender={gender} />
+                <DetailView
+                  detail={paid.detail}
+                  result={result}
+                  gender={gender}
+                  reviewIds={
+                    paid.purchases.find(
+                      (p) => p.input.birthDate === birthDate && p.input.calendarType === calendar,
+                    )?.ids ?? null
+                  }
+                />
               ) : (
                 <DetailPaywall
                   result={result}

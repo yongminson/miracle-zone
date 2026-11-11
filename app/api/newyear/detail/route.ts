@@ -18,7 +18,8 @@ import {
 
 export const runtime = "nodejs";
 // AI 가 12달 풀이를 쓰는 데 시간이 걸린다
-export const maxDuration = 60;
+// 상세 풀이는 gpt-4.1 + 뻔한 말이 섞이면 한 번 고쳐 쓰기라 60초를 넘을 수 있다(2026-11-12)
+export const maxDuration = 120;
 
 function bad(message: string, status = 400) {
   return NextResponse.json({ success: false, message }, { status });

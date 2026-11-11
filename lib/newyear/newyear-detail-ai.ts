@@ -16,8 +16,9 @@ import { keyMonthsForPrompt, newYearKeyMonths } from "./newyear-keys";
  * 결과는 DB 에 저장해 다시 볼 때는 부르지 않는다.
  */
 
-// 유료 풀이라 구체성이 중요하다. 4o-mini 는 무료 결과를 되풀이하는 경향이 커서 4o 를 쓴다(1건 약 40원 추정)
-const MODEL = "gpt-4o";
+// 유료 풀이라 구체성이 중요하다. 4o-mini 는 무료 결과를 되풀이하는 경향이 컸고,
+// 4o 는 금지한 뻔한 말을 계속 섞어서(2026-11-12 시험) 지시를 더 잘 따르는 4.1 로 바꿨다(4o 보다 단가도 낮다)
+const MODEL = "gpt-4.1";
 
 const AREA_LABELS: Record<NewYearDetailArea["key"], string> = {
   money: "재물",
@@ -149,23 +150,57 @@ export async function generateNewYearDetail(
   if (!apiKey) throw new Error("OPENAI_API_KEY 없음");
 
   const openai = new OpenAI({ apiKey });
-  const completion = await openai.chat.completions.create({
-    model: MODEL,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: describeInput(input, result) },
-    ],
-    response_format: { type: "json_object" },
-    temperature: 0.7,
-    max_tokens: 4000,
-  });
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: describeInput(input, result) },
+  ];
 
-  const content = completion.choices[0]?.message?.content ?? "";
-  let parsed: unknown = null;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    throw new Error("상세 풀이 형식이 올바르지 않습니다.");
+  let detail: NewYearDetail | null = null;
+  const startedAt = Date.now();
+  // 뻔한 말·돈 조언이 섞이면 한 번만 고쳐 쓰게 한다(최대 2회 호출)
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const completion = await openai.chat.completions.create({
+      model: MODEL,
+      messages,
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      max_tokens: 4000,
+    });
+    const content = completion.choices[0]?.message?.content ?? "";
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      if (detail) return detail;
+      throw new Error("상세 풀이 형식이 올바르지 않습니다.");
+    }
+    detail = normalize(parsed, result);
+    const found = bannedPhrasesIn(detail);
+    // 첫 답이 오래 걸렸으면 고쳐 쓰지 않고 그대로 준다(결제한 사람을 오래 기다리게 하지 않는다)
+    if (found.length === 0 || attempt === 1 || Date.now() - startedAt > 40_000) return detail;
+    messages.push(
+      { role: "assistant", content },
+      {
+        role: "user",
+        content: `다음 표현이 들어갔습니다: ${found.join(", ")}. 이 표현을 모두 빼고, 그 자리를 실제로 해 볼 수 있는 구체적인 행동으로 바꿔 같은 JSON 형식으로 전체를 다시 써 주세요. 계산 결과와 핵심 달은 그대로 지킵니다.`,
+      },
+    );
   }
-  return normalize(parsed, result);
+  return detail as NewYearDetail;
+}
+
+// 규칙 13·14 — 결제한 사람이 "누구에게나 하는 말"로 느끼는 표현과 금융 조언
+const BANNED_PHRASES = [
+  "현명한", "현명하게", "신중하게", "신중히", "균형", "주의하세요", "잘 관리", "긍정적인 흐름", "긍정적인 변화",
+  "기회를 잡", "기회를 잘 활용", "열린 마음", "투자를", "안전 자산", "대출", "정기예금",
+];
+
+function bannedPhrasesIn(detail: NewYearDetail): string[] {
+  const all = [
+    detail.overview,
+    detail.motto,
+    ...detail.areas.flatMap((a) => [a.summary, a.doThis, a.avoid]),
+    ...detail.months.flatMap((m) => [m.focus, m.doThis, m.avoid]),
+  ].join("\n");
+  return BANNED_PHRASES.filter((p) => all.includes(p));
 }

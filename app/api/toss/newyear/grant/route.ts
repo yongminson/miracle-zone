@@ -15,7 +15,8 @@ import { NEWYEAR_DETAIL_PRICE_WON, type NewYearDetailInput } from "@/lib/newyear
  */
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// 상세 풀이는 gpt-4.1 + 뻔한 말이 섞이면 한 번 고쳐 쓰기라 60초를 넘을 수 있다(2026-11-12)
+export const maxDuration = 120;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TOSS_USER_KEY_PATTERN = /^[A-Za-z0-9._:-]{1,200}$/;

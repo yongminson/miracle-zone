@@ -13,6 +13,7 @@ import {
   type NewYearResult,
 } from "@/lib/newyear/newyear-types";
 import { KEY_TOPIC_LABEL, newYearKeyMonths, type NewYearKeyTopic } from "@/lib/newyear/newyear-keys";
+import { ReviewForm, ReviewList } from "@/components/reviews/Reviews";
 import { purchaseNewYearOnToss } from "./toss-purchase";
 
 /**
@@ -316,7 +317,7 @@ export function useNewYearDetail(onRestore: (input: NewYearDetailInput, result: 
   };
 }
 
-/** 풀이를 쓰는 동안(약 20초) — 멈춘 게 아니라 진행 중이라는 걸 보여준다 */
+/** 풀이를 쓰는 동안(약 30초~1분) — 멈춘 게 아니라 진행 중이라는 걸 보여준다 */
 const WAIT_STEPS = [
   "결제를 확인했어요",
   "타고난 기운을 다시 계산하고 있어요",
@@ -359,7 +360,7 @@ export function DetailWaiting() {
         ))}
       </ul>
       <p className="mt-3 text-[11px] leading-relaxed text-white/45">
-        보통 20초쯤 걸려요. 화면을 닫아도 결제는 안전하고, 다시 열면 추가 결제 없이 이어서 받을 수 있어요.
+        보통 30초~1분쯤 걸려요. 화면을 닫아도 결제는 안전하고, 다시 열면 추가 결제 없이 이어서 받을 수 있어요.
       </p>
     </div>
   );
@@ -491,6 +492,9 @@ export function DetailPaywall({
         <li>✓ 결제했는데 풀이를 받지 못하면 전액 환불</li>
       </ul>
 
+      {/* 실제 구매자 후기 — 하나도 없으면 아무것도 그리지 않는다 */}
+      <ReviewList product="newyear" />
+
       {appNeedsUpdate && !isToss ? (
         <a
           href={PLAY_STORE_URL}
@@ -533,10 +537,13 @@ export function DetailView({
   detail,
   result,
   gender,
+  reviewIds,
 }: {
   detail: NewYearDetail;
   result: NewYearResult;
   gender?: NewYearGender;
+  /** 이 풀이를 산 결제 식별자 — 있으면 맨 아래에 후기 쓰기 칸을 보여 준다 */
+  reviewIds?: { paymentId?: string; purchaseToken?: string; tossOrderId?: string; admin?: boolean } | null;
 }) {
   // 결제 전에 가려 두었던 핵심 달을 여기서 공개한다(같은 계산)
   const keys = gender ? newYearKeyMonths(result, gender) : null;
@@ -628,6 +635,8 @@ export function DetailView({
           })}
         </div>
       </section>
+
+      <ReviewForm product="newyear" ids={reviewIds} />
     </div>
   );
 }
