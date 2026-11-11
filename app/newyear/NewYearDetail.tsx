@@ -457,9 +457,11 @@ export function DetailPaywall({
               <p className="text-sm font-bold text-rose-100 break-keep">
                 ⚠️ 조심할 달 {result.cautionMonths.join("·")}월에 하지 말아야 할 일
               </p>
-              <p className="mt-1.5 select-none text-[13px] text-white/70 blur-[5px]" aria-hidden>
-                이 달에는 큰 계약과 돈이 묶이는 약속을 미루고 가까운 사람과의 말다툼을 피하세요
-              </p>
+              {/* 실제 풀이는 결제 후에 만든다 — 여기엔 어떤 문장도 넣지 않고 가림 표시만 둔다 */}
+              <div className="mt-2 space-y-1.5" aria-hidden>
+                <div className="h-3 w-[92%] rounded-full bg-white/15 blur-[2px]" />
+                <div className="h-3 w-[70%] rounded-full bg-white/15 blur-[2px]" />
+              </div>
               <p className="mt-1 text-[11px] text-rose-200/60">결제하면 달마다 구체적인 행동으로 알려 드려요</p>
             </div>
           ) : null}
