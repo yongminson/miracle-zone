@@ -132,8 +132,8 @@ export default function Home() {
           {/* ① 첫 화면: 생일 입력과 지금 시즌 메뉴만 */}
           <div className="text-center">
             <p className="text-xs font-medium tracking-[0.2em] text-amber-500/80">만세력 계산 기반 무료 사주</p>
-            <h1 className="mt-3 font-serif text-[28px] font-bold leading-snug tracking-tight text-amber-50 sm:text-4xl">
-              내 생일로 보는 <span className="text-amber-400">오늘·올해 운세</span>
+            <h1 className="mt-3 font-serif text-[28px] font-bold leading-snug tracking-tight text-amber-50 break-keep sm:text-4xl">
+              내 생일로 보는<br className="sm:hidden" /> <span className="text-amber-400">오늘·올해 운세</span>
             </h1>
 
             {/* 들어오자마자 생년월일만 넣고 오늘의 운세 — 소개만 보고 나가던 손님을 붙잡는다 */}
