@@ -140,9 +140,12 @@ export function NewYearClient() {
             }}
             detailSlot={
               paid.detail ? (
-                <DetailView detail={paid.detail} result={result} />
+                <DetailView detail={paid.detail} result={result} gender={gender} />
               ) : (
                 <DetailPaywall
+                  result={result}
+                  gender={gender}
+                  name={name}
                   onBuy={() =>
                     paid.startPurchase({ name: name.trim(), birthDate, calendarType: calendar, gender })
                   }

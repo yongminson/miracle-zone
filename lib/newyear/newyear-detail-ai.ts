@@ -6,6 +6,7 @@ import type {
   NewYearDetailMonth,
   NewYearResult,
 } from "./newyear-types";
+import { keyMonthsForPrompt, newYearKeyMonths } from "./newyear-keys";
 
 /**
  * 신년운세 상세 풀이(유료) 작성.
@@ -37,6 +38,8 @@ const SYSTEM_PROMPT = `당신은 한국 명리학에 밝은 상담가입니다. 
 7. 무료 결과(총운·월별 한 줄)를 그대로 되풀이하지 않습니다. 유료 풀이이므로 한 단계 더 깊게, 그 사람의 나이대와 성별에 맞는 현실적인 상황(직장·가정·연애·돈 관리 등)을 예로 들어 풀어 씁니다.
 8. 특이 사항(삼재·충·합)이 있으면 총평과 관련 영역·달에서 반드시 짚고, 어떻게 대비할지 알려 줍니다.
 9. 영역 풀이에는 그 영역에 특히 좋은 달이나 조심할 달이 있으면 몇 월인지 짚어 줍니다.
+10. [핵심 달]은 결제 전 화면에서 "이 달을 알려 드린다"고 약속한 달입니다. 재물(money)에는 "돈이 움직이는 달", 연애·관계(love)에는 "인연·사람 운이 열리는 달", 직장·학업(work)에는 "일·이동 신호가 오는 달"을 반드시 몇 월인지 밝히고, 그 달에 무엇을 하면 좋은지 구체적으로 씁니다. 해당 달의 months 풀이에서도 같은 주제를 짚습니다. "없음"이면 그 영역에서 억지로 달을 만들지 않습니다.
+11. 조심할 달은 months 풀이의 avoid 에 "그 달에 하지 말아야 할 일"을 구체적인 행동으로 씁니다.
 
 반드시 아래 JSON 형식으로만 답합니다.
 {
@@ -80,6 +83,9 @@ function describeInput(input: NewYearDetailInput, result: NewYearResult): string
 
 [특이 사항]
 ${flags}
+
+[핵심 달 — 결제한 사람에게 화면에서도 그대로 보여 준다]
+${keyMonthsForPrompt(newYearKeyMonths(result, input.gender))}
 
 [월별 계산]
 ${months}

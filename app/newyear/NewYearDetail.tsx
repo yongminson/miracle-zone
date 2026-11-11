@@ -9,8 +9,10 @@ import {
   NEWYEAR_DETAIL_PRODUCT_ID,
   type NewYearDetail,
   type NewYearDetailInput,
+  type NewYearGender,
   type NewYearResult,
 } from "@/lib/newyear/newyear-types";
+import { KEY_TOPIC_LABEL, newYearKeyMonths, type NewYearKeyTopic } from "@/lib/newyear/newyear-keys";
 import { purchaseNewYearOnToss } from "./toss-purchase";
 
 /**
@@ -363,7 +365,29 @@ export function DetailWaiting() {
   );
 }
 
-/** 결제 전 — 무엇을 받는지와 가격 */
+/** 가린 달 — 실제 숫자는 화면(HTML)에 넣지 않는다 */
+function HiddenMonth() {
+  return (
+    <span
+      aria-label="결제 후 공개"
+      className="inline-flex h-7 min-w-[46px] items-center justify-center rounded-lg border border-amber-300/30 bg-gradient-to-br from-amber-200/20 to-rose-300/10 px-2 text-sm font-black text-amber-100/90 shadow-inner"
+    >
+      <span className="select-none blur-[3px]">?</span>
+      <span className="ml-0.5">월</span>
+    </span>
+  );
+}
+
+const CHAPTERS: { no: string; title: string; sub: string }[] = [
+  { no: "1장", title: "2027년, 나에게 오는 가장 큰 기회", sub: "한 해 총평과 올해의 한 마디" },
+  { no: "2장", title: "돈이 움직이는 달, 새는 돈 막는 법", sub: "재물 흐름 · 할 일 · 피할 일" },
+  { no: "3장", title: "인연이 들어오는 달", sub: "연애 · 고백 · 관계 회복 타이밍" },
+  { no: "4장", title: "일·이직·이사 타이밍", sub: "직장 · 학업 · 변화가 오는 달" },
+  { no: "5장", title: "몸이 보내는 신호", sub: "건강 · 생활 리듬" },
+  { no: "6장", title: "12개월 달력", sub: "달마다 생기기 쉬운 일 · 할 일 · 피할 일" },
+];
+
+/** 결제 전 — 이 사람의 계산 결과 일부를 가린 채 보여 주고, 무엇을 받는지와 가격 */
 export function DetailPaywall({
   onBuy,
   busy,
@@ -373,6 +397,9 @@ export function DetailPaywall({
   adminFree = false,
   generating = false,
   alreadyOwned = false,
+  result,
+  gender,
+  name,
 }: {
   onBuy: () => void;
   /** 이 사람 풀이를 이 기기에서 이미 샀다 — 결제 없이 다시 연다 */
@@ -384,16 +411,82 @@ export function DetailPaywall({
   adminFree?: boolean;
   /** 결제 확인 뒤 풀이를 쓰는 중 */
   generating?: boolean;
+  /** 무료 결과 — 있으면 핵심 달을 가린 채 미리 보여 준다 */
+  result?: NewYearResult;
+  gender?: NewYearGender;
+  name?: string;
 }) {
+  const keys = result && gender ? newYearKeyMonths(result, gender) : null;
+  const who = name?.trim() ? `${name.trim()}님의` : "내";
   return (
-    <section className="rounded-3xl border border-amber-400/30 bg-gradient-to-b from-amber-950/40 to-rose-950/30 p-5 text-center">
-      <p className="text-xs font-semibold tracking-widest text-amber-300/80">상세 풀이</p>
-      <h3 className="mt-1 text-lg font-black text-amber-100">2027년을 달마다 미리 준비하세요</h3>
-      <ul className="mx-auto mt-3 max-w-xs space-y-1.5 text-left text-[13px] text-white/70">
-        <li>✦ 재물 · 연애 · 직장 · 건강 흐름</li>
-        <li>✦ 12개월 각각 할 일과 피할 일</li>
-        <li>✦ 올해의 한 마디</li>
-        <li>✦ 한 번 결제하면 언제든 다시 보기</li>
+    <section className="overflow-hidden rounded-3xl border border-amber-400/40 bg-gradient-to-b from-[#2a1606] via-[#1a0d14] to-black p-5 text-center shadow-[0_0_40px_-12px_rgba(245,158,11,0.45)]">
+      <p className="text-[11px] font-semibold tracking-[0.25em] text-amber-300/80">2027 상세 풀이 미리보기</p>
+      <h3 className="mt-2 text-xl font-black leading-snug text-amber-50 break-keep">
+        {who} 2027년,
+        <br />
+        <span className="text-amber-300">이미 정해진 달</span>이 있어요
+      </h3>
+      <p className="mx-auto mt-2 max-w-sm text-[12px] leading-relaxed text-white/55 break-keep">
+        태어난 날의 기운과 2027년 달마다 들어오는 기운을 맞춰 계산한 결과예요. 무료 결과에는 나오지 않은 달이에요.
+      </p>
+
+      {keys ? (
+        <div className="mt-4 space-y-2 text-left">
+          {(Object.keys(KEY_TOPIC_LABEL) as NewYearKeyTopic[])
+            .filter((topic) => keys[topic].length > 0)
+            .map((topic) => (
+              <div key={topic} className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-bold text-amber-50 break-keep">
+                    {KEY_TOPIC_LABEL[topic].emoji} {KEY_TOPIC_LABEL[topic].title}
+                  </p>
+                  <div className="flex shrink-0 gap-1.5">
+                    {keys[topic].map((m) => (
+                      <HiddenMonth key={m} />
+                    ))}
+                  </div>
+                </div>
+                <p className="mt-1 text-[11px] text-white/45 break-keep">
+                  {keys[topic].length === 2 ? "올해 두 번 와요 · " : "올해 한 번 와요 · "}
+                  {KEY_TOPIC_LABEL[topic].hint}
+                </p>
+              </div>
+            ))}
+          {result && result.cautionMonths.length > 0 ? (
+            <div className="rounded-2xl border border-rose-400/30 bg-rose-500/[0.07] px-4 py-3">
+              <p className="text-sm font-bold text-rose-100 break-keep">
+                ⚠️ 조심할 달 {result.cautionMonths.join("·")}월에 하지 말아야 할 일
+              </p>
+              <p className="mt-1.5 select-none text-[13px] text-white/70 blur-[5px]" aria-hidden>
+                이 달에는 큰 계약과 돈이 묶이는 약속을 미루고 가까운 사람과의 말다툼을 피하세요
+              </p>
+              <p className="mt-1 text-[11px] text-rose-200/60">결제하면 달마다 구체적인 행동으로 알려 드려요</p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="mt-5 rounded-2xl border border-amber-400/20 bg-black/30 p-4 text-left">
+        <p className="text-center text-[11px] font-semibold tracking-widest text-amber-300/70">상세 풀이에 담긴 내용</p>
+        <ol className="mt-3 space-y-2.5">
+          {CHAPTERS.map((c) => (
+            <li key={c.no} className="flex gap-3">
+              <span className="mt-0.5 shrink-0 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-black text-amber-300">
+                {c.no}
+              </span>
+              <div>
+                <p className="text-[13px] font-bold text-white/90 break-keep">{c.title}</p>
+                <p className="text-[11px] text-white/45 break-keep">{c.sub}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <ul className="mt-4 space-y-1 text-left text-[11px] leading-relaxed text-white/50">
+        <li>✓ 무료 결과와 같은 만세력 계산 — 1920~2035년 날짜를 배포할 때마다 자동으로 검사해요</li>
+        <li>✓ 한 번 결제하면 이 기기에서 언제든 다시 보기</li>
+        <li>✓ 결제했는데 풀이를 받지 못하면 전액 환불</li>
       </ul>
 
       {appNeedsUpdate && !isToss ? (
@@ -434,7 +527,17 @@ function monthlyOpenKeys(): string[] {
 }
 
 /** 결제 후 — 상세 풀이 */
-export function DetailView({ detail, result }: { detail: NewYearDetail; result: NewYearResult }) {
+export function DetailView({
+  detail,
+  result,
+  gender,
+}: {
+  detail: NewYearDetail;
+  result: NewYearResult;
+  gender?: NewYearGender;
+}) {
+  // 결제 전에 가려 두었던 핵심 달을 여기서 공개한다(같은 계산)
+  const keys = gender ? newYearKeyMonths(result, gender) : null;
   return (
     <div className="space-y-4">
       <section className="rounded-3xl border border-amber-400/30 bg-gradient-to-b from-amber-950/40 to-black/40 p-5">
@@ -442,6 +545,33 @@ export function DetailView({ detail, result }: { detail: NewYearDetail; result: 
         <p className="mt-2 text-center text-lg font-black text-amber-100">“{detail.motto}”</p>
         <p className="mt-4 text-sm leading-relaxed text-white/75">{detail.overview}</p>
       </section>
+
+      {keys ? (
+        <section className="rounded-3xl border border-amber-400/30 bg-black/40 p-4 sm:p-5">
+          <h3 className="text-center text-sm font-bold text-amber-100">나의 2027 핵심 달</h3>
+          <div className="mt-3 grid gap-2">
+            {(Object.keys(KEY_TOPIC_LABEL) as NewYearKeyTopic[])
+              .filter((topic) => keys[topic].length > 0)
+              .map((topic) => (
+                <div key={topic} className="flex items-center justify-between gap-2 rounded-2xl bg-white/[0.04] px-4 py-3">
+                  <p className="text-[13px] font-bold text-white/85 break-keep">
+                    {KEY_TOPIC_LABEL[topic].emoji} {KEY_TOPIC_LABEL[topic].title}
+                  </p>
+                  <p className="shrink-0 text-base font-black text-amber-300">
+                    {keys[topic].map((m) => `${m}월`).join(" · ")}
+                  </p>
+                </div>
+              ))}
+            <div className="flex items-center justify-between gap-2 rounded-2xl bg-rose-500/[0.07] px-4 py-3">
+              <p className="text-[13px] font-bold text-rose-100">⚠️ 조심할 달</p>
+              <p className="shrink-0 text-base font-black text-rose-300">
+                {result.cautionMonths.map((m) => `${m}월`).join(" · ")}
+              </p>
+            </div>
+          </div>
+          <p className="mt-2 text-center text-[11px] text-white/40">각 달에 할 일은 아래 영역별·달별 풀이에 있어요</p>
+        </section>
+      ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2">
         {detail.areas.map((area) => (
