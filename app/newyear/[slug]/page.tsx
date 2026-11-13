@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .filter((y) => y.age >= 20 && y.age <= 80)
     .map((y) => `${String(y.year).slice(2)}년생`)
     .join("·");
-  const title = `2027 ${z.animal}띠 운세 — ${z.relation.title.split(" (")[0].replace(" — ", ": ")} | 명운`;
+  const title = `2027 ${z.animal}띠 운세 — ${z.relation.title.split(" (")[0].replace(" — ", ": ")} | 명운(命運)`;
   const description = `2027년 정미년 ${z.animal}띠(${years}) 총운·재물·연애·직장·건강과 좋은 달·조심할 달을 무료로 확인하세요. ${z.keyword}`;
   const url = `https://saju.ymstudio.co.kr/newyear/${z.slug}`;
   return {

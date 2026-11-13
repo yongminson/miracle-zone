@@ -5,16 +5,20 @@ import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 import { BirthdayGiftBanner } from "@/components/birthday/BirthdayGiftBanner";
 import { AppInstallCta } from "@/components/app/AppInstallCta";
 import { QuickFortune } from "@/components/landing/QuickFortune";
+import { isSeasonOver } from "@/lib/menu/core-menu";
 
 export const metadata: Metadata = {
   alternates: { canonical: "https://saju.ymstudio.co.kr" },
 };
 
+// 시즌 메뉴(시험 합격운)가 날짜가 지나면 배포 없이도 빠지도록 한 시간마다 다시 만든다
+export const revalidate = 3600;
+
 /**
  * 메인 화면 (2026-11-11 정리).
  * 최근 2주 첫 방문 기기의 86% 가 한 화면만 보고 나갔다. 그래서
  * ① 첫 화면 위쪽에 생일 입력(오늘의 운세)과 지금 시즌 메뉴(신년운세)만 두고
- * ② 메뉴 17개를 고민별 5묶음으로 나눠, 무엇을 볼지 바로 고르게 했다(경쟁 서비스들도 고민·주제별로 나눈다).
+ * ② (2026-11-14) 메뉴를 핵심 6개(크게)와 다른 메뉴(작게)로 줄였다 — 30일 사용·매출 기준, lib/menu/core-menu.ts 참고.
  * 앱(명운-rn)도 이 화면으로 열린다 — 앱 설치 안내는 AppInstallCta 가 앱 안에서 스스로 숨는다.
  */
 
@@ -27,55 +31,30 @@ const BADGE: Record<Menu["tone"], string> = {
   vip: "bg-purple-500/15 text-purple-300 border-purple-500/30",
 };
 
-const GROUPS: { title: string; sub: string; menus: Menu[] }[] = [
-  {
-    title: "올해·오늘 내 흐름은?",
-    sub: "신년운세부터 오늘 하루까지",
-    menus: [
-      { href: "/newyear", emoji: "🐑", title: "2027 신년운세", desc: "정미년 총운 · 좋은 달과 조심할 달", badge: "무료", tone: "new" },
-      { href: "/tools?tab=fortune", emoji: "✨", title: "오늘의 운세", desc: "금전·직장·애정운", badge: "무료", tone: "free" },
-      { href: "/monthly", emoji: "📅", title: "이달의 운세", desc: "좋은 날·조심할 날 달력", badge: "무료~", tone: "free" },
-      { href: "/tools?tab=zodiac", emoji: "🐉", title: "띠별 운세", desc: "12띠 재물·연애·직업운", badge: "무료", tone: "free" },
-    ],
-  },
-  {
-    title: "그 사람과 나는?",
-    sub: "연인·친구·단톡방까지",
-    menus: [
-      { href: "/tools?tab=match", emoji: "❤️", title: "소름 돋는 궁합", desc: "두 사람 사주로 계산한 궁합", badge: "무료~", tone: "free" },
-      { href: "/together", emoji: "👥", title: "단톡방 궁합", desc: "친구들 넣고 궁합 순위 보기", badge: "무료", tone: "free" },
-      { href: "/tools?tab=mbti", emoji: "🧠", title: "MBTI × 사주", desc: "연애·직업 맞춤 풀이", badge: "무료", tone: "free" },
-    ],
-  },
-  {
-    title: "돈·행운, 좋은 날은?",
-    sub: "로또 번호와 날짜 고르기",
-    menus: [
-      { href: "/tools?tab=lotto", emoji: "🎰", title: "내 사주 로또 번호", desc: "생일로 고른 번호 6개", badge: "무료", tone: "free" },
-      { href: "/taekil", emoji: "🗓️", title: "좋은 날 고르기", desc: "이사·계약·고백 날짜", badge: "무료~", tone: "free" },
-      { href: "/sonday", emoji: "🏠", title: "손없는날", desc: "이사·개업 길일 달력", badge: "무료", tone: "free" },
-      { href: "/season", emoji: "📝", title: "시험 합격운", desc: "시험 날 흐름 · 준비 계획", badge: "무료~", tone: "free" },
-    ],
-  },
-  {
-    title: "나는 어떤 사람일까?",
-    sub: "타고난 기운과 얼굴·손·이름",
-    menus: [
-      { href: "/vip", emoji: "👑", title: "사주 인사이트", desc: "성향·흐름 리포트 + PDF", badge: "4,400원", tone: "vip" },
-      { href: "/tools?tab=saju", emoji: "👁️", title: "관상 / 이름 풀이", desc: "얼굴 사진 · 성명학", badge: "1,900원", tone: "paid" },
-      { href: "/tools?tab=palmistry", emoji: "✋", title: "손금 분석", desc: "재물·결혼·건강선", badge: "1,900원", tone: "paid" },
-      { href: "/manse", emoji: "📜", title: "무료 만세력", desc: "내 사주팔자 바로 보기", badge: "무료", tone: "free" },
-    ],
-  },
-  {
-    title: "마음을 내려놓고 싶을 때",
-    sub: "꿈 풀이와 소원",
-    menus: [
-      { href: "/tools?tab=dream", emoji: "📖", title: "꿈 해몽", desc: "어젯밤 꿈의 의미", badge: "무료", tone: "free" },
-      { href: "/tools?tab=altar", emoji: "🕯️", title: "기적의 제단", desc: "소원을 적어 올리기", badge: "무료~", tone: "free" },
-      { href: "/lock", emoji: "🔐", title: "소원 자물쇠", desc: "자물쇠에 소원을 걸기", badge: "1,000원~", tone: "paid" },
-    ],
-  },
+// 핵심 메뉴 6개(최근 30일 사용·매출 상위, lib/menu/core-menu.ts 와 같은 판단) — 크게
+const CORE: Menu[] = [
+  { href: "/newyear", emoji: "🐑", title: "2027 신년운세", desc: "정미년 총운 · 좋은 달과 조심할 달", badge: "무료", tone: "new" },
+  { href: "/tools?tab=fortune", emoji: "✨", title: "오늘의 운세", desc: "내 사주로 본 금전·직장·애정운", badge: "무료", tone: "free" },
+  { href: "/vip", emoji: "👑", title: "사주 인사이트", desc: "타고난 성향·10년 흐름 리포트", badge: "4,400원", tone: "vip" },
+  { href: "/tools?tab=match", emoji: "❤️", title: "궁합", desc: "둘이 보는 궁합 · 단톡방 순위", badge: "무료~", tone: "free" },
+  { href: "/tools?tab=lotto", emoji: "🎰", title: "내 사주 로또 번호", desc: "생일로 고른 이번 주 번호 6개", badge: "무료", tone: "free" },
+  { href: "/manse", emoji: "📜", title: "무료 만세력", desc: "사주팔자·십성·대운 바로 보기", badge: "무료", tone: "free" },
+];
+
+// 나머지는 작게 한 줄로(페이지는 그대로 열린다). season 은 수능 다음 날부터 숨긴다
+const MORE: { href: string; label: string; id?: string }[] = [
+  { href: "/together", label: "👥 단톡방 궁합" },
+  { href: "/monthly", label: "📅 이달의 운세" },
+  { href: "/tools?tab=zodiac", label: "🐉 띠별 운세" },
+  { href: "/tools?tab=saju", label: "👁️ 관상·이름 풀이" },
+  { href: "/tools?tab=palmistry", label: "✋ 손금" },
+  { href: "/tools?tab=dream", label: "📖 꿈 해몽" },
+  { href: "/taekil", label: "🗓️ 좋은 날 고르기" },
+  { href: "/sonday", label: "🏠 손없는날" },
+  { href: "/tools?tab=mbti", label: "🧠 MBTI × 사주" },
+  { href: "/season", label: "📝 시험 합격운", id: "season" },
+  { href: "/tools?tab=altar", label: "🕯️ 기적의 제단" },
+  { href: "/lock", label: "🔐 소원 자물쇠" },
 ];
 
 export default function Home() {
@@ -161,35 +140,44 @@ export default function Home() {
             </div>
           </div>
 
-          {/* ② 고민별 메뉴 */}
-          <div className="mt-10 space-y-8">
-            {GROUPS.map((group) => (
-              <section key={group.title} aria-label={group.title}>
-                <div className="flex items-baseline justify-between gap-2 px-1">
-                  <h2 className="font-serif text-lg font-bold text-amber-100">{group.title}</h2>
-                  <p className="text-[11px] text-slate-500">{group.sub}</p>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-                  {group.menus.map((menu) => (
-                    <Link
-                      key={menu.href}
-                      href={menu.href}
-                      className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-3 transition hover:border-amber-500/50 hover:bg-slate-800/60"
-                    >
-                      <div className="flex items-start justify-between gap-1">
-                        <span className="text-xl leading-none">{menu.emoji}</span>
-                        <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${BADGE[menu.tone]}`}>
-                          {menu.badge}
-                        </span>
-                      </div>
-                      <h3 className="mt-2 text-sm font-bold text-amber-50 break-keep">{menu.title}</h3>
-                      <p className="mt-0.5 text-[11px] leading-snug text-slate-400 break-keep">{menu.desc}</p>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
+          {/* ② 핵심 메뉴 6개 */}
+          <section aria-label="많이 찾는 메뉴" className="mt-10">
+            <h2 className="px-1 font-serif text-lg font-bold text-amber-100">많이 찾는 메뉴</h2>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+              {CORE.map((menu) => (
+                <Link
+                  key={menu.href}
+                  href={menu.href}
+                  className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-4 transition hover:border-amber-500/50 hover:bg-slate-800/60"
+                >
+                  <div className="flex items-start justify-between gap-1">
+                    <span className="text-2xl leading-none">{menu.emoji}</span>
+                    <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${BADGE[menu.tone]}`}>
+                      {menu.badge}
+                    </span>
+                  </div>
+                  <h3 className="mt-2.5 text-[15px] font-bold text-amber-50 break-keep">{menu.title}</h3>
+                  <p className="mt-0.5 text-[11px] leading-snug text-slate-400 break-keep">{menu.desc}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* ③ 다른 메뉴 — 작게 */}
+          <section aria-label="다른 메뉴" className="mt-8">
+            <h2 className="px-1 text-sm font-bold text-slate-300">다른 메뉴</h2>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {MORE.filter((m) => !m.id || !isSeasonOver(m.id)).map((m) => (
+                <Link
+                  key={m.href}
+                  href={m.href}
+                  className="rounded-full border border-slate-700/70 bg-slate-900/50 px-3 py-1.5 text-[12px] text-slate-300 transition hover:border-amber-500/50 hover:text-amber-100"
+                >
+                  {m.label}
+                </Link>
+              ))}
+            </div>
+          </section>
 
           {/* ③ 하단 소개 (검색엔진도 읽는다) */}
           <div className="mt-16 border-t border-slate-800/60 pt-10 pb-4">

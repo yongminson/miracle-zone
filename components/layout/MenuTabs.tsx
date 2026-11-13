@@ -26,12 +26,14 @@ import {
 import { logEvent } from "@/lib/analytics";
 import { AllMenuButton } from "@/components/layout/AllMenuButton";
 import { APP_GATED_MENU_IDS, useHiddenInApp, type AppGatedProduct } from "@/lib/app-product-gate";
+import { isCoreMenu, isSeasonOver, sortCoreFirst } from "@/lib/menu/core-menu";
 
 /**
  * 별도 페이지(신년운세·사주 인사이트·소원 자물쇠)에서도 도구 화면과 같은 메뉴를 보여준다.
  * 들어온 뒤 다른 메뉴로 가는 길이 없어서 막다른 길이 되던 문제를 막는다.
  *
  * ⚠ 메뉴 목록은 app/tools/page.tsx 의 TABS 와 같게 유지한다(순서·이름·아이콘).
+ * 상단 줄에는 핵심 메뉴(lib/menu/core-menu.ts)와 지금 보는 메뉴만, 나머지는 "전체" 버튼 안에 있다(2026-11-14).
  */
 
 type MenuId =
@@ -65,9 +67,15 @@ export function MenuTabs({ active }: { active?: MenuId }) {
   const navRef = useRef<HTMLDivElement>(null);
   const hiddenInApp = useHiddenInApp();
   // 옛 앱(1.1.9 전)에서는 새 유료 메뉴를 숨긴다 — 지금 보고 있는 화면이면 그대로 둔다
-  const menu = MENU.filter(
-    (item) => item.id === active || !APP_GATED_MENU_IDS.includes(item.id) || !hiddenInApp(item.id as AppGatedProduct),
+  const menu = sortCoreFirst(
+    MENU.filter(
+      (item) =>
+        item.id === active ||
+        ((!APP_GATED_MENU_IDS.includes(item.id) || !hiddenInApp(item.id as AppGatedProduct)) && !isSeasonOver(item.id)),
+    ),
   );
+  // 상단 줄: 핵심 메뉴 + 지금 보는 메뉴. "전체" 버튼에는 menu 전부
+  const bar = menu.filter((item) => isCoreMenu(item.id) || item.id === active);
 
   // 지금 메뉴가 화면 가운데에 오도록 (모바일에서 오른쪽 끝 메뉴가 안 보이는 문제)
   useEffect(() => {
@@ -86,7 +94,7 @@ export function MenuTabs({ active }: { active?: MenuId }) {
         ref={navRef}
         className="no-scrollbar relative z-0 mx-auto flex max-w-screen-lg items-center justify-start gap-6 overflow-x-auto px-4 py-2 sm:justify-between sm:gap-0 sm:px-6"
       >
-        {menu.map((item) => {
+        {bar.map((item) => {
           const isActive = item.id === active;
           return (
             <Link

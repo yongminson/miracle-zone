@@ -21,7 +21,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
   return {
     // 손님의 꿈 내용 — 공유 링크로만 보고 검색에는 내보내지 않는다
     robots: { index: false, follow: true },
-    title: `[${type}] ${summary} | 명운`,
+    title: `[${type}] ${summary} | 명운(命運)`,
     description: data.details?.substring(0, 60) + "...",
     openGraph: {
       title: `[${type}] ${summary}`,

@@ -26,7 +26,7 @@ export const FEATURE_PAGES: Record<FeatureKey, FeaturePage> = {
     key: "fortune",
     path: "/fortune",
     menu: "fortune",
-    title: "무료 오늘의 운세 — 내 사주로 계산한 총운·애정·금전·직장 | 명운",
+    title: "무료 오늘의 운세 — 내 사주로 계산한 총운·애정·금전·직장 | 명운(命運)",
     description:
       "띠만 보는 운세가 아니라 내 생년월일로 세운 사주와 오늘 일진의 관계를 계산해요. 총운과 애정·금전·직장·학업·건강 점수, 오늘 조심할 점까지 무료로 확인하세요.",
     keywords: ["오늘의 운세", "무료 오늘의 운세", "사주 운세", "오늘 운세", "일진", "생년월일 운세"],
@@ -67,7 +67,7 @@ export const FEATURE_PAGES: Record<FeatureKey, FeaturePage> = {
     key: "zodiac",
     path: "/zodiac",
     menu: "zodiac",
-    title: "띠별 오늘의 운세와 띠 궁합표 — 잘 맞는 띠, 부딪히는 띠 | 명운",
+    title: "띠별 오늘의 운세와 띠 궁합표 — 잘 맞는 띠, 부딪히는 띠 | 명운(命運)",
     description:
       "12띠의 오늘 운세를 오늘 일진과의 합·충으로 계산해요. 쥐띠부터 돼지띠까지 잘 맞는 띠(육합)와 부딪히는 띠(충) 표도 한눈에 볼 수 있어요.",
     keywords: ["띠별 운세", "오늘의 띠별 운세", "띠 궁합", "띠 궁합표", "육합", "충", "잘 맞는 띠"],
@@ -102,7 +102,7 @@ export const FEATURE_PAGES: Record<FeatureKey, FeaturePage> = {
     key: "gunghap",
     path: "/gunghap",
     menu: "match",
-    title: "무료 사주 궁합 — 두 사람 생년월일로 보는 궁합 점수 | 명운",
+    title: "무료 사주 궁합 — 두 사람 생년월일로 보는 궁합 점수 | 명운(命運)",
     description:
       "두 사람의 생년월일로 일간·일지·띠·오행 관계를 계산해 궁합 점수를 내요. 성격·가치관·돈·연애·미래 항목별 점수와 함께하기 좋은 날, 조심할 날까지 무료로 확인하세요.",
     keywords: ["궁합", "무료 궁합", "사주 궁합", "생년월일 궁합", "커플 궁합", "연인 궁합", "친구 궁합"],
@@ -143,7 +143,7 @@ export const FEATURE_PAGES: Record<FeatureKey, FeaturePage> = {
     key: "dream",
     path: "/haemong",
     menu: "dream",
-    title: "무료 꿈해몽 — 어젯밤 꿈을 문장으로 적으면 바로 풀이 | 명운",
+    title: "무료 꿈해몽 — 어젯밤 꿈을 문장으로 적으면 바로 풀이 | 명운(命運)",
     description:
       "꿈 내용을 자유롭게 적으면 AI가 길몽·흉몽·태몽·일반몽 중 어디에 가까운지와 그 의미, 꿈을 꾼 뒤 해 볼 행동을 풀이해 드려요. 무료로, 로그인 없이 볼 수 있어요.",
     keywords: ["꿈해몽", "무료 꿈해몽", "꿈 풀이", "길몽", "흉몽", "태몽", "돼지꿈", "뱀꿈"],
@@ -177,7 +177,7 @@ export const FEATURE_PAGES: Record<FeatureKey, FeaturePage> = {
     key: "gwansang",
     path: "/gwansang",
     menu: "saju",
-    title: "AI 관상 분석 — 셀카 한 장으로 보는 내 관상 | 명운",
+    title: "AI 관상 분석 — 셀카 한 장으로 보는 내 관상 | 명운(命運)",
     description:
       "얼굴 사진을 올리면 AI가 관상학의 관점으로 인상을 풀이해 드려요. 요약을 먼저 보고, 원하면 심층 리포트를 따로 열 수 있어요.",
     keywords: ["관상", "AI 관상", "관상 분석", "얼굴 관상", "셀카 관상"],
@@ -207,7 +207,7 @@ export const FEATURE_PAGES: Record<FeatureKey, FeaturePage> = {
     key: "ireum",
     path: "/ireum",
     menu: "saju",
-    title: "이름풀이 — 한자 획수·4격 81수리·자원오행 계산 | 명운",
+    title: "이름풀이 — 한자 획수·4격 81수리·자원오행 계산 | 명운(命運)",
     description:
       "한자 이름의 원획을 계산해 원격·형격·이격·정격 4격을 81수리로 판정하고, 자원오행과 음령오행, 음양, 내 사주와의 관계까지 봐요. 한자가 없어도 한글 소리로 풀이해요.",
     keywords: ["이름풀이", "성명학", "한자 획수", "원획", "81수리", "4격", "자원오행", "음령오행"],
@@ -244,7 +244,7 @@ export const FEATURE_PAGES: Record<FeatureKey, FeaturePage> = {
     key: "palm",
     path: "/songeum",
     menu: "palmistry",
-    title: "AI 손금 분석 — 손바닥 사진으로 보는 생명선·두뇌선·감정선 | 명운",
+    title: "AI 손금 분석 — 손바닥 사진으로 보는 생명선·두뇌선·감정선 | 명운(命運)",
     description:
       "손바닥 사진을 올리면 AI가 손금학의 관점으로 생명선·두뇌선·감정선을 풀이해 드려요. 왼손과 오른손 중 골라서 볼 수 있어요.",
     keywords: ["손금", "손금 보는 법", "AI 손금", "생명선", "두뇌선", "감정선"],
@@ -275,7 +275,7 @@ export const FEATURE_PAGES: Record<FeatureKey, FeaturePage> = {
     key: "mbti",
     path: "/mbti-test",
     menu: "mbti",
-    title: "무료 MBTI 유형 검사 — 32문항으로 보는 내 성격 유형 | 명운",
+    title: "무료 MBTI 유형 검사 — 32문항으로 보는 내 성격 유형 | 명운(命運)",
     description:
       "일상 속 질문 32개에 답하면 16가지 성격 유형 중 내 유형을 알려 드려요. 무료이고 로그인 없이 바로 시작할 수 있어요.",
     keywords: ["MBTI", "MBTI 검사", "무료 MBTI", "성격 유형 검사", "16가지 성격"],
@@ -305,7 +305,7 @@ export const FEATURE_PAGES: Record<FeatureKey, FeaturePage> = {
     key: "lotto",
     path: "/lotto",
     menu: "lotto",
-    title: "내 사주 행운 번호 — 생년월일로 고르는 이번 주 로또 번호 | 명운",
+    title: "내 사주 행운 번호 — 생년월일로 고르는 이번 주 로또 번호 | 명운(命運)",
     description:
       "생년월일을 넣으면 내 사주에 필요한 오행과 이번 주 추첨일 일진으로 로또 번호 6개를 무료로 골라 드려요. 최근 당첨번호와 최근 30회 많이 나온 번호도 함께 볼 수 있어요.",
     keywords: ["로또 번호", "사주 로또", "생년월일 로또 번호", "로또 번호 추천", "로또 당첨번호", "행운의 숫자"],

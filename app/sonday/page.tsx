@@ -9,7 +9,7 @@ import { buildSondayData } from "@/lib/calendar/son-day";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "손없는날 달력 2026·2027 — 이사·입주·개업 날 잡기 | 명운",
+  title: "손없는날 달력 2026·2027 — 이사·입주·개업 날 잡기 | 명운(命運)",
   description:
     "이번 달과 다음 달 손없는날, 주말 손없는날, 오늘 손 방향까지. 2027년 12월까지 달마다 손없는날을 음력과 함께 정리했어요. 내 생일로 이사 좋은 날 고르기도 있어요.",
   keywords: ["손없는날", "손 없는 날", "이사 날짜", "이사 좋은 날", "2027 손없는날", "손없는날 달력", "손 방향"],
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     locale: "ko_KR",
     url: "https://saju.ymstudio.co.kr/sonday",
     siteName: "명운(命運)",
-    title: "손없는날 달력 — 명운",
+    title: "손없는날 달력 | 명운(命運)",
     description: "이번 달 손없는날, 주말 손없는날, 오늘 손 방향",
     images: [{ url: "https://saju.ymstudio.co.kr/og-image.png", width: 1200, height: 630 }],
   },

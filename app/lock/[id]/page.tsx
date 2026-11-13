@@ -44,7 +44,7 @@ export async function generateMetadata({
 
   if (!lock) {
     return {
-      title: "소원 자물쇠 | 명운",
+      title: "소원 자물쇠 | 명운(命運)",
       description: "소원을 적은 자물쇠를 난간에 겁니다. 한 번 걸면 영원히 남습니다.",
       robots: { index: false, follow: true },
     };

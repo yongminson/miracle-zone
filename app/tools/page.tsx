@@ -39,6 +39,7 @@ import HeaderPushBell from "@/components/push/HeaderPushBell";
 import { isLikelyPortOneReturnSuccess } from "@/lib/payments/imp-uid";
 import { captureAttribution, logEvent, withShareUtm } from "@/lib/analytics";
 import { AllMenuButton } from "@/components/layout/AllMenuButton";
+import { isCoreMenu, isSeasonOver, sortCoreFirst } from "@/lib/menu/core-menu";
 import { privacyPlainText } from "@/lib/legal/privacy";
 import { ZODIAC_SIX as Z_SIX, dailyZodiacFortune, todayIljin } from "@/lib/zodiac/daily";
 import { readProfiles } from "@/lib/profiles/saved-profiles";
@@ -7366,8 +7367,10 @@ export default function Home() {
           className="mx-auto flex max-w-screen-lg items-center justify-start gap-6 px-4 py-2 overflow-x-auto no-scrollbar sm:px-6 sm:justify-between sm:gap-0 relative z-0"
         >
           {/* 옛 앱(1.1.9 전)에서는 새 유료 메뉴(이달의 운세·택일·시험 합격운)를 숨긴다 */}
-          {TABS.filter((tab) => !APP_GATED_MENU_IDS.includes(tab.id) || !hiddenInApp(tab.id)).map((tab) => {
+          {/* 상단 줄에는 핵심 메뉴와 지금 탭만 보인다. 나머지 버튼도 남겨 두되 숨겨서, "전체" 메뉴가 같은 버튼을 눌러 이동하게 한다(2026-11-14) */}
+          {sortCoreFirst(TABS.filter((tab) => (!APP_GATED_MENU_IDS.includes(tab.id) || !hiddenInApp(tab.id)) && (activeTab === tab.id || !isSeasonOver(tab.id)))).map((tab) => {
             const isActive = activeTab === tab.id;
+            const inBar = isActive || isCoreMenu(tab.id);
             return (
               <button
                 key={tab.id}
@@ -7405,7 +7408,7 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
                   }
                 }}
                 className={`
-                  relative flex shrink-0 flex-col items-center gap-1.5 p-2 min-w-[64px] sm:min-w-[80px]
+                  ${inBar ? "flex" : "hidden"} relative shrink-0 flex-col items-center gap-1.5 p-2 min-w-[64px] sm:min-w-[80px]
                   transition-all duration-300 ease-out focus:outline-none
                   ${isActive ? "text-yellow-400" : tab.href ? "text-amber-300/90 hover:text-yellow-300" : tab.isReady ? "text-slate-400 hover:text-yellow-300" : "text-white/20 cursor-not-allowed"}
                 `}
@@ -7427,7 +7430,7 @@ supabase.rpc('increment_tab_click', { target_tab_id: tab.id });
         </div>
         {/* 전체 메뉴에서 고르면 위 탭 버튼을 그대로 눌러 같은 동작(이동·기록·가운데 맞춤)을 한다 */}
         <AllMenuButton
-          items={TABS.filter((tab) => !APP_GATED_MENU_IDS.includes(tab.id) || !hiddenInApp(tab.id))}
+          items={sortCoreFirst(TABS.filter((tab) => (!APP_GATED_MENU_IDS.includes(tab.id) || !hiddenInApp(tab.id)) && (activeTab === tab.id || !isSeasonOver(tab.id))))}
           activeId={activeTab}
           from="tools"
           onPick={(id) => navRef.current?.querySelector<HTMLButtonElement>(`[data-tab-id="${id}"]`)?.click()}
