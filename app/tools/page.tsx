@@ -111,7 +111,8 @@ function SeoAccordion({ title, items }: { title: string; items: { q: string; a: 
 
 // 🚀 [추가] 관리자 전용 통계 대시보드 컴포넌트
 function AdminDashboard() {
-  const [stats, setStats] = useState({ daily: 0, total: 0, tabs: [] });
+  // 방문 숫자는 본사 리포트와 같은 기준(/api/admin/visitors — 한국 날짜, 테스트 기기 제외). 2026-11-14
+  const [stats, setStats] = useState({ daily: 0, active: 0, week: 0, weekActive: 0, tabs: [] });
   const [isAdmin, setIsAdmin] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
 
@@ -119,21 +120,22 @@ function AdminDashboard() {
     if (typeof window !== "undefined" && localStorage.getItem("MASTER_ADMIN") === "true") {
       setIsAdmin(true);
       const fetchStats = async () => {
-        const { data: vData } = await supabase.from("visitors").select("*");
-        const { data: tData } = await supabase.from("tab_stats").select("*").order('click_count', { ascending: false });
-        
-        if (vData && tData) {
-          const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
-          let total = 0; let daily = 0;
-          vData.forEach(row => {
-            total += row.visit_count;
-            if (row.visit_date === todayStr) daily = row.visit_count;
-          });
-          setStats({ daily, total, tabs: tData as any });
-        }
+        const [vRes, { data: tData }] = await Promise.all([
+          fetch("/api/admin/visitors", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+          supabase.from("tab_stats").select("*").order('click_count', { ascending: false }),
+        ]);
+        const days = vRes?.success ? vRes.days : [];
+        setStats({
+          daily: vRes?.today?.visits ?? 0,
+          active: vRes?.today?.active ?? 0,
+          week: days.reduce((a, d) => a + d.visits, 0),
+          weekActive: days.reduce((a, d) => a + d.active, 0),
+          tabs: (tData ?? []) as any,
+        });
       };
       fetchStats();
-      const id = setInterval(fetchStats, 5000); // 5초마다 자동 갱신
+      // 방문 기록을 7일치 읽으므로 1분마다(예전 5초 → DB 부담 줄임)
+      const id = setInterval(fetchStats, 60000);
       return () => clearInterval(id);
     }
   }, []);
@@ -162,7 +164,8 @@ function AdminDashboard() {
           </h3>
           <div className="space-y-1 mb-4 text-[11px]">
             <p className="flex justify-between"><span>오늘 방문:</span> <span className="text-yellow-300 font-bold">{stats.daily}명</span></p>
-            <p className="flex justify-between"><span>누적 방문:</span> <span className="text-white/60">{stats.total}명</span></p>
+            <p className="flex justify-between"><span>오늘 써 본 사람:</span> <span className="text-yellow-200">{stats.active}명</span></p>
+            <p className="flex justify-between"><span>7일 방문(일별 합):</span> <span className="text-white/60">{stats.week}명 · 써 봄 {stats.weekActive}</span></p>
           </div>
           <div className="space-y-1 text-[10px]">
             <p className="text-white/40 mb-2 mt-3 font-bold border-t border-white/5 pt-2">📊 탭별 인기 순위</p>
