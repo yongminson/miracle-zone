@@ -3,7 +3,7 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { PAID_MODEL, aiOptions } from "@/lib/ai/models";
+import { FREE_MODEL, aiOptions } from "@/lib/ai/models";
 import type { VipCalendarType, VipGender } from "@/lib/saju/vip-types";
 import { extractVipSajuData } from "@/lib/saju/vip-saju-data";
 import { appendVipSymbolicAmulet } from "@/lib/saju/vip-symbolic-amulet";
@@ -27,9 +27,10 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 import { hasValidAdminSession } from "@/lib/auth/admin-session";
 
 // 2026-11-04: 제미나이 → OpenAI 로 통일(다른 기능은 모두 OpenAI라 키·요금 관리를 한 곳으로). 프롬프트·품질 검사·응답 형식은 그대로.
-// 모델은 VIP_REPORT_OPENAI_MODEL 로 바꿀 수 있다. 기본은 유료 모델(lib/ai/models.ts) — gpt-4.1-mini 는 2027-01-14 종료(2026-11-14 교체).
+// 모델은 VIP_REPORT_OPENAI_MODEL 로 바꿀 수 있다. gpt-4.1-mini 는 2027-01-14 종료(2026-11-14 교체).
+// 기본은 싼 모델(gpt-6-luna) — 오너 결정. 14장 2만 자를 쓰는데 유료 모델(terra)은 1건 약 200원, luna 는 약 20원이다.
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
-const VIP_REPORT_MODEL = process.env.VIP_REPORT_OPENAI_MODEL || PAID_MODEL;
+const VIP_REPORT_MODEL = process.env.VIP_REPORT_OPENAI_MODEL || FREE_MODEL;
 
 type VipRequestBody = {
   name?: string;
@@ -171,7 +172,7 @@ async function generateVipMarkdownReport(
 2. 출생 시각이 없으면 시주를 쓰지 않습니다. 출생지를 받지 않아 진태양시 보정을 하지 않은 점, 절기 경계와 23시 전후에는 방식에 따라 차이가 날 수 있는 점을 제1장에 한 번 밝힙니다.
 3. 용신은 자동 확정하지 않습니다. 오행 개수는 보이는 글자 분포 설명에만 쓰며 용신·행운색·처방으로 연결하지 않습니다.
 4. 대운·연운은 사건 예언이 아니라 관심 주제, 활용 가능성, 과해질 때의 위험, 준비 행동으로 해석합니다.
-5. 재물은 횡재·수익률을, 연애는 결혼·이별·재회 시기를, 직장은 합격·승진·퇴사 시기를 예언하지 않습니다.
+5. 재물은 횡재·수익률을, 연애는 결혼·이별·재회 시기를, 직장은 합격·승진·퇴사 시기를 예언하지 않습니다. 주식·코인·부동산 같은 투자, 대출, 특정 금융상품을 권하거나 말리는 조언을 하지 않고, 수입을 만드는 행동과 지출·저축 습관으로만 씁니다.
 6. 건강 장에서는 체질, 장기, 질환, 수명, 치료, 회복력을 사주로 판단하지 않습니다. 오직 수면·운동·검진·휴식·스트레스 점검 같은 일반적인 자기관리만 다룹니다.
 7. 핵심 해석마다 실제 데이터 근거를 짧게 붙입니다. 단일 요소 하나로 성격이나 능력을 확정하지 말고 '점검해볼 수 있습니다'처럼 씁니다.
 8. 같은 조언을 반복하지 말고 장마다 구체적인 상황, 판단 기준, 질문, 행동을 제시합니다. 막연한 격려와 공포·불안 자극은 금지합니다.
