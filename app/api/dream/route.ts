@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { FREE_MODEL, aiOptions } from "@/lib/ai/models";
 import { createClient } from "@supabase/supabase-js";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
@@ -32,14 +33,13 @@ export async function POST(request: NextRequest) {
     if (!dreamText) return NextResponse.json({ error: "꿈 내용을 입력해주세요." }, { status: 400 });
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: FREE_MODEL, // 4o 는 2027-01-14 종료
       messages: [
         { role: "system", content: SYSTEM_PROMPT + RESPONSE_FORMAT },
         { role: "user", content: `사용자의 꿈 내용: "${dreamText}"\n이 꿈을 해몽해줘.` },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.7, 
-      max_tokens: 1500,
+      ...aiOptions(1500, "none", 0.7),
     });
 
     const content = completion.choices[0]?.message?.content;

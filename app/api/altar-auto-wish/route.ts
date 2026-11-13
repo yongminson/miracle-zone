@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FREE_MODEL, aiOptions } from "@/lib/ai/models";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -102,9 +103,8 @@ async function generateWish(): Promise<string> {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
-      max_tokens: 100,
-      temperature: 0.9,
+      model: FREE_MODEL, // 4o-mini 는 2027-01-14 종료
+      ...aiOptions(100, "none", 0.9),
       messages: [{ role: "user", content: prompt }],
     }),
   });

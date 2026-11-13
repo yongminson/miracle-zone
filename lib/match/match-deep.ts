@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { PAID_MODEL, aiOptions } from "@/lib/ai/models";
 import { calculateDayLuck, kstToday } from "@/lib/calendar/day-luck";
 import { calculateMatch, describeMatchFacts, type MatchCalc, type MatchPerson } from "./match-engine";
 import {
@@ -103,8 +104,8 @@ export async function generateMatchDeep(input: MatchDeepInput, calc: MatchCalc):
 
   const openai = new OpenAI({ apiKey });
   const completion = await openai.chat.completions.create({
-    // 유료 풀이라 신년운세·이달의 운세와 같은 4o 를 쓴다(1건 약 25원 추정)
-    model: "gpt-4o",
+    // 유료 풀이 — lib/ai/models.ts 의 유료 모델(4o 는 2027-01-14 종료)
+    model: PAID_MODEL,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       {
@@ -120,8 +121,7 @@ ${describeMatchFacts(calc, aName, bName)}
       },
     ],
     response_format: { type: "json_object" },
-    temperature: 0.7,
-    max_tokens: 2500,
+    ...aiOptions(2500, "low"),
   });
 
   let raw: Record<string, unknown> = {};

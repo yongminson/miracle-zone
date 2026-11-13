@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { FREE_MODEL, aiOptions } from "@/lib/ai/models";
 import { buildFortuneProfile, elementLabel, FortuneEngineProfile } from "./fortune-engine";
 
 const openai = new OpenAI({
@@ -265,9 +266,9 @@ ${pillarText}
         try {
           const deterministicSeed = hashString(dayKey + profile.seedKey);
           const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            temperature: 0,
+            model: FREE_MODEL, // 4o-mini 는 2027-01-14 종료
             seed: deterministicSeed,
+            ...aiOptions(3000, "none", 0),
             response_format: { type: "json_object" },
             messages: [
               { role: "system", content: SYSTEM_PROMPT_PREMIUM(timeSync) },

@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { PAID_MODEL, aiOptions } from "@/lib/ai/models";
 import type { DayLuck } from "@/lib/calendar/day-luck-types";
 import type {
   MonthlyArea,
@@ -17,8 +18,8 @@ import type {
  * 결제 1건당 한 번만 부르고 결과는 DB 에 저장해 다시 볼 때는 부르지 않는다.
  */
 
-// 신년운세와 같은 이유로 4o 를 쓴다(4o-mini 는 무료 결과를 되풀이하는 경향이 크다). 1건 약 25원 추정
-const MODEL = "gpt-4o";
+// 유료 풀이 — lib/ai/models.ts 의 유료 모델(4o 는 2027-01-14 종료. 4o-mini 는 무료 결과를 되풀이하는 경향이 컸다)
+const MODEL = PAID_MODEL;
 
 const AREA_LABELS: Record<MonthlyArea["key"], string> = {
   money: "재물",
@@ -192,8 +193,7 @@ export async function generateMonthlyDetail(
       { role: "user", content: describeInput(input, result, days, purposes) },
     ],
     response_format: { type: "json_object" },
-    temperature: 0.7,
-    max_tokens: 2500,
+    ...aiOptions(2500, "low"),
   });
 
   const content = completion.choices[0]?.message?.content ?? "";

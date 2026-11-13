@@ -9,7 +9,8 @@ import { MATCH_DEEP_PRICE_WON, type MatchDeepInput } from "@/lib/match/match-dee
  */
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// 유료 풀이 새 모델(생각하는 모델)이라 60초를 넘을 수 있다(2026-11-14)
+export const maxDuration = 120;
 
 export const POST = tossProductGrantHandler({
   product: "match_deep",

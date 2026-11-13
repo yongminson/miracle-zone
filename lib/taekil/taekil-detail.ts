@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { PAID_MODEL, aiOptions } from "@/lib/ai/models";
 import { kstToday } from "@/lib/calendar/day-luck";
 import { calculateTaekil, taekilLabel } from "./taekil-engine";
 import type { TaekilDay, TaekilDetail, TaekilInput, TaekilPaid } from "./taekil-types";
@@ -44,8 +45,8 @@ export async function generateTaekilDetail(input: TaekilInput): Promise<TaekilDe
 
   const openai = new OpenAI({ apiKey });
   const completion = await openai.chat.completions.create({
-    // 유료 풀이라 다른 상세 풀이와 같은 4o 를 쓴다(1건 약 15원 추정)
-    model: "gpt-4o",
+    // 유료 풀이 — lib/ai/models.ts 의 유료 모델(4o 는 2027-01-14 종료)
+    model: PAID_MODEL,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       {
@@ -63,8 +64,7 @@ ${avoid.map((d) => line(d)).join("\n") || "없음"}
       },
     ],
     response_format: { type: "json_object" },
-    temperature: 0.6,
-    max_tokens: 1500,
+    ...aiOptions(1500, "low"),
   });
 
   let raw: Record<string, unknown> = {};

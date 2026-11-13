@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { FREE_MODEL, aiOptions } from "@/lib/ai/models";
 import {
   ELEMENT_LABEL,
   calculateMatch,
@@ -106,14 +107,14 @@ export async function POST(request: NextRequest) {
     `;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: FREE_MODEL, // 4o 는 2027-01-14 종료
       messages: [
         { role: "system", content: SYSTEM_PROMPT + RESPONSE_FORMAT },
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
       // 같은 두 사람을 다시 넣었을 때 풀이가 딴소리를 하지 않게 낮춘다(예전 0.7)
-      temperature: 0.4,
+      ...aiOptions(2500, "none", 0.4),
     });
 
     // 강제로 점수를 서버에서 계산한 fixedScore로 덮어씌움 (AI가 혹시라도 실수할까봐 이중 잠금)

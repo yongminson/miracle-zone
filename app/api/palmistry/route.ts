@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { PAID_MODEL, aiOptions } from "@/lib/ai/models";
 
 const openai = new OpenAI({
   apiKey: (process.env.OPENAI_API_KEY || "").trim(),
@@ -98,8 +99,8 @@ Respond ONLY with valid JSON, no markdown, no explanation.
     // ===== OpenAI API 호출 =====
     console.log("OpenAI 호출 시작:", isPremium ? "프리미엄" : "무료");
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_tokens: isPremium ? 2000 : 800,
+      model: PAID_MODEL, // 4o-mini 는 2027-01-14 종료
+      ...aiOptions(isPremium ? 2000 : 800, "none"),
       messages: [
         {
           role: "user",

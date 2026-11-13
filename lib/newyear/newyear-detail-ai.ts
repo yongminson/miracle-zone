@@ -7,6 +7,7 @@ import type {
   NewYearResult,
 } from "./newyear-types";
 import { keyMonthsForPrompt, newYearKeyMonths } from "./newyear-keys";
+import { PAID_MODEL, aiOptions } from "../ai/models";
 
 /**
  * 신년운세 상세 풀이(유료) 작성.
@@ -16,9 +17,9 @@ import { keyMonthsForPrompt, newYearKeyMonths } from "./newyear-keys";
  * 결과는 DB 에 저장해 다시 볼 때는 부르지 않는다.
  */
 
-// 유료 풀이라 구체성이 중요하다. 4o-mini 는 무료 결과를 되풀이하는 경향이 컸고,
-// 4o 는 금지한 뻔한 말을 계속 섞어서(2026-11-12 시험) 지시를 더 잘 따르는 4.1 로 바꿨다(4o 보다 단가도 낮다)
-const MODEL = "gpt-4.1";
+// 유료 풀이라 구체성이 중요하다. 4o 는 금지한 뻔한 말을 계속 섞었고(2026-11-12 시험), 4.1 은 2027-01-14 종료라
+// 유료용 새 모델(lib/ai/models.ts 의 PAID_MODEL)을 쓴다
+const MODEL = PAID_MODEL;
 
 const AREA_LABELS: Record<NewYearDetailArea["key"], string> = {
   money: "재물",
@@ -163,8 +164,7 @@ export async function generateNewYearDetail(
       model: MODEL,
       messages,
       response_format: { type: "json_object" },
-      temperature: 0.7,
-      max_tokens: 4000,
+      ...aiOptions(4000, "low"),
     });
     const content = completion.choices[0]?.message?.content ?? "";
     let parsed: unknown = null;

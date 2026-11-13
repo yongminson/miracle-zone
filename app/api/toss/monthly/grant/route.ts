@@ -14,7 +14,8 @@ import { MONTHLY_PRICE_WON, type MonthlyInput } from "@/lib/monthly/monthly-type
  */
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// 유료 풀이 새 모델(생각하는 모델)이라 60초를 넘을 수 있다(2026-11-14)
+export const maxDuration = 120;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TOSS_USER_KEY_PATTERN = /^[A-Za-z0-9._:-]{1,200}$/;

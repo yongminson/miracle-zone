@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { PAID_MODEL, aiOptions } from "@/lib/ai/models";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
 
@@ -67,14 +68,14 @@ export async function POST(request: NextRequest) {
     const imageUrl = typeof imageBase64 === "string" && imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: PAID_MODEL, // 4o 는 2027-01-14 종료
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: [{ type: "text", text: "이 사진을 바탕으로 아주 단호하고 극단적인 정통 관상 분석을 JSON으로 반환해. 좋은 상은 극찬하고, 나쁜 상은 가차 없이 비판해." }, { type: "image_url", image_url: { url: imageUrl } }] }
       ],
       response_format: { type: "json_object" },
-      temperature: 0.5, // 🚀 극단적인 표현(천문학적 부, 잔혹함 등)을 잘 끌어내도록 온도를 살짝 높였습니다.
-      max_tokens: 3500, 
+      // 극단적인 표현을 잘 끌어내도록 온도 0.5(생각 단계 none 일 때만 온도를 받는다)
+      ...aiOptions(3500, "none", 0.5),
     });
 
     const content = completion.choices[0]?.message?.content;

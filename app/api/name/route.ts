@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { PAID_MODEL, aiOptions } from "@/lib/ai/models";
 import { analyzeName, describeNameFacts } from "@/lib/name/name-engine";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
@@ -53,15 +54,14 @@ ${describeNameFacts(analysis)}
 위 계산을 바탕으로 JSON 을 반환해.`;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: PAID_MODEL, // 4o 는 2027-01-14 종료
       messages: [
         { role: "system", content: SYSTEM_PROMPT_BASE + RESPONSE_FORMAT },
         { role: "user", content: userPrompt },
       ],
       response_format: { type: "json_object" },
-      temperature: 0,
       seed: 1004,
-      max_tokens: 2500,
+      ...aiOptions(2500, "none", 0),
     });
 
     const content = completion.choices[0]?.message?.content;

@@ -3,6 +3,7 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { PAID_MODEL, aiOptions } from "@/lib/ai/models";
 import type { VipCalendarType, VipGender } from "@/lib/saju/vip-types";
 import { extractVipSajuData } from "@/lib/saju/vip-saju-data";
 import { appendVipSymbolicAmulet } from "@/lib/saju/vip-symbolic-amulet";
@@ -26,9 +27,9 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin-client";
 import { hasValidAdminSession } from "@/lib/auth/admin-session";
 
 // 2026-11-04: 제미나이 → OpenAI 로 통일(다른 기능은 모두 OpenAI라 키·요금 관리를 한 곳으로). 프롬프트·품질 검사·응답 형식은 그대로.
-// 모델은 VIP_REPORT_OPENAI_MODEL 로 바꿀 수 있다. 기본 gpt-4.1-mini — 긴 한국어 글(장당 수천 자)을 빠르게 쓰고 요금이 제미나이 flash 와 비슷하다.
+// 모델은 VIP_REPORT_OPENAI_MODEL 로 바꿀 수 있다. 기본은 유료 모델(lib/ai/models.ts) — gpt-4.1-mini 는 2027-01-14 종료(2026-11-14 교체).
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "" });
-const VIP_REPORT_MODEL = process.env.VIP_REPORT_OPENAI_MODEL || "gpt-4.1-mini";
+const VIP_REPORT_MODEL = process.env.VIP_REPORT_OPENAI_MODEL || PAID_MODEL;
 
 type VipRequestBody = {
   name?: string;
@@ -147,8 +148,7 @@ async function generateVipMarkdownReport(
     const completion = await openai.chat.completions.create({
       model: VIP_REPORT_MODEL,
       messages: [{ role: "user", content }],
-      temperature: 0.65,
-      max_tokens: 10000,
+      ...aiOptions(10000, "none", 0.65),
     });
     return completion.choices[0]?.message?.content ?? "";
   };

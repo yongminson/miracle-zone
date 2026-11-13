@@ -15,7 +15,8 @@ import {
 
 export const runtime = "nodejs";
 // AI 가 영역별 풀이를 쓰는 데 시간이 걸린다
-export const maxDuration = 60;
+// 유료 풀이 새 모델(생각하는 모델)이라 60초를 넘을 수 있다(2026-11-14)
+export const maxDuration = 120;
 
 export const POST = productDetailHandler({
   product: "match_deep",
