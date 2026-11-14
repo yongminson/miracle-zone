@@ -14,6 +14,7 @@ import {
 } from "@/lib/newyear/newyear-types";
 import { KEY_TOPIC_LABEL, newYearKeyMonths, type NewYearKeyTopic } from "@/lib/newyear/newyear-keys";
 import { ReviewForm, ReviewList } from "@/components/reviews/Reviews";
+import { FreeVsPaid } from "@/components/paid/FreeVsPaid";
 import { purchaseNewYearOnToss } from "./toss-purchase";
 
 /**
@@ -485,6 +486,17 @@ export function DetailPaywall({
           ))}
         </ol>
       </div>
+
+      <FreeVsPaid
+        className="mt-4"
+        rows={[
+          { label: "한 해 총운·점수", free: true, paid: "돈·연애·일·건강 영역별 풀이" },
+          { label: "돈·연애·일이 풀리는 달", free: false, paid: "몇 월인지 공개" },
+          { label: "좋은 달·조심할 달", free: "2개씩", paid: "달마다 할 일·피할 일" },
+          { label: "월별 흐름", free: "한 줄씩", paid: "12개월 상세 달력" },
+          { label: "올해의 한 마디", free: false, paid: true },
+        ]}
+      />
 
       <ul className="mt-4 space-y-1 text-left text-[11px] leading-relaxed text-white/50">
         <li>✓ 무료 결과와 같은 만세력 계산 — 1920~2035년 날짜를 배포할 때마다 자동으로 검사해요</li>

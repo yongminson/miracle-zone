@@ -9,6 +9,7 @@ import { logEvent } from "@/lib/analytics";
 import type { SavedProfile } from "@/lib/profiles/saved-profiles";
 import type { NewYearCalendarType } from "@/lib/newyear/newyear-types";
 import { PaidWaiting, usePaidProduct } from "@/lib/paid/use-paid-product";
+import { FreeVsPaid } from "@/components/paid/FreeVsPaid";
 import {
   TAEKIL_ORDER_NAME,
   TAEKIL_PRICE_WON,
@@ -264,12 +265,16 @@ export function TaekilClient() {
                     </div>
                   ))}
                 </div>
-                <ul className="mx-auto mt-3 max-w-xs space-y-1.5 text-left text-[13px] text-white/70">
-                  <li>✦ 좋은 날 1~5순위와 그 이유</li>
-                  <li>✦ 날짜마다 그날 할 때의 조언</li>
-                  <li>✦ 가능하면 피할 날</li>
-                  <li>✦ 그날까지 준비할 것</li>
-                </ul>
+                <FreeVsPaid
+                  accent="emerald"
+                  className="mx-auto mt-3 max-w-sm"
+                  rows={[
+                    { label: "좋은 날", free: "개수만", paid: "1~5순위 날짜와 이유" },
+                    { label: "날짜마다 그날의 조언", free: false, paid: true },
+                    { label: "피할 날", free: "개수만", paid: "날짜 공개" },
+                    { label: "그날까지 준비할 것", free: false, paid: true },
+                  ]}
+                />
                 {paid.app.isApp && !paid.app.canBuy ? (
                   <a
                     href="https://play.google.com/store/apps/details?id=kr.co.ymstudio.myeongun"

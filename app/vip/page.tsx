@@ -20,6 +20,7 @@ import { PAYMENT_VERIFY_URL } from "@/lib/payments/verify-endpoint";
 import { appendVipSymbolicAmulet } from "@/lib/saju/vip-symbolic-amulet";
 import { logEvent, logTesterOrder } from "@/lib/analytics";
 import { ProfileQuickPicker } from "@/components/profiles/ProfileQuickPicker";
+import { FreeVsPaid } from "@/components/paid/FreeVsPaid";
 import { isAppFileSave, saveUrlInApp } from "@/lib/app-file-save";
 
 /** 구글 플레이 인앱 상품 ID — 명운-rn IAP_PRODUCTS, /api/payment/verify-google 과 같은 값 */
@@ -1509,6 +1510,21 @@ export default function VipLandingPage() {
               <p className="rounded-xl border border-red-500/30 bg-red-950/40 px-4 py-3 text-sm text-red-200">
                 {errorMessage}
               </p>
+            ) : null}
+
+            {/* 무료 만세력·오늘의 운세와 무엇이 다른지 (2026-11-15) */}
+            {!isAdminMode ? (
+              <FreeVsPaid
+                title="무료 만세력·운세와 무엇이 다른가요?"
+                rows={[
+                  { label: "사주 여덟 글자·십성·대운 표", free: true, paid: true },
+                  { label: "그 글자가 나에게 뜻하는 것", free: false, paid: "성향·강점·주의점 풀이" },
+                  { label: "지금 대운과 다음 대운", free: "표만", paid: "시기별 풀이" },
+                  { label: "앞으로 5년", free: "표만", paid: "해마다 흐름 풀이" },
+                  { label: "재물·직장·연애·관계", free: "오늘 하루", paid: "타고난 성향 기준 + 실행 계획" },
+                  { label: "받는 형태", free: "화면", paid: "14장 PDF 저장" },
+                ]}
+              />
             ) : null}
 
             {/* 결제 전 견본 미리보기 — 무엇을 받는지 보고 결제하게(2026-11-04) */}

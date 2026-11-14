@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { PaidWaiting, usePaidProduct } from "@/lib/paid/use-paid-product";
+import { FreeVsPaid } from "@/components/paid/FreeVsPaid";
 import {
   MATCH_DEEP_ORDER_NAME,
   MATCH_DEEP_PRICE_WON,
@@ -152,13 +153,18 @@ export function MatchDeep({
         <section className="rounded-3xl border border-pink-400/30 bg-gradient-to-b from-pink-950/40 to-violet-950/30 p-5 text-center">
           <p className="text-xs font-semibold tracking-widest text-pink-300/80">궁합 심층 풀이</p>
           <h3 className="mt-1 text-lg font-black text-pink-100">두 사람, 어디서 맞고 어디서 부딪힐까?</h3>
-          <ul className="mx-auto mt-3 max-w-xs space-y-1.5 text-left text-[13px] text-white/70">
-            <li>✦ 성격·대화 · 돈·생활 · 애정·신뢰 · 미래</li>
-            <li>✦ 부딪히기 쉬운 순간 3가지와 해결법</li>
-            <li>✦ 오래 가는 두 사람의 습관</li>
-            <li>✦ 앞으로 30일, 함께하면 좋은 날</li>
-            <li>✦ 한 번 결제하면 언제든 다시 보기</li>
-          </ul>
+          <FreeVsPaid
+            accent="pink"
+            className="mx-auto mt-3 max-w-sm"
+            rows={[
+              { label: "궁합 점수·항목별 점수", free: true, paid: true },
+              { label: "대화·돈·애정·미래", free: "점수만", paid: "영역마다 풀이와 조언" },
+              { label: "부딪히기 쉬운 순간", free: "1가지", paid: "3가지와 해결법" },
+              { label: "함께하면 좋은 날", free: "한 줄", paid: "앞으로 30일 날짜" },
+              { label: "오래 가는 두 사람의 습관", free: false, paid: true },
+            ]}
+          />
+          <p className="mt-2 text-[11px] text-white/45">한 번 결제하면 언제든 다시 볼 수 있어요</p>
           {deep.app.isApp && !deep.app.canBuy ? (
             <a
               href="https://play.google.com/store/apps/details?id=kr.co.ymstudio.myeongun"

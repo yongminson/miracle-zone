@@ -399,6 +399,8 @@ type FortuneResultData = {
   luckyColor?: string;
   luckyDirection?: string;
   caution?: string;
+  /** 계산 근거 칩(2026-11-15~). 예전 캐시에는 없다 */
+  basis?: string[];
 } | null;
 
 type PremiumReport = {
@@ -963,6 +965,23 @@ function FortuneTab({ isVisible }: { isVisible: boolean }) {
                         {fortuneData.dailyGuide.action}
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* 계산 근거 — 왜 이런 결과인지(2026-11-15). 예전 캐시 결과엔 없어서 있을 때만 */}
+                {Array.isArray(fortuneData.basis) && fortuneData.basis.length > 0 && (
+                  <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+                    <p className="text-xs font-bold text-white/80">📐 이 결과의 계산 근거</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {fortuneData.basis.map((b) => (
+                        <span key={b} className="rounded-full border border-yellow-500/25 bg-yellow-500/[0.07] px-2.5 py-1 text-[11px] text-yellow-100/90">
+                          {b}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-white/40">
+                      같은 생일·같은 날이면 언제 봐도 같은 결과예요. 무료 운세는 AI 없이 만세력 계산으로만 나와요. 자세한 풀이는 아래 총운에 있어요.
+                    </p>
                   </div>
                 )}
 

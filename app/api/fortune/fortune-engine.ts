@@ -487,3 +487,26 @@ export function buildFortuneProfile(input: FortuneEngineInput): FortuneEnginePro
     freeScores, freeTexts,
   };
 }
+
+/**
+ * 오늘의 운세 "계산 근거" 칩 (2026-11-15) — 화면에 짧게 보여 줘서 왜 이런 결과인지 알게 한다.
+ * 이미 계산한 값(오늘 일진·십성·신강/신약·충합)만 짧게 옮긴다. 응답에 새 칸(basis)으로만 더하고 기존 칸은 그대로.
+ */
+export function buildFortuneBasis(p: FortuneEngineProfile): string[] {
+  const t = p.todayPillar;
+  if (!t || !p.todayTenGod) return [];
+  const branchLabel: Record<string, string> = {
+    "일지 충": "오늘 지지 ↔ 내 일지 충(沖)",
+    "일지 합": "오늘 지지 ↔ 내 일지 합(合)",
+    "월지 충": "오늘 지지 ↔ 내 월지 충(沖)",
+    "월지 합": "오늘 지지 ↔ 내 월지 합(合)",
+    "년지 충": "오늘 지지 ↔ 내 년지 충(沖)",
+  };
+  return [
+    `오늘 일진 ${t.stem}${t.branch}(${t.stemHanja}${t.branchHanja})`,
+    `나 = ${p.dayPillar.stem}${ELEMENT_KO[p.dayMasterElement].ko}(${p.dayPillar.stemHanja}) 일간`,
+    `오늘 기운 → 나에게 '${p.todayTenGod}'`,
+    p.isStrongDayMaster ? "원국 신강(내 기운이 강한 편)" : "원국 신약(내 기운이 약한 편)",
+    ...(p.branchNotes ?? []).map((n) => branchLabel[n] ?? n),
+  ];
+}

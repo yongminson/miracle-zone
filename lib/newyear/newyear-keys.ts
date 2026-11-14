@@ -20,8 +20,8 @@ const OUTPUT = ["식신", "상관"];
 const OFFICER = ["정관", "편관"];
 
 // 엔진이 달 한 줄에 붙이는 문장으로 일지 합·충을 알아본다(newyear-engine.ts 와 같은 문구)
-const HARMONY_MARK = "사람 운이 따라";
-const CLASH_MARK = "이동·변동";
+export const HARMONY_MARK = "사람 운이 따라";
+export const CLASH_MARK = "이동·변동";
 
 function pick(months: NewYearMonth[], test: (m: NewYearMonth) => boolean, limit = 2): number[] {
   return months

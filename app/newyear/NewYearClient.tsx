@@ -13,6 +13,7 @@ import { ZODIAC_2027 } from "@/lib/newyear/zodiac-2027";
 import { WeekLuck } from "@/components/calendar/WeekLuck";
 import { ShareCardButton } from "./ShareCardButton";
 import { AppInstallCta } from "@/components/app/AppInstallCta";
+import { newYearMonthReason, newYearYearReason } from "@/lib/newyear/newyear-reason";
 
 /** 앱인토스에서는 명운 웹 주소로 보낸다 */
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "";
@@ -340,6 +341,10 @@ function ResultView({
         <h2 className="mt-4 text-2xl font-black text-amber-100">{result.title}</h2>
         <p className="mt-1 text-sm text-rose-200/80">{result.keyword}</p>
         <p className="mt-4 text-left text-sm leading-relaxed text-white/75">{result.summary}</p>
+        {/* 계산 근거 한 줄 — 왜 이런 결과인지 보여 준다(2026-11-15) */}
+        <p className="mt-3 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-left text-[12px] leading-relaxed text-white/60 break-keep">
+          <span className="font-bold text-rose-200/90">📐 근거</span> {newYearYearReason(result)}
+        </p>
         <p className="mt-3 rounded-xl bg-white/[0.04] px-3 py-2.5 text-left text-[13px] leading-relaxed text-amber-100/90">
           💡 {result.advice}
         </p>
@@ -372,6 +377,31 @@ function ResultView({
           <p className="text-[11px] text-amber-200/70">조심할 달</p>
           <p className="mt-1 text-xl font-black text-amber-200">{result.cautionMonths.map((m) => `${m}월`).join(" · ")}</p>
         </div>
+      </section>
+
+      {/* 좋은 달·조심할 달의 계산 근거 */}
+      <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <p className="text-xs font-bold text-white/80">
+          왜 이 달인가요? <span className="font-normal text-white/40">— 계산 근거</span>
+        </p>
+        <ul className="mt-2 space-y-1.5 text-[12px] leading-relaxed text-white/60">
+          {[...result.bestMonths, ...result.cautionMonths].map((m) => {
+            const month = result.months.find((item) => item.month === m);
+            if (!month) return null;
+            const good = result.bestMonths.includes(m);
+            return (
+              <li key={m} className="break-keep">
+                <span className={`mr-1 font-bold ${good ? "text-emerald-200" : "text-amber-200"}`}>
+                  {m}월 {good ? "좋음" : "조심"}
+                </span>
+                {newYearMonthReason(month)}
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 text-[11px] leading-relaxed text-white/35">
+          같은 생년월일이면 언제 봐도 같은 결과예요. 무료 결과는 AI 없이 만세력 계산으로만 나와요.
+        </p>
       </section>
 
       {/* 2027년을 기다리는 동안 — 이번 주 나의 흐름 */}

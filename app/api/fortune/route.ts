@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { FREE_MODEL, aiOptions } from "@/lib/ai/models";
-import { buildFortuneProfile, elementLabel, FortuneEngineProfile } from "./fortune-engine";
+import { buildFortuneBasis, buildFortuneProfile, elementLabel, FortuneEngineProfile } from "./fortune-engine";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",
@@ -308,6 +308,8 @@ ${pillarText}
       luckyColor: luck ? `${luck.color} — ${luck.reason}` : null,
       luckyDirection: luck?.direction ?? null,
       caution: luck?.caution ?? null,
+      // 계산 근거 칩 — 새 칸(앱인토스 등 기존 화면은 몰라도 그대로 동작)
+      basis: buildFortuneBasis(profile),
     });
   } catch (error) {
     console.error("Fortune API Error:", error);

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PaymentMethodCheckoutModal } from "@/components/payments/PaymentMethodCheckoutModal";
 import { logEvent, logTesterOrder } from "@/lib/analytics";
+import { FreeVsPaid } from "@/components/paid/FreeVsPaid";
 import { extractPaymentReturnId } from "@/lib/payments/return-params";
 import type { DayLuck } from "@/lib/calendar/day-luck-types";
 import {
@@ -382,13 +383,18 @@ export function MonthlyPaywall({
         </p>
       </div>
 
-      <ul className="mx-auto mt-4 max-w-xs space-y-1.5 text-left text-[13px] text-white/70">
-        <li>✦ {result.month}월 한 달 전체 달력(좋은 날·조심할 날)</li>
-        <li>✦ 계약·고백·이사·면접 — 목적별 좋은 날</li>
-        <li>✦ 주별 흐름과 할 일</li>
-        <li>✦ 재물 · 연애 · 일 · 건강</li>
-        <li>✦ 이달 안에는 언제든 다시 보기</li>
-      </ul>
+      <FreeVsPaid
+        accent="sky"
+        className="mx-auto mt-4 max-w-sm"
+        rows={[
+          { label: `${result.month}월 총운·점수`, free: true, paid: true },
+          { label: "좋은 날·조심할 날", free: "개수만", paid: "날짜까지 달력으로" },
+          { label: "계약·만남·이사·시험에 좋은 날", free: false, paid: true },
+          { label: "주별 흐름과 할 일", free: false, paid: true },
+          { label: "재물·연애·일·건강", free: false, paid: true },
+        ]}
+      />
+      <p className="mt-2 text-[11px] text-white/45">이달 안에는 언제든 다시 볼 수 있어요</p>
 
       {appNeedsUpdate ? (
         <a
