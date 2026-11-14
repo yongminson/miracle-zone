@@ -23,7 +23,8 @@ There is **no general test suite**, but saju/만세력 calculations are guarded 
 
 Two sibling GitHub repos share this codebase and the same internal package name `miracle-zone`:
 - **`G:\miracle-zone`** → `github.com/yongminson/miracle-zone` — the **primary, current** repo (adds `@apps-in-toss/web-framework`, `googleapis`, `@anthropic-ai/sdk`).
-- **`G:\myeongun-app`** → `github.com/yongminson/myeongun-app` — an **older sibling/mirror** with a reduced dependency set. Treat `miracle-zone` as canonical; changes generally originate here.
+- **`G:\_보관\myeongun-app`** (moved to the archive folder 2026-11-14 — do not edit) → `github.com/yongminson/myeongun-app` — an **older sibling/mirror** with a reduced dependency set. Its Vercel deploy (myeongun-app.vercel.app) now only redirects old addresses to saju.ymstudio.co.kr. Treat `miracle-zone` as canonical; changes generally originate here.
+- Other 명운 folders: `G:\miracle-toss` (Toss mini app, separate repo), `G:\myeongun-rn` (Google Play app, Expo), `G:\myeongun-blog` (blog.saju.ymstudio.co.kr). Old experiments `myeongun`, `myeongun-native` are in `G:\_보관`.
 
 ## Architecture
 
