@@ -36,6 +36,20 @@ function josa(word: string, a: string, b: string): string {
   return code % 28 === 0 ? b : a;
 }
 
+/** 달 근거에 붙이는 짧은 뜻 — 엔진의 달 한 줄(MONTH_TEXT)과 같은 방향 */
+const TEN_GOD_MONTH_TONE: Record<string, string> = {
+  비견: "함께하면 힘이 커짐",
+  겁재: "지출·경쟁이 늘기 쉬움",
+  식신: "재능·여유가 살아남",
+  상관: "말이 앞서기 쉬움",
+  편재: "뜻밖의 기회",
+  정재: "성실함이 보상받음",
+  편관: "책임·압박이 커짐",
+  정관: "노력이 인정받음",
+  편인: "생각이 많아지고 결정이 늦어지기 쉬움",
+  정인: "도움·문서 운",
+};
+
 function stemLabel(stemKo: string): string {
   const info = STEM_INFO[stemKo];
   return info ? `${stemKo}${info.element}(${info.hanja})` : stemKo;
@@ -55,7 +69,7 @@ export function newYearMonthReason(month: NewYearMonth): string {
   const stem = month.ganjiKorean.slice(0, 1);
   const branch = month.ganjiKorean.slice(1, 2);
   const relation = TEN_GOD_RELATION[month.tenGod];
-  let text = `${month.ganjiKorean}월 — ${stemLabel(stem)}${josa(STEM_INFO[stem]?.element ?? "", "이", "가")} 나에게 '${month.tenGod}'${relation ? `(${relation})` : ""}`;
+  let text = `${month.ganjiKorean}월 — ${stemLabel(stem)}${josa(STEM_INFO[stem]?.element ?? "", "이", "가")} 나에게 '${month.tenGod}'${relation ? `(${relation})` : ""}${TEN_GOD_MONTH_TONE[month.tenGod] ? ` → ${TEN_GOD_MONTH_TONE[month.tenGod]}` : ""}`;
   if (month.line.includes(CLASH_MARK)) text += ` · 이 달의 '${branch}'${josa(branch, "이", "가")} 태어난 날 지지(일지)와 충(沖)`;
   else if (month.line.includes(HARMONY_MARK)) text += ` · 이 달의 '${branch}'${josa(branch, "이", "가")} 태어난 날 지지(일지)와 합(合)`;
   return text;
