@@ -110,7 +110,8 @@ export default function Home() {
         <main className="mx-auto max-w-5xl px-4 pt-2 sm:px-6">
           {/* ① 첫 화면: 생일 입력과 지금 시즌 메뉴만 */}
           <div className="text-center">
-            <p className="text-xs font-medium tracking-[0.2em] text-amber-500/80">만세력 계산 기반 무료 사주</p>
+            {/* 한 줄 소개 — 메인·쇼츠·스토어 같은 문구(2026-11-15) */}
+            <p className="text-xs font-medium tracking-[0.15em] text-amber-500/80 break-keep">가입 없이 10초 · 근거까지 보여 주는 사주</p>
             <h1 className="mt-3 font-serif text-[28px] font-bold leading-snug tracking-tight text-amber-50 break-keep sm:text-4xl">
               내 생일로 보는<br className="sm:hidden" /> <span className="text-amber-400">오늘·올해 운세</span>
             </h1>
@@ -182,7 +183,7 @@ export default function Home() {
           {/* ③ 하단 소개 (검색엔진도 읽는다) */}
           <div className="mt-16 border-t border-slate-800/60 pt-10 pb-4">
             <div className="mx-auto max-w-2xl space-y-3 text-center">
-              <p className="font-serif text-sm text-amber-200/80">명운(命運) — 정확한 만세력 계산과 정통 명리 해석</p>
+              <p className="font-serif text-sm text-amber-200/80">명운(命運) — 가입 없이 10초, 근거까지 보여 주는 사주</p>
               <p className="text-xs leading-relaxed text-slate-500">
                 명운은 동양 명리학(사주팔자·음양오행)의 전통 해석 체계를 만세력으로 계산해, 입력한 생년월일을 바탕으로
                 오늘의 운세·신년운세·궁합·관상·꿈해몽 같은 참고용 콘텐츠를 쉽게 살펴볼 수 있게 만든 서비스입니다.

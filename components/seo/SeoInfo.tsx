@@ -69,7 +69,7 @@ export function SeoInfo({
           </div>
         ))}
       </dl>
-      <p className="pt-2 text-[11px] text-white/35">명운(命運) · saju.ymstudio.co.kr — 만세력 계산 기반 사주 운세 서비스</p>
+      <p className="pt-2 text-[11px] text-white/35">명운(命運) · saju.ymstudio.co.kr — 가입 없이 10초, 근거까지 보여 주는 사주</p>
     </section>
   );
 }

@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "명운(命運) - 무료 사주 운세 | 오늘의 운세 관상 궁합 꿈해몽",
-  description: "만세력 계산 기반 무료 사주 운세 서비스. 오늘의 운세, 관상 분석, 이름풀이, 소름돋는 궁합, MBTI 사주, 꿈해몽까지. 지금 바로 무료로 확인하세요.",
+  description: "가입 없이 10초, 근거까지 보여 주는 사주. 만세력 계산 기반 무료 사주 운세 서비스. 오늘의 운세, 관상 분석, 이름풀이, 소름돋는 궁합, MBTI 사주, 꿈해몽까지. 지금 바로 무료로 확인하세요.",
 
   keywords: [
     "무료사주", "오늘의운세", "사주팔자", "관상분석", "이름풀이", "궁합",
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     locale: "ko_KR",
     siteName: "명운(命運)",
     title: "명운(命運) - 무료 사주 운세 | 오늘의 운세 관상 궁합",
-    description: "만세력 계산 기반 무료 사주 운세. 오늘의 운세, 관상, 이름풀이, 궁합, 꿈해몽까지 무료로 확인하세요.",
+    description: "가입 없이 10초, 근거까지 보여 주는 사주. 오늘의 운세, 관상, 이름풀이, 궁합, 꿈해몽까지 무료로 확인하세요.",
     images: [
       {
         url: "https://saju.ymstudio.co.kr/og-image.png",
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "명운(命運) - 무료 사주 운세",
-    description: "만세력 계산 기반 무료 사주 운세. 오늘의 운세, 관상, 이름풀이, 궁합까지 무료로!",
+    description: "가입 없이 10초, 근거까지 보여 주는 사주. 오늘의 운세, 관상, 이름풀이, 궁합까지 무료로!",
     images: ["https://saju.ymstudio.co.kr/og-image.png"],
   },
 
