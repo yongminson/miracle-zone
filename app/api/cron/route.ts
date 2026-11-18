@@ -1,14 +1,20 @@
 // app/api/cron/route.ts
 import { NextResponse } from 'next/server';
-import { supabase } from '@/app/lib/supabase';
+import { createSupabaseAdminClient } from '@/lib/supabase/admin-client';
 import { buildDailyPost } from '@/lib/blog/daily-post';
 
 // 매일 블로그 글 — 2026-11-05 부터 AI 대신 그날 일진으로 계산한 12띠 운세 글을 올린다(비용 없음).
 // 주소가 daily-YYYY-MM-DD 라 같은 날 두 번 불려도 글이 겹치지 않는다.
+// 2026-11-19: blog_posts 는 공개 키로 쓰기를 막았다(누구나 글을 넣던 문제) — 글 쓰기는 관리자 키로만.
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new Response('Unauthorized', { status: 401 });
+  }
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return NextResponse.json({ success: false, error: 'SUPABASE_SERVICE_ROLE_KEY 없음' }, { status: 503 });
   }
 
   try {

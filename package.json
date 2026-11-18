@@ -23,7 +23,7 @@
     "korean-lunar-calendar": "^0.3.6",
     "lucide-react": "^0.577.0",
     "lunar-javascript": "^1.7.7",
-    "next": "16.1.7",
+    "next": "16.4.6",
     "nextjs-google-analytics": "^2.3.7",
     "openai": "^6.39.0",
     "react": "19.2.3",
@@ -39,7 +39,7 @@
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",
     "eslint": "^9",
-    "eslint-config-next": "16.1.7",
+    "eslint-config-next": "16.4.6",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"

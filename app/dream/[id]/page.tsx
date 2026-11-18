@@ -2,9 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { Metadata } from "next";
 
+// 2026-11-19: dreams 표는 공개 키로 못 읽게 막았다(손님 꿈 내용 전체 목록이 밖에서 보이던 문제).
+// 이 페이지는 서버에서만 돌므로 관리자 키로 공유 링크의 꿈 1건만 읽는다.
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
 
 type Props = { params: Promise<{ id: string }> };
 

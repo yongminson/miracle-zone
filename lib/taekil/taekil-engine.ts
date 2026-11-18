@@ -170,6 +170,6 @@ export function readTaekilInput(body: Record<string, unknown>): TaekilInput | nu
   const purpose = TAEKIL_PURPOSES.some((p) => p.key === raw.purpose) ? (raw.purpose as TaekilPurpose) : null;
   const a = person(raw.a);
   if (!purpose || !a) return null;
-  const month = typeof raw.month === "string" && /^d{4}-d{2}$/.test(raw.month) ? raw.month : kstToday().slice(0, 7);
+  const month = typeof raw.month === "string" && /^\d{4}-\d{2}$/.test(raw.month) ? raw.month : kstToday().slice(0, 7);
   return { purpose, a, b: raw.b ? person(raw.b) : null, month };
 }
