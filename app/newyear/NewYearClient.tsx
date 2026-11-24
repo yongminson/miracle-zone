@@ -141,16 +141,40 @@ export function NewYearClient() {
             }}
             detailSlot={
               paid.detail ? (
-                <DetailView
-                  detail={paid.detail}
-                  result={result}
-                  gender={gender}
-                  reviewIds={
-                    paid.purchases.find(
-                      (p) => p.input.birthDate === birthDate && p.input.calendarType === calendar,
-                    )?.ids ?? null
-                  }
-                />
+                <>
+                  <DetailView
+                    detail={paid.detail}
+                    result={result}
+                    gender={gender}
+                    reviewIds={
+                      paid.purchases.find(
+                        (p) => p.input.birthDate === birthDate && p.input.calendarType === calendar,
+                      )?.ids ?? null
+                    }
+                  />
+                  {/* 한 사람이 가족 것까지 이어 사는 일이 잦았다(사주 인사이트 2~5개 연속 구매, 2026-10~11) — 다음 사람으로 바로 */}
+                  <section className="rounded-3xl border border-sky-400/30 bg-sky-500/[0.06] p-5 text-center">
+                    <p className="text-sm font-bold text-sky-100 break-keep">부모님·배우자·아이의 2027년도 궁금하다면</p>
+                    <p className="mt-1 text-xs leading-relaxed text-white/55 break-keep">
+                      생년월일만 바꿔 넣으면 그 사람의 총운·좋은 달은 무료로 바로 보여요.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void logEvent("newyear_family_cta_click", {});
+                        setResult(null);
+                        setNotice(null);
+                        paid.clearDetail();
+                        setName("");
+                        setBirthDate("");
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="mt-3 w-full rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-400 py-3 text-sm font-bold text-white"
+                    >
+                      가족 2027년 운세 보기
+                    </button>
+                  </section>
+                </>
               ) : (
                 <DetailPaywall
                   result={result}

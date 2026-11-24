@@ -16,6 +16,7 @@ import { KEY_TOPIC_LABEL, newYearKeyMonths, type NewYearKeyTopic } from "@/lib/n
 import { ReviewForm, ReviewList } from "@/components/reviews/Reviews";
 import { FreeVsPaid } from "@/components/paid/FreeVsPaid";
 import { purchaseNewYearOnToss } from "./toss-purchase";
+import { NewYearSampleButton } from "./NewYearSample";
 
 /**
  * 신년운세 상세 풀이(유료) — 결제·다시 보기·화면.
@@ -507,6 +508,9 @@ export function DetailPaywall({
       {/* 실제 구매자 후기 — 하나도 없으면 아무것도 그리지 않는다 */}
       <ReviewList product="newyear" />
 
+      {/* 견본을 먼저 본 손님이 산다(사주 인사이트 데이터, 2026-11) — 결제 버튼 바로 위 */}
+      {!alreadyOwned && !generating ? <NewYearSampleButton /> : null}
+
       {appNeedsUpdate && !isToss ? (
         <a
           href={PLAY_STORE_URL}
@@ -550,12 +554,15 @@ export function DetailView({
   result,
   gender,
   reviewIds,
+  sample = false,
 }: {
   detail: NewYearDetail;
   result: NewYearResult;
   gender?: NewYearGender;
   /** 이 풀이를 산 결제 식별자 — 있으면 맨 아래에 후기 쓰기 칸을 보여 준다 */
   reviewIds?: { paymentId?: string; purchaseToken?: string; tossOrderId?: string; admin?: boolean } | null;
+  /** 결제 전 견본(가상의 인물) — 이달의 운세 연결·후기 칸을 빼고 보여 준다 */
+  sample?: boolean;
 }) {
   // 결제 전에 가려 두었던 핵심 달을 여기서 공개한다(같은 계산)
   const keys = gender ? newYearKeyMonths(result, gender) : null;
@@ -633,7 +640,7 @@ export function DetailView({
                 <p className="mt-2 text-[13px] leading-relaxed text-white/70">{month.focus}</p>
                 <p className="mt-1.5 text-xs leading-relaxed text-emerald-200/90">✅ {month.doThis}</p>
                 <p className="mt-1 text-xs leading-relaxed text-amber-200/90">⚠️ {month.avoid}</p>
-                {!IS_TOSS && monthlyOpenKeys().includes(`${result.year}-${String(month.month).padStart(2, "0")}`) ? (
+                {!IS_TOSS && !sample && monthlyOpenKeys().includes(`${result.year}-${String(month.month).padStart(2, "0")}`) ? (
                   <a
                     href="/monthly"
                     onClick={() => void logEvent("monthly_link_click", { from: "newyear_detail", month: month.month })}
@@ -648,7 +655,7 @@ export function DetailView({
         </div>
       </section>
 
-      <ReviewForm product="newyear" ids={reviewIds} />
+      {sample ? null : <ReviewForm product="newyear" ids={reviewIds} />}
     </div>
   );
 }
